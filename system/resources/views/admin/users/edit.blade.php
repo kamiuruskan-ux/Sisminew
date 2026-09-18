@@ -1,0 +1,570 @@
+@extends('layouts.admin')
+
+@section('title', 'Edit User')
+@section('page_title', 'Edit User')
+
+@section('content')
+<div class="w-full space-y-6" x-data="userEditForm()">
+    <!-- Toast Notification Alert -->
+    <div x-show="toast.show"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:translate-x-4 scale-95"
+         x-transition:enter-end="opacity-100 translate-y-0 sm:translate-x-0 scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed top-6 right-6 z-50 max-w-sm w-full shadow-2xl rounded-2xl p-4 border flex items-center space-x-3 backdrop-blur-md"
+         :class="{
+             'bg-rose-900/95 border-rose-700 text-white': toast.type === 'error',
+             'bg-emerald-900/95 border-emerald-700 text-white': toast.type === 'success',
+             'bg-amber-900/95 border-amber-700 text-white': toast.type === 'warning'
+         }"
+         style="display: none;">
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+             :class="{
+                 'bg-rose-500/20 text-rose-300': toast.type === 'error',
+                 'bg-emerald-500/20 text-emerald-300': toast.type === 'success',
+                 'bg-amber-500/20 text-amber-300': toast.type === 'warning'
+             }">
+            <template x-if="toast.type === 'error'">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </template>
+            <template x-if="toast.type === 'warning'">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            </template>
+            <template x-if="toast.type === 'success'">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+            </template>
+        </div>
+        <div class="flex-1 min-w-0">
+            <p class="text-[10px] font-black uppercase tracking-wider opacity-80" x-text="toast.type === 'error' ? 'Peringatan Validasi' : (toast.type === 'warning' ? 'Perhatian' : 'Sukses')"></p>
+            <p class="text-xs font-semibold leading-snug mt-0.5" x-text="toast.message"></p>
+        </div>
+        <button type="button" @click="toast.show = false" class="text-white/70 hover:text-white p-1 rounded-lg transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+    </div>
+
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+            <a href="{{ route('admin.users.index') }}" class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+            </a>
+            <div>
+                <h2 class="text-lg font-bold text-gray-900">Edit User</h2>
+                <p class="text-sm text-gray-500">{{ $user->name }}</p>
+            </div>
+        </div>
+        <button type="button" @click="submitForm()" class="px-6 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-xl hover:shadow-lg transition font-semibold text-sm">
+            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            Update User
+        </button>
+    </div>
+
+
+
+    <!-- Main Form -->
+    <form id="userForm" 
+          action="{{ route('admin.users.update', encode_id($user->id)) }}" 
+          method="POST" 
+          enctype="multipart/form-data" 
+          class="space-y-6"
+          @submit.prevent="submitForm()">
+        @csrf
+        @method('PUT')
+        
+        <!-- Top Row: Avatar + Account Info -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- Avatar Card -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-2xl shadow-sm border overflow-hidden sticky top-6">
+                    <div class="px-6 py-4 border-b bg-gradient-to-r from-gray-50 to-white">
+                        <h3 class="text-lg font-bold text-gray-900 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            </svg>
+                            Foto Profil
+                        </h3>
+                    </div>
+                    <div class="p-6">
+                        <div class="relative group">
+                            <div id="avatarPreview" 
+                                 class="w-32 h-32 mx-auto bg-gradient-to-br from-gray-100 to-gray-200 rounded-full border-4 border-white shadow-lg flex items-center justify-center overflow-hidden transition-all duration-300 group-hover:shadow-xl"
+                                 :class="avatarPreview ? 'ring-4 ring-primary/20' : 'border-dashed border-2 border-gray-300'">
+                                <template x-if="avatarPreview && !removeAvatar">
+                                    <img :src="avatarPreview" class="w-full h-full object-cover">
+                                </template>
+                                <template x-if="!avatarPreview || removeAvatar">
+                                    <div class="text-center p-4">
+                                        <svg class="w-12 h-12 mx-auto text-gray-400 mb-2 group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                        </svg>
+                                        <p class="text-xs text-gray-500">Upload</p>
+                                    </div>
+                                </template>
+                            </div>
+                            <input type="file" 
+                                   name="avatar" 
+                                   id="avatar" 
+                                   accept="image/*" 
+                                   class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                   @change="previewAvatar($event)">
+                        </div>
+                        
+                        @if($user->avatar)
+                            <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-xl" x-show="!removeAvatar">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-start space-x-3 flex-1 min-w-0">
+                                        <svg class="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1A8 8 0 018.023 9.71c1.111-.501 2.351-.801 3.628-.801 1.278 0 2.517.3 3.628.801A8 8 0 0120 16v1H9"/>
+                                        </svg>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-medium text-blue-900 truncate">{{ $user->avatar }}</p>
+                                            <p class="text-xs text-blue-600 mt-0.5">Current avatar</p>
+                                        </div>
+                                    </div>
+                                    <button type="button" @click="removeAvatar = true; avatarPreview = null;" class="text-red-600 hover:text-red-700 text-sm font-medium transition">
+                                        Remove
+                                    </button>
+                                </div>
+                            </div>
+                        @endif
+                        
+                        <div id="avatarInfo" class="hidden mt-4 p-3 bg-green-50 border border-green-200 rounded-xl">
+                            <div class="flex items-start space-x-3">
+                                <svg class="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-green-900 truncate" id="avatarName"></p>
+                                    <p class="text-xs text-green-600 mt-0.5" id="avatarSize"></p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 text-center">
+                            <p class="text-xs text-gray-500">Klik untuk upload foto</p>
+                            <p class="text-xs text-gray-400 mt-1">PNG, JPG (Max 2MB)</p>
+                            <p class="text-xs text-gray-400 mt-0.5">Rekomendasi: 200x200px</p>
+                        </div>
+                        
+                        <!-- Hidden input for remove avatar -->
+                        <input type="hidden" name="remove_avatar" :value="removeAvatar ? '1' : '0'">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account Information Card -->
+            <div class="lg:col-span-3">
+                <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+                    <div class="px-6 py-4 border-b bg-gradient-to-r from-gray-50 to-white">
+                        <h3 class="text-lg font-bold text-gray-900 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            </svg>
+                            Informasi Akun
+                        </h3>
+                    </div>
+                    <div class="p-6">
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Nama Lengkap <span class="text-red-500">*</span></label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                        </svg>
+                                    </div>
+                                    <input type="text" 
+                                           name="name" 
+                                           value="{{ old('name', $user->name) }}" 
+                                           class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent transition" 
+                                           placeholder="Nama lengkap"
+                                           required>
+                                </div>
+                            </div>
+                            
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Email <span class="text-red-500">*</span></label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                        </svg>
+                                    </div>
+                                    <input type="email" 
+                                           name="email" 
+                                           value="{{ old('email', $user->email) }}" 
+                                           class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent transition" 
+                                           placeholder="email@example.com"
+                                           required>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Password Baru</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                        </svg>
+                                    </div>
+                                    <input :type="showPassword ? 'text' : 'password'"
+                                           name="password"
+                                           x-model="password"
+                                           :class="{
+                                               'border-gray-300 focus:ring-primary': password.length === 0,
+                                               'border-amber-500 focus:ring-amber-500/30': password.length > 0 && password.length < 8,
+                                               'border-emerald-500 focus:ring-emerald-500/30': password.length >= 8
+                                           }"
+                                           class="w-full pl-10 pr-10 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition"
+                                           placeholder="Kosongkan jika tidak diubah">
+                                    <button type="button" @click="showPassword = !showPassword" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none">
+                                        <svg x-show="!showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        <svg x-show="showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858-5.908a10.05 10.05 0 012.122-.363c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21M3 3l18 18"/></svg>
+                                    </button>
+                                </div>
+                                <div class="mt-1.5">
+                                    <template x-if="password.length === 0">
+                                        <p class="text-xs text-gray-500">Minimal 8 karakter (Kosongkan jika tidak diubah)</p>
+                                    </template>
+                                    <template x-if="password.length > 0 && password.length < 8">
+                                        <p class="text-xs font-semibold text-amber-600 flex items-center space-x-1">
+                                            <svg class="w-3.5 h-3.5 inline mr-1 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                            Password kurang dari 8 karakter
+                                        </p>
+                                    </template>
+                                    <template x-if="password.length >= 8">
+                                        <p class="text-xs font-semibold text-emerald-600 flex items-center space-x-1">
+                                            <svg class="w-3.5 h-3.5 inline mr-1 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                            Panjang password memenuhi syarat
+                                        </p>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Konfirmasi Password</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <svg class="w-5 h-5 text-gray-400 transition-colors" :class="{
+                                            'text-emerald-500': isPasswordMatching,
+                                            'text-rose-500': isPasswordMismatch
+                                        }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        </svg>
+                                    </div>
+                                    <input :type="showConfirmPassword ? 'text' : 'password'"
+                                           name="password_confirmation"
+                                           x-model="passwordConfirmation"
+                                           :class="{
+                                               'border-gray-300 focus:ring-primary': passwordConfirmation.length === 0,
+                                               'border-emerald-500 focus:ring-emerald-500/30 bg-emerald-50/20': isPasswordMatching,
+                                               'border-rose-500 focus:ring-rose-500/30 bg-rose-50/20': isPasswordMismatch
+                                           }"
+                                           class="w-full pl-10 pr-10 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition"
+                                           placeholder="••••••••">
+                                    <button type="button" @click="showConfirmPassword = !showConfirmPassword" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none">
+                                        <svg x-show="!showConfirmPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        <svg x-show="showConfirmPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858-5.908a10.05 10.05 0 012.122-.363c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21M3 3l18 18"/></svg>
+                                    </button>
+                                </div>
+                                <div class="mt-1.5">
+                                    <template x-if="passwordConfirmation.length === 0">
+                                        <p class="text-xs text-gray-500">Ulangi password baru</p>
+                                    </template>
+                                    <template x-if="isPasswordMatching">
+                                        <p class="text-xs font-bold text-emerald-600 flex items-center space-x-1">
+                                            <svg class="w-4 h-4 text-emerald-500 inline mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                            <span>Password cocok!</span>
+                                        </p>
+                                    </template>
+                                    <template x-if="isPasswordMismatch">
+                                        <p class="text-xs font-bold text-rose-600 flex items-center space-x-1">
+                                            <svg class="w-4 h-4 text-rose-500 inline mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                                            <span>Konfirmasi password tidak cocok!</span>
+                                        </p>
+                                    </template>
+                                </div>
+                            </div>
+
+
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Additional Information Card -->
+                <div class="bg-white rounded-2xl shadow-sm border overflow-hidden mt-6">
+                    <div class="px-6 py-4 border-b bg-gradient-to-r from-gray-50 to-white">
+                        <h3 class="text-lg font-bold text-gray-900 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            Informasi Tambahan
+                        </h3>
+                    </div>
+                    <div class="p-6">
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <!-- NIP Guru -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">NIP (Nomor Induk Pegawai Guru)</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 012-2h2a2 2 0 012 2v1m-6 0h6"/>
+                                        </svg>
+                                    </div>
+                                    <input type="text" 
+                                           name="nip" 
+                                           value="{{ old('nip', $user->nip) }}" 
+                                           class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent transition font-mono" 
+                                           placeholder="Contoh: 198503152010011002">
+                                </div>
+                            </div>
+
+                            <!-- No WhatsApp / Telepon -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">No. WhatsApp / Telepon</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+                                        </svg>
+                                    </div>
+                                    <input type="text" 
+                                           name="phone" 
+                                           value="{{ old('phone', $user->phone) }}" 
+                                           class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent transition" 
+                                           placeholder="08123456789">
+                                </div>
+                            </div>
+
+                            <!-- Role / Peran -->
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Role / Peran <span class="text-red-500">*</span></label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                        </svg>
+                                    </div>
+                                    <select name="role_id" @change="checkRoleSlug()" class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent transition appearance-none bg-white" required>
+                                        <option value="" data-slug="">Pilih Role</option>
+                                        @foreach($roles as $role)
+                                            <option value="{{ $role->id }}" data-slug="{{ $role->slug }}" {{ old('role_id', $user->roles->first()?->id) == $role->id ? 'selected' : '' }}>
+                                                {{ $role->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Penugasan Bina Kelas (Multi-class Wali Kelas) -->
+                            @if(isset($classes) && count($classes) > 0)
+                                @php
+                                    $isVocational = \App\Models\Setting::get('is_vocational', '1') == '1';
+                                    $assignedIds = $user->homeroomClasses->pluck('id')->toArray();
+                                @endphp
+                                <div x-show="selectedRoleSlug === 'guru' || selectedRoleSlug === 'teacher'" x-cloak class="md:col-span-2 p-4 bg-purple-50/50 dark:bg-purple-950/20 rounded-2xl border border-purple-100 dark:border-purple-900/50 space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <label class="block text-xs font-bold text-purple-900 dark:text-purple-300 uppercase tracking-wider">
+                                            Penugasan Wali Kelas (Bisa Pilihan Multi-Kelas)
+                                        </label>
+                                        @if($isVocational)
+                                            <span class="px-2.5 py-0.5 text-[10px] font-extrabold bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 rounded-md">
+                                                Dikelompokkan Per Jurusan
+                                            </span>
+                                        @endif
+                                    </div>
+
+                                    @if($isVocational)
+                                        @php
+                                            $groupedClasses = $classes->groupBy(function($cls) {
+                                                return $cls->major ? $cls->major->name : 'Umum / Non-Jurusan';
+                                            });
+                                        @endphp
+
+                                        <div class="space-y-3">
+                                            @foreach($groupedClasses as $majorName => $classList)
+                                                <div class="bg-white dark:bg-boxdark p-3 rounded-xl border border-purple-100 dark:border-purple-900/40 space-y-2">
+                                                    <div class="text-xs font-black text-purple-800 dark:text-purple-300 flex items-center space-x-1.5 border-b border-purple-50 dark:border-slate-800 pb-1.5">
+                                                        <svg class="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                                                        <span>Jurusan: {{ $majorName }}</span>
+                                                        <span class="text-[10px] text-slate-400 font-semibold">({{ count($classList) }} Kelas)</span>
+                                                    </div>
+                                                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-0.5">
+                                                        @foreach($classList as $cls)
+                                                            <label class="flex items-center space-x-2 p-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-purple-100/80 dark:border-purple-900/30 cursor-pointer hover:bg-purple-100/50 dark:hover:bg-purple-950/40 transition">
+                                                                <input type="checkbox" name="homeroom_classes[]" value="{{ $cls->id }}" 
+                                                                       {{ in_array($cls->id, old('homeroom_classes', $assignedIds)) ? 'checked' : '' }}
+                                                                       class="w-4 h-4 text-purple-600 rounded">
+                                                                <span class="text-xs font-bold text-gray-800 dark:text-slate-200">Kelas {{ $cls->name }}</span>
+                                                            </label>
+                                                        @endforeach
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                            @foreach($classes as $cls)
+                                                <label class="flex items-center space-x-2 p-2 bg-white dark:bg-boxdark rounded-xl border border-purple-100 dark:border-purple-900/40 cursor-pointer hover:bg-purple-100/50 dark:hover:bg-purple-950/40 transition">
+                                                    <input type="checkbox" name="homeroom_classes[]" value="{{ $cls->id }}" 
+                                                           {{ in_array($cls->id, old('homeroom_classes', $assignedIds)) ? 'checked' : '' }}
+                                                           class="w-4 h-4 text-purple-600 rounded">
+                                                    <span class="text-xs font-bold text-gray-800 dark:text-slate-200">Kelas {{ $cls->name }}</span>
+                                                </label>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                </div>
+                            @endif
+
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Alamat</label>
+                                <div class="relative">
+                                    <div class="absolute top-3 left-3 pointer-events-none">
+                                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        </svg>
+                                    </div>
+                                    <textarea name="address" 
+                                              rows="3" 
+                                              class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent transition resize-none" 
+                                              placeholder="Alamat lengkap">{{ old('address', $user->address) }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Status Card -->
+                <div class="bg-white rounded-2xl shadow-sm border overflow-hidden mt-6">
+                    <div class="px-6 py-4 border-b bg-gradient-to-r from-gray-50 to-white">
+                        <h3 class="text-lg font-bold text-gray-900 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            Status Akun
+                        </h3>
+                    </div>
+                    <div class="p-6">
+                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                            <div class="flex items-center space-x-4">
+                                <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <label class="flex items-center cursor-pointer">
+                                        <input type="checkbox" 
+                                               name="is_active" 
+                                               value="1" 
+                                               {{ old('is_active', $user->is_active ?? true) ? 'checked' : '' }}
+                                               class="w-5 h-5 text-primary border-gray-300 rounded focus:ring-primary focus:ring-2">
+                                        <span class="ml-3 text-sm font-medium text-gray-700">Akun Aktif</span>
+                                    </label>
+                                    <p class="text-xs text-gray-500 mt-1 ml-8">User non-aktif tidak bisa login ke sistem</p>
+                                </div>
+                            </div>
+                            <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+@push('scripts')
+<script>
+function userEditForm() {
+    return {
+        avatarPreview: '{{ $user->avatar ? asset("img/avatars/" . $user->avatar) : "" }}',
+        avatarFile: null,
+        removeAvatar: false,
+        password: '',
+        passwordConfirmation: '',
+        showPassword: false,
+        showConfirmPassword: false,
+        toast: { show: false, message: '', type: 'error' },
+        showToast(msg, type) {
+            this.toast.message = msg;
+            this.toast.type = type || 'error';
+            this.toast.show = true;
+            const self = this;
+            setTimeout(function() { self.toast.show = false; }, 4000);
+        },
+        get isPasswordMatching() {
+            return this.password.length > 0 && this.passwordConfirmation.length > 0 && this.password === this.passwordConfirmation;
+        },
+        get isPasswordMismatch() {
+            return this.passwordConfirmation.length > 0 && this.password !== this.passwordConfirmation;
+        },
+        selectedRoleSlug: '',
+        checkRoleSlug() {
+            const selectEl = document.querySelector('select[name="role_id"]');
+            if (selectEl && selectEl.selectedIndex !== -1) {
+                this.selectedRoleSlug = selectEl.options[selectEl.selectedIndex].getAttribute('data-slug') || '';
+                if (this.selectedRoleSlug !== 'guru' && this.selectedRoleSlug !== 'teacher') {
+                    const cbs = document.querySelectorAll('input[name="homeroom_classes[]"]');
+                    for (let i = 0; i < cbs.length; i++) {
+                        cbs[i].checked = false;
+                    }
+                }
+            }
+        },
+        init() {
+            const self = this;
+            this.$nextTick(function() { self.checkRoleSlug(); });
+        },
+        submitForm() {
+            if (this.password.length > 0 && this.password.length < 8) {
+                this.showToast('Password baru minimal harus 8 karakter!', 'error');
+                return false;
+            }
+            if (this.isPasswordMismatch) {
+                this.showToast('Konfirmasi password tidak cocok dengan password baru!', 'error');
+                return false;
+            }
+            document.getElementById('userForm').submit();
+        }
+    };
+}
+
+function previewAvatar(event) {
+    const input = event.target;
+    const file = input.files[0];
+    
+    if (file) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            document.getElementById('avatarPreview').innerHTML = 
+                '<img src="' + e.target.result + '" class="w-full h-full object-cover">';
+            document.getElementById('avatarInfo').classList.remove('hidden');
+            document.getElementById('avatarName').textContent = file.name;
+            document.getElementById('avatarSize').textContent = (file.size / 1024).toFixed(2) + ' KB';
+        }
+        
+        reader.readAsDataURL(file);
+    }
+}
+</script>
+@endpush
+@endsection

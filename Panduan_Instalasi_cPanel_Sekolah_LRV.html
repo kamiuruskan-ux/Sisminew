@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panduan Instalasi cPanel - Aplikasi Sekolah LRV</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="img/fav.png">
+    <link rel="shortcut icon" type="image/png" href="img/fav.png">
+    <link rel="apple-touch-icon" href="img/fav.png">
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --secondary: #0284c7;
+            --accent: #0d9488;
+            --dark: #0f172a;
+            --light-bg: #f8fafc;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #334155;
+            background-color: #f1f5f9;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            padding: 40px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .header p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .section-title {
+            background: var(--secondary);
+            color: white;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: var(--light-bg);
+        }
+
+        pre {
+            background-color: var(--dark);
+            color: #38bdf8;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Fira Code', Consolas, Monaco, monospace;
+            font-size: 13.5px;
+            line-height: 1.5;
+        }
+
+        .info-box {
+            background-color: #eff6ff;
+            border-left: 4px solid var(--secondary);
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+
+        .info-box strong {
+            color: var(--primary);
+        }
+
+        .warning-box {
+            background-color: #fff1f2;
+            border-left: 4px solid #e11d48;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+
+        .warning-box strong {
+            color: #9f1239;
+        }
+
+        ul, ol {
+            padding-left: 20px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        @media print {
+            body { background: white; padding: 0; }
+            .container { box-shadow: none; padding: 20px; max-width: 100%; }
+            .section-title { page-break-after: avoid; }
+            pre { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>PANDUAN INSTALASI CPANEL - SEKOLAH LRV</h1>
+            <p>Sistem Informasi Manajemen Sekolah Terpadu (SIAKAD, LMS, CBT, SPP, & SPMB) Berbasis Laravel 13</p>
+        </div>
+
+        <div class="info-box">
+            <strong>Ringkasan Dokumen:</strong> Panduan praktis ini dirancang untuk memandu pengelola website / administrator sekolah dalam melakukan deploy dan instalasi aplikasi Sekolah LRV di web hosting cPanel menggunakan <strong>Web Setup Wizard</strong> interaktif.
+        </div>
+
+        <h2>1. Persyaratan Hosting & Server (Prerequisites)</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Komponen Server</th>
+                    <th>Spesifikasi yang Dibutuhkan</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>PHP Version</strong></td>
+                    <td>PHP 8.3+ atau PHP 8.4 (Sangat Wajib & Direkomendasikan)</td>
+                </tr>
+                <tr>
+                    <td><strong>Database Engine</strong></td>
+                    <td>MySQL 5.7+ atau MariaDB 10.3+</td>
+                </tr>
+                <tr>
+                    <td><strong>Ekstensi PHP Wajib</strong></td>
+                    <td>openssl, pdo_mysql, mbstring, tokenizer, xml, ctype, json, bcmath, fileinfo, gd, zip, curl</td>
+                </tr>
+                <tr>
+                    <td><strong>Resource Limit PHP</strong></td>
+                    <td>memory_limit &ge; 256M (Recommended 512M), max_execution_time &ge; 300</td>
+                </tr>
+                <tr>
+                    <td><strong>Web Server</strong></td>
+                    <td>Apache 2.4+ / Nginx (Support mod_rewrite)</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="section-title">
+            <span class="badge">Langkah 1</span> Setting Versi PHP & Ekstensi di cPanel
+        </div>
+        <ol>
+            <li>Login ke cPanel akun hosting Anda.</li>
+            <li>Cari menu <strong>Select PHP Version</strong> atau <strong>MultiPHP Manager</strong>.</li>
+            <li>Ubah versi PHP domain Anda menjadi <strong>PHP 8.3</strong> atau <strong>PHP 8.4</strong>.</li>
+            <li>Masuk ke tab <strong>Extensions</strong>, centang dan aktifkan ekstensi berikut:
+                <ul>
+                    <li><code>pdo_mysql</code>, <code>mbstring</code>, <code>gd</code>, <code>fileinfo</code>, <code>zip</code>, <code>xml</code>, <code>bcmath</code>, <code>openssl</code>, <code>curl</code>, <code>tokenizer</code>.</li>
+                </ul>
+            </li>
+            <li>Masuk ke tab <strong>Options</strong>, atur konfigurasi nilai limit berikut:</li>
+        </ol>
+        <pre>memory_limit        = 512M
+upload_max_filesize = 64M
+post_max_size       = 64M
+max_execution_time  = 300</pre>
+
+        <div class="section-title">
+            <span class="badge">Langkah 2</span> Setting Database MySQL di cPanel
+        </div>
+        <ol>
+            <li>Buka menu <strong>MySQL® Database Wizard</strong> di cPanel.</li>
+            <li><strong>Buat Database:</strong> Masukkan nama database baru (misal: <code>u123456_sekolahdb</code>) lalu klik Next Step.</li>
+            <li><strong>Buat User Database:</strong> Masukkan nama user (misal: <code>u123456_sekolahuser</code>) dan buat Password yang kuat. Klik Create User.</li>
+            <li><strong>Hak Akses User:</strong> Centang opsi <strong>ALL PRIVILEGES</strong> lalu klik <em>Make Changes</em>.</li>
+            <li>Simpan data kredensial database berikut untuk diisikan pada halaman Web Setup Wizard:</li>
+        </ol>
+        <pre>DB_HOST     = 127.0.0.1
+DB_DATABASE = u123456_sekolahdb
+DB_USERNAME = u123456_sekolahuser
+DB_PASSWORD = PasswordDatabaseKuatAnda123!</pre>
+
+        <div class="section-title">
+            <span class="badge">Langkah 3</span> Unggah Berkas & Ekstrak Proyek
+        </div>
+        <ol>
+            <li>Compress folder proyek <code>sekolah_lrv</code> di komputer Anda menjadi berkas <code>.zip</code>.</li>
+            <li>Masuk ke <strong>File Manager</strong> cPanel &rarr; buka folder root domain (misal: <code>public_html</code>).</li>
+            <li>Klik <strong>Upload</strong>, pilih file <code>.zip</code> dan tunggu hingga proses unggah selesai 100% (berwarna hijau).</li>
+            <li>Klik kanan file <code>.zip</code> di File Manager lalu pilih <strong>Extract</strong>.</li>
+        </ol>
+
+        <div class="section-title">
+            <span class="badge">Langkah 4</span> Konfigurasi Redirection Document Root
+        </div>
+        <p>Agar URL domain dapat diakses secara langsung tanpa memasukkan <code>/system/public</code>, buat atau edit file <code>.htaccess</code> pada root <code>public_html</code>:</p>
+        <pre>&lt;IfModule mod_rewrite.c&gt;
+    RewriteEngine On
+    RewriteRule ^$ system/public/ [L]
+    RewriteRule (.*) system/public/$1 [L]
+&lt;/IfModule&gt;</pre>
+
+        <div class="section-title">
+            <span class="badge">Langkah 5</span> Menjalankan Web Setup Wizard di Browser
+        </div>
+        <p>Setelah berkas terunggah dan database dibuat, instalasi aplikasi dilakukan sepenuhnya melalui tampilan grafis <strong>Web Setup Wizard</strong> di browser:</p>
+        <ol>
+            <li>Buka browser dan akses alamat domain sekolah Anda: <code>https://namadomain-sekolah.sch.id</code></li>
+            <li>Sistem akan secara otomatis mendeteksi instalasi baru dan mengarahkan ke halaman <strong>Setup Wizard</strong>.</li>
+            <li><strong>Tahap 1 - Pemeriksaan Server:</strong> Wizard akan memeriksa otomatis kesesuaian versi PHP dan ekstensi server hosting. Klik <em>Lanjutkan</em>.</li>
+            <li><strong>Tahap 2 - Kredensial Database:</strong> Masukkan data database MySQL yang telah dibuat di cPanel (Host: <code>127.0.0.1</code>, Nama Database, Username, dan Password). Klik <em>Uji & Simpan Koneksi</em>.</li>
+            <li><strong>Tahap 3 - Akun Super Admin & Identitas Sekolah:</strong> Masukkan Nama Sekolah, Email Admin, serta Password Super Admin yang diinginkan.</li>
+            <li><strong>Tahap 4 - Proses Otomatis:</strong> Setup Wizard akan secara otomatis mengkonfigurasi file <code>.env</code>, men-generate <code>APP_KEY</code>, mengeksekusi migrasi skema database, serta membuat seeder data awal secara instan.</li>
+        </ol>
+
+        <div class="info-box">
+            <strong>Catatan:</strong> Seluruh konfigurasi environment <code>.env</code>, generate encryption key, serta pengisian tabel awal ditangani secara otomatis oleh Web Setup Wizard saat Anda menekan tombol <em>Selesaikan Instalasi</em>.
+        </div>
+
+        <div class="section-title">
+            <span class="badge">Langkah 6</span> Pengujian & Login Super Admin
+        </div>
+        <p>Setelah Setup Wizard selesai, Anda dapat langsung mengakses seluruh portal aplikasi:</p>
+        <ul>
+            <li><strong>Website utama Sekolah:</strong> <code>https://namadomain-sekolah.sch.id</code></li>
+            <li><strong>Portal Admin:</strong> <code>https://namadomain-sekolah.sch.id/login</code></li>
+            <li><strong>Portal Siswa:</strong> <code>https://namadomain-sekolah.sch.id/student/login</code></li>
+            <li><strong>Portal Orang Tua:</strong> <code>https://namadomain-sekolah.sch.id/parent/login</code></li>
+        </ul>
+        <p>Login ke Panel Admin menggunakan Email & Password Super Admin yang telah Anda daftarkan pada saat proses Setup Wizard di atas.</p>
+
+        <div class="section-title">
+            <span class="badge">Langkah 7</span> Troubleshooting Kendala Umum
+        </div>
+        <div class="warning-box">
+            <p><strong>1. Error 500 Internal Server Error:</strong> Cek permission folder <code>system/storage</code> dan <code>system/bootstrap/cache</code> (harus CHMOD 755/775). Cek log error pada <code>system/storage/logs/laravel.log</code>.</p>
+            <p><strong>2. Error 404 Not Found pada Sub-halaman:</strong> Pastikan modul <code>mod_rewrite</code> aktif pada server Apache hosting dan file <code>.htaccess</code> terpasang dengan benar di root <code>public_html</code>.</p>
+            <p><strong>3. QR Code & Gambar Tidak Muncul:</strong> Pastikan ekstensi PHP <code>gd</code> sudah diaktifkan di cPanel.</p>
+        </div>
+    </div>
+</body>
+</html>
