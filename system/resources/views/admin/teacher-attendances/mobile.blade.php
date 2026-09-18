@@ -280,7 +280,7 @@
                         <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200/80 space-y-1">
                             <span class="text-[10px] font-semibold text-slate-400">{{ $announcement->created_at->format('Y-m-d') }}</span>
                             <h4 class="text-xs font-bold text-slate-900 leading-snug">{{ $announcement->title }}</h4>
-                            <p class="text-[11px] text-slate-600 line-clamp-2 leading-relaxed">{{ Str::limit($announcement->content, 110) }}</p>
+                            <p class="text-[11px] text-slate-600 line-clamp-2 leading-relaxed">{{ \Illuminate\Support\Str::limit($announcement->content, 110) }}</p>
                         </div>
                     @empty
                         <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200/80 space-y-1">
