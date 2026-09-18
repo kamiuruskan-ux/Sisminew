@@ -8,6 +8,7 @@
     showDeleteModal: false,
     deleteTarget: null,
     deleteFormAction: '',
+    showImportModal: false,
     toast: { show: false, message: '', type: 'success' },
     confirmDelete(encodedId, userName) {
         this.deleteTarget = { id: encodedId, name: userName };
@@ -58,18 +59,30 @@
             <h1 class="text-2xl font-extrabold text-[#1C2434] dark:text-white tracking-tight">Manajemen User & Data Guru</h1>
             <p class="text-xs text-[#64748B] dark:text-[#8A99AD] mt-1">Kelola data lengkap guru/pendidik (NIP, No WA, Bina Kelas) serta akun administrator & staf sistem</p>
         </div>
-        <div class="flex items-center space-x-3">
+        <div class="flex items-center flex-wrap gap-2.5">
+            <a href="{{ route('admin.users.template') }}"
+               class="inline-flex items-center space-x-1.5 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all border border-slate-200 dark:border-slate-700 shadow-sm">
+                <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                <span>Template Excel</span>
+            </a>
+            @permission('create-users')
+            <button @click="showImportModal = true"
+                    class="inline-flex items-center space-x-1.5 px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-emerald-600/20 active:scale-95">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                <span>Import Excel Guru</span>
+            </button>
+            @endpermission
             <a href="{{ route('admin.teacher-attendances.register-face-page') }}"
                class="inline-flex items-center space-x-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-purple-600/30">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                <span>Registrasi Face ID Guru</span>
+                <span>Face ID Guru</span>
             </a>
             @permission('create-users')
             <a href="{{ route('admin.users.create') }}" class="inline-flex items-center space-x-2 px-4 py-2.5 bg-[#3C50E0] hover:bg-[#3C50E0]/90 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-[#3C50E0]/30">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
                 </svg>
-                <span>Tambah User / Guru Baru</span>
+                <span>Tambah User / Guru</span>
             </a>
             @endpermission
         </div>
@@ -326,6 +339,72 @@
                 {{ $users->links() }}
             </div>
         @endif
+    <!-- Modal Import Data Guru & Pegawai dari Excel -->
+    <div x-show="showImportModal"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-[999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+         style="display: none;">
+        
+        <div @click.away="showImportModal = false"
+             class="bg-white dark:bg-[#1E293B] rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4">
+            
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 flex items-center justify-center font-black">
+                        📊
+                    </div>
+                    <div>
+                        <h3 class="text-base font-extrabold text-slate-900 dark:text-white">Import Massal Guru & Pegawai</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Unggah berkas Excel (.xlsx, .xls) lengkap kredensial login</p>
+                    </div>
+                </div>
+                <button @click="showImportModal = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl font-bold leading-none">&times;</button>
+            </div>
+
+            <!-- Petunjuk Format Kolom -->
+            <div class="p-3.5 rounded-2xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-800/40 text-xs text-blue-900 dark:text-blue-200 space-y-1.5">
+                <div class="flex items-center justify-between font-bold">
+                    <span class="flex items-center gap-1.5">💡 Format Kolom Excel:</span>
+                    <a href="{{ route('admin.users.template') }}" class="text-blue-700 dark:text-blue-300 underline text-[11px] font-extrabold hover:text-blue-800">
+                        Unduh Template (.xlsx) ↗
+                    </a>
+                </div>
+                <p class="text-[11px] text-blue-800/90 dark:text-blue-300 leading-relaxed">
+                    Kolom yang didukung: <strong>Nama Lengkap*</strong>, <strong>NIP / NRH</strong>, <strong>Email (Username Login)*</strong>, <strong>Password*</strong>, <strong>No. WA</strong>, <strong>Peran (guru/staff)</strong>, dan <strong>Wali Kelas</strong>.
+                </p>
+                <p class="text-[10px] text-blue-700/80 dark:text-blue-400">
+                    *Jika password dikosongkan, sistem otomatis memberikan kata sandi bawaan <code>guru123</code>.
+                </p>
+            </div>
+
+            <!-- Form Upload -->
+            <form action="{{ route('admin.users.import') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
+                @csrf
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">Pilih Berkas Excel / CSV</label>
+                    <input type="file" name="file" accept=".xlsx,.xls,.csv" required
+                           class="w-full text-xs text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-slate-300 dark:border-slate-600 rounded-2xl p-2 cursor-pointer">
+                </div>
+
+                <div class="flex items-center justify-end gap-3 pt-2">
+                    <button type="button" @click="showImportModal = false"
+                            class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                        Batal
+                    </button>
+                    <button type="submit"
+                            class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-md shadow-emerald-600/30 transition flex items-center gap-2">
+                        <span>Mulai Proses Import</span>
+                        <span>🚀</span>
+                    </button>
+                </div>
+            </form>
+
+        </div>
     </div>
 </div>
 @endsection

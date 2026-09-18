@@ -169,11 +169,50 @@
                         </p>
                     </div>
 
-                    <div class="p-3 bg-slate-50 dark:bg-[#24303F] rounded-xl border border-slate-100 dark:border-slate-700/50">
-                        <p class="text-slate-400 font-medium">Keterangan Potongan/Diskon</p>
-                        <p class="font-bold text-[#1C2434] dark:text-white mt-1">{{ $student->discount_description ?? '-' }}</p>
-                    </div>
+            <!-- Data Riwayat Capaian Al-Qur'an (Tahsin & Tahfidz) -->
+            <div class="bg-white dark:bg-[#1A222C] p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-[#1C2434] dark:text-white flex items-center space-x-2">
+                        <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                        </svg>
+                        <span>Riwayat Capaian Halaqah &amp; Tahfidz Al-Qur'an</span>
+                    </h3>
+                    <a href="{{ route('admin.quran-raport.print', ['student_id' => encrypt_id($student->id)]) }}" target="_blank"
+                       class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 font-bold text-xs rounded-xl border border-emerald-200 dark:border-emerald-800 transition">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                        <span>Cetak Raport Al-Qur'an</span>
+                    </a>
                 </div>
+
+                @php
+                    $halaqahItems = $student->halaqahRecords()->take(5)->get();
+                @endphp
+
+                @if($halaqahItems->isNotEmpty())
+                    <div class="divide-y divide-slate-100 dark:divide-slate-800">
+                        @foreach($halaqahItems as $item)
+                        <div class="py-2.5 flex items-center justify-between text-xs">
+                            <div>
+                                <span class="font-bold text-slate-800 dark:text-white">{{ $item->assessment_date->format('d/m/Y') }}</span>
+                                <span class="mx-1.5 text-slate-300">•</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold {{ $item->program_type === 'tahfidz' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400' : 'bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400' }}">
+                                    {{ strtoupper($item->program_type) }}
+                                </span>
+                                <p class="text-slate-500 dark:text-slate-400 mt-0.5">{{ $item->material_summary }}</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="font-black text-slate-900 dark:text-white">{{ $item->score_cognitive }}</span>
+                                <span class="block text-[10px] font-bold text-emerald-600 dark:text-emerald-400">{{ $item->predicate }}</span>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="p-4 bg-slate-50 dark:bg-[#24303F] rounded-xl text-center text-xs text-slate-400">
+                        Belum ada catatan evaluasi halaqah untuk santri ini.
+                    </div>
+                @endif
             </div>
         </div>
     </div>

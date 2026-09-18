@@ -281,6 +281,13 @@
                 <span>Portal HP (Lock GPS) ↗</span>
             </a>
 
+            <!-- Pengaturan Radius GPS Shortcut Button -->
+            <a href="{{ route('admin.settings', ['tab' => 'contact']) }}"
+               class="inline-flex items-center space-x-1.5 px-3 py-2.5 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-600 hover:text-white text-blue-700 dark:text-blue-300 text-xs font-bold rounded-xl transition-all border border-blue-200 dark:border-blue-800" title="Atur Titik Lokasi & Radius Presensi Sekolah">
+                <span>📍</span>
+                <span>Radius GPS ({{ Setting::get('school_attendance_radius', 100) }}m) ⚙️</span>
+            </a>
+
             <!-- Scanner AI Face ID Link Button -->
             <a href="{{ route('admin.teacher-attendances.scan') }}" target="_blank" rel="noopener"
                class="inline-flex items-center space-x-2 px-3.5 py-2.5 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-600 hover:text-white text-indigo-700 dark:text-indigo-300 text-xs font-bold rounded-xl transition-all border border-indigo-200 dark:border-indigo-800 cursor-pointer">

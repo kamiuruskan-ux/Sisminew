@@ -182,6 +182,8 @@ class DashboardController extends Controller
                 });
             })->count(),
             'pending_grading_count' => $pendingGradingCount,
+            'my_halaqah_today_count' => \Illuminate\Support\Facades\Schema::hasTable('halaqah_records') ? \App\Models\HalaqahRecord::whereDate('assessment_date', now()->today())->count() : 0,
+            'total_halaqah_count' => \Illuminate\Support\Facades\Schema::hasTable('halaqah_records') ? \App\Models\HalaqahRecord::count() : 0,
         ];
 
         $teacherSchedules = Schedule::where('is_active', true)

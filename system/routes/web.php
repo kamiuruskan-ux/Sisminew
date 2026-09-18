@@ -170,6 +170,8 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|bendahara|operator|kanti
     
     // Users
     Route::middleware('permission:create-users')->group(function () {
+        Route::get('users/template', [UserController::class, 'downloadTemplate'])->name('users.template');
+        Route::post('users/import', [UserController::class, 'import'])->name('users.import');
         Route::get('users/create', [UserController::class, 'create'])->name('users.create');
         Route::post('users', [UserController::class, 'store'])->name('users.store');
     });
@@ -460,6 +462,19 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|bendahara|operator|kanti
         Route::put('raport/settings', [\App\Http\Controllers\Admin\RaportController::class, 'updateSettings'])->name('raport.update-settings');
         Route::get('raport/print', [\App\Http\Controllers\Admin\RaportController::class, 'print'])->name('raport.print');
         Route::post('raport/print-bulk', [\App\Http\Controllers\Admin\RaportController::class, 'print'])->name('raport.print-bulk');
+
+        // Modul Halaqah Al-Qur'an (Tahsin & Tahfidz Harian/Massal/Laporan/Grafik)
+        Route::get('halaqah', [\App\Http\Controllers\Admin\HalaqahController::class, 'index'])->name('halaqah.index');
+        Route::post('halaqah/store-individual', [\App\Http\Controllers\Admin\HalaqahController::class, 'storeIndividual'])->name('halaqah.store-individual');
+        Route::post('halaqah/store-mass', [\App\Http\Controllers\Admin\HalaqahController::class, 'storeMass'])->name('halaqah.store-mass');
+        Route::delete('halaqah/{id}', [\App\Http\Controllers\Admin\HalaqahController::class, 'destroy'])->name('halaqah.destroy');
+        Route::get('halaqah/export-excel', [\App\Http\Controllers\Admin\HalaqahController::class, 'exportExcel'])->name('halaqah.export-excel');
+
+        // Modul E-Raport Khusus Pembelajaran Al-Qur'an (Terpisah Sendiri)
+        Route::get('quran-raport', [\App\Http\Controllers\Admin\QuranRaportController::class, 'index'])->name('quran-raport.index');
+        Route::get('quran-raport/print', [\App\Http\Controllers\Admin\QuranRaportController::class, 'print'])->name('quran-raport.print');
+        Route::post('quran-raport/print-bulk', [\App\Http\Controllers\Admin\QuranRaportController::class, 'print'])->name('quran-raport.print-bulk');
+
         
         Route::get('exams/create', [AdminExamController::class, 'create'])->name('exams.create');
         Route::get('exams/download-questions-template', [AdminExamController::class, 'downloadQuestionsTemplate'])->name('exams.download-questions-template');

@@ -217,7 +217,7 @@ class TeacherAttendanceController extends Controller
         if ($workLoc === 'school') {
             $schoolLat = (float) Setting::get('school_latitude', -6.2088);
             $schoolLong = (float) Setting::get('school_longitude', 106.8456);
-            $maxRadius = (int) Setting::get('school_attendance_radius', 150); // meters default 150m
+            $maxRadius = (int) Setting::get('school_attendance_radius', 100); // meters default 100m
 
             if ($request->filled('latitude') && $request->filled('longitude')) {
                 $userLat = (float) $request->latitude;
@@ -795,21 +795,153 @@ class TeacherAttendanceController extends Controller
     }
 
     /**
-     * Dedicated Mobile Attendance Portal with GPS Lock for Teachers (via Smartphone)
+     * Dedicated Mobile Attendance & Teacher Portal (PWA Experience)
      */
     public function mobilePortal(Request $request)
     {
         $user = auth()->user();
         $today = date('Y-m-d');
+        $currentMonth = date('m');
+        $currentYear = date('Y');
+
         $todayAttendance = TeacherAttendance::where('user_id', $user->id)
             ->where('date', $today)
             ->first();
 
-        $schoolLat = (float) Setting::get('school_latitude', -6.2088);
-        $schoolLong = (float) Setting::get('school_longitude', 106.8456);
-        $schoolRadius = (int) Setting::get('school_attendance_radius', 150);
+        // Monthly statistics for user
+        $monthlyRecords = TeacherAttendance::where('user_id', $user->id)
+            ->whereYear('date', $currentYear)
+            ->whereMonth('date', $currentMonth)
+            ->get();
 
-        return view('admin.teacher-attendances.mobile', compact('todayAttendance', 'schoolLat', 'schoolLong', 'schoolRadius', 'user'));
+        $onTimeCount = $monthlyRecords->where('status', 'present')->count();
+        $lateCount = $monthlyRecords->where('status', 'late')->count();
+        $permitCount = $monthlyRecords->whereIn('status', ['permit', 'sick', 'leave'])->count();
+        $totalDays = $monthlyRecords->count();
+        $attendancePercentage = $totalDays > 0 ? round((($onTimeCount + $lateCount) / $totalDays) * 100) : 100;
+
+        $recentLogs = TeacherAttendance::where('user_id', $user->id)
+            ->latest('date')
+            ->take(15)
+            ->get();
+
+        // Feed of recent check-ins across the school for "Rekapitulasi Hadir Terkini"
+        $latestSchoolAttendances = TeacherAttendance::with('user')
+            ->where('date', $today)
+            ->latest('updated_at')
+            ->take(10)
+            ->get();
+
+        // School Settings & Branding
+        $schoolName = Setting::get('school_name', config('app.name', 'SDIT AL-FAHMI PALU'));
+        $schoolMotto = Setting::get('school_motto', 'Sekolahnya Calon Pemimpin Peradaban');
+        $schoolLat = (float) Setting::get('school_latitude', -0.8917);
+        $schoolLong = (float) Setting::get('school_longitude', 119.8707);
+        $schoolRadius = (int) Setting::get('school_attendance_radius', 100);
+        $timezoneLabel = Setting::get('school_timezone_label', 'WITA');
+
+        // Announcements
+        $announcements = \App\Models\Announcement::query()
+            ->when(method_exists(\App\Models\Announcement::class, 'scopePublished'), fn($q) => $q->published())
+            ->latest()
+            ->take(5)
+            ->get();
+
+        // Daily Islamic Hadiths
+        $hadithList = [
+            [
+                'arabic' => 'الْمُؤْمِنُ الْقَوِيُّ خَيْرٌ وَأَحَبُّ إِلَى اللَّهِ مِنَ الْمُؤْمِنِ الضَّعِيفِ وَفِي كُلٍّ خَيْرٌ',
+                'translation' => 'Mukmin yang kuat lebih baik dan lebih dicintai oleh Allah daripada mukmin yang lemah, dan pada keduanya ada kebaikan.',
+                'narrator' => 'HR. Muslim no. 2664',
+                'category' => 'HADITS'
+            ],
+            [
+                'arabic' => 'خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ',
+                'translation' => 'Sebaik-baik kalian adalah orang yang belajar Al-Qur\'an dan mengajarkannya.',
+                'narrator' => 'HR. Bukhari no. 5027',
+                'category' => 'MUTIARA SUNNAH'
+            ],
+            [
+                'arabic' => 'إِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ وَإِنَّمَا لِكُلِّ امْرِئٍ مَا نَوَى',
+                'translation' => 'Sesungguhnya setiap amalan tergantung pada niatnya, dan setiap orang akan mendapatkan apa yang ia niatkan.',
+                'narrator' => 'HR. Bukhari & Muslim',
+                'category' => 'HADITS ARBAIN'
+            ],
+            [
+                'arabic' => 'مَنْ سَلَكَ طَرِيقًا يَلْتَمِسُ فِيهِ عِلْمًا سَهَّلَ اللَّهُ لَهُ بِهِ طَرِيقًا إِلَى الْجَنَّةِ',
+                'translation' => 'Barangsiapa menempuh jalan untuk mencari ilmu, maka Allah akan memudahkan baginya jalan menuju surga.',
+                'narrator' => 'HR. Muslim no. 2699',
+                'category' => 'MUTIARA ILMU'
+            ],
+            [
+                'arabic' => 'اتَّقِ اللَّهَ حَيْثُمَا كُنْتَ وَأَتْبِعِ السَّيِّئَةَ الْحَسَنَةَ تَمْحُهَا وَخَالِقِ النَّاسَ بِخُلُقٍ حَسَنٍ',
+                'translation' => 'Bertakwalah kepada Allah di mana pun engkau berada, iringilah keburukan dengan kebaikan niscaya akan menghapuskannya, dan pergaulilah manusia dengan akhlak terpuji.',
+                'narrator' => 'HR. Tirmidzi no. 1987',
+                'category' => 'HADITS'
+            ]
+        ];
+        $hadithToday = $hadithList[date('z') % count($hadithList)];
+
+        // Activities / Agenda for calendar
+        $agendas = [
+            [
+                'id' => 1,
+                'title' => 'Rapat Koordinasi Bulanan Guru & Karyawan',
+                'description' => 'Evaluasi kurikulum terpadu dan pembinaan kedisiplinan santri.',
+                'date' => date('Y-m-') . '05',
+                'time' => '13:30 - 15:30',
+                'location' => 'Lantai 2 - Aula Utama',
+                'audience' => 'GURU',
+                'is_gps_lock' => true,
+                'status' => 'SELESAI',
+                'attended_count' => 18,
+            ],
+            [
+                'id' => 2,
+                'title' => 'Penerimaan Raport & Tasmi Quran Semester',
+                'description' => 'Pembagian lembar hasil belajar Tahsin dan Tahfidz di kelas masing-masing.',
+                'date' => date('Y-m-') . '15',
+                'time' => '08:00 - 12:00',
+                'location' => 'Gedung Asatidzah & Selasar',
+                'audience' => 'UMUM',
+                'is_gps_lock' => false,
+                'status' => 'SELESAI',
+                'attended_count' => 24,
+            ],
+            [
+                'id' => 3,
+                'title' => 'Kajian Rutin Selasar Guru & Asatidzah',
+                'description' => 'Bedah Kitab Ta\'limul Muta\'allim bersama Pembina Yayasan.',
+                'date' => date('Y-m-') . (date('d') > 19 ? date('d') : '25'),
+                'time' => '16:00 - 17:30',
+                'location' => 'Masjid Sekolah / Selasar',
+                'audience' => 'GURU',
+                'is_gps_lock' => true,
+                'status' => 'AKTIF',
+                'attended_count' => 14,
+            ],
+        ];
+
+        return view('admin.teacher-attendances.mobile', compact(
+            'todayAttendance',
+            'schoolName',
+            'schoolMotto',
+            'schoolLat',
+            'schoolLong',
+            'schoolRadius',
+            'timezoneLabel',
+            'user',
+            'onTimeCount',
+            'lateCount',
+            'permitCount',
+            'totalDays',
+            'attendancePercentage',
+            'recentLogs',
+            'latestSchoolAttendances',
+            'announcements',
+            'hadithToday',
+            'agendas'
+        ));
     }
 
     /**

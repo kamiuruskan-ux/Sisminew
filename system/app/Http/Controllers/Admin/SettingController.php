@@ -66,6 +66,10 @@ class SettingController extends Controller
             'school_city' => 'nullable|string',
             'school_province' => 'nullable|string',
             'school_postal_code' => 'nullable|string',
+            'school_latitude' => 'nullable|numeric',
+            'school_longitude' => 'nullable|numeric',
+            'school_attendance_radius' => 'nullable|integer|min:10',
+            'school_timezone_label' => 'nullable|string|in:WIB,WITA,WIT',
 
             // Branding & Theme
             'theme_preset' => 'nullable|string',
@@ -175,6 +179,10 @@ class SettingController extends Controller
             'school_city' => 'school_city',
             'school_province' => 'school_province',
             'school_postal_code' => 'school_postal_code',
+            'school_latitude' => 'school_latitude',
+            'school_longitude' => 'school_longitude',
+            'school_attendance_radius' => 'school_attendance_radius',
+            'school_timezone_label' => 'school_timezone_label',
             'theme_preset' => 'theme_preset',
             'theme_mode_default' => 'theme_mode_default',
             'primary_color' => 'primary_color',

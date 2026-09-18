@@ -5,10 +5,18 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Role;
+use App\Models\ClassModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
 class UserController extends Controller
 {
@@ -284,5 +292,306 @@ class UserController extends Controller
         }
 
         return back()->with('success', "Status akun {$user->name} berhasil diubah menjadi {$statusLabel}.");
+    }
+
+    /**
+     * Download Excel template for mass importing teachers and staff
+     */
+    public function downloadTemplate()
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Data Guru & Pegawai');
+
+        // Column Headers
+        $headers = [
+            'A1' => 'Nama Lengkap*',
+            'B1' => 'NIP / NRH',
+            'C1' => 'Email (Username Login)*',
+            'D1' => 'Password (Kata Sandi)*',
+            'E1' => 'No. WhatsApp / HP',
+            'F1' => 'Jenis Kelamin (L/P)',
+            'G1' => 'Peran / Jabatan',
+            'H1' => 'Wali Kelas (Opsional)',
+        ];
+
+        foreach ($headers as $cell => $value) {
+            $sheet->setCellValue($cell, $value);
+        }
+
+        // Header Styling
+        $headerStyle = [
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 11],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E40AF']], // Royal Blue
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ];
+        $sheet->getStyle('A1:H1')->applyFromArray($headerStyle);
+        $sheet->getRowDimension(1)->setRowHeight(28);
+
+        // Sample Data 1
+        $sheet->setCellValue('A2', 'Ustadz Ahmad Dahlan, S.Pd.I');
+        $sheet->setCellValueExplicit('B2', '198507152010011002', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+        $sheet->setCellValue('C2', 'ahmad.dahlan@sekolah.sch.id');
+        $sheet->setCellValue('D2', 'guru123');
+        $sheet->setCellValueExplicit('E2', '081234567890', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+        $sheet->setCellValue('F2', 'Laki-laki');
+        $sheet->setCellValue('G2', 'guru');
+        $sheet->setCellValue('H2', 'VII-A');
+
+        // Sample Data 2
+        $sheet->setCellValue('A3', 'Ustadzah Siti Aminah, S.Pd.');
+        $sheet->setCellValueExplicit('B3', '199003202015022001', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+        $sheet->setCellValue('C3', 'siti.aminah@sekolah.sch.id');
+        $sheet->setCellValue('D3', 'guru123');
+        $sheet->setCellValueExplicit('E3', '085712345678', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+        $sheet->setCellValue('F3', 'Perempuan');
+        $sheet->setCellValue('G3', 'guru');
+        $sheet->setCellValue('H3', 'VIII-B');
+
+        // Sample Data 3 (Staff TU)
+        $sheet->setCellValue('A4', 'Muhammad Rizky (Tata Usaha)');
+        $sheet->setCellValueExplicit('B4', '199512102020031005', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+        $sheet->setCellValue('C4', 'rizky.tu@sekolah.sch.id');
+        $sheet->setCellValue('D4', 'staff123');
+        $sheet->setCellValueExplicit('E4', '081398765432', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+        $sheet->setCellValue('F4', 'Laki-laki');
+        $sheet->setCellValue('G4', 'tata-usaha');
+        $sheet->setCellValue('H4', '');
+
+        foreach (range('A', 'H') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $filename = 'Template_Import_Guru_Pegawai.xlsx';
+
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
+
+        $writer = new Xlsx($spreadsheet);
+        $writer->save('php://output');
+        exit;
+    }
+
+    /**
+     * Import Teacher & Staff Data from Excel (.xlsx, .xls, .csv)
+     */
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv,txt|max:10240',
+        ]);
+
+        $file = $request->file('file');
+        $filePath = $file->getRealPath();
+
+        try {
+            $spreadsheet = IOFactory::load($filePath);
+            $sheet = $spreadsheet->getActiveSheet();
+            $data = $sheet->toArray(null, true, false, true);
+        } catch (\Exception $e) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Gagal membaca berkas Excel: ' . $e->getMessage()], 422);
+            }
+            return back()->with('error', 'Gagal membaca berkas Excel: ' . $e->getMessage());
+        }
+
+        if (empty($data) || count($data) < 2) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Berkas Excel kosong atau tidak memiliki baris data.'], 422);
+            }
+            return back()->with('error', 'Berkas Excel kosong atau tidak memiliki baris data.');
+        }
+
+        $columnAliases = [
+            'name'      => ['nama_lengkap', 'nama', 'nama guru', 'nama pegawai', 'name', 'nama lengkap'],
+            'nip'       => ['nip', 'nrh', 'no_nip', 'nomor induk pegawai', 'nip / nrh', 'nip/nrh'],
+            'email'     => ['email', 'e-mail', 'surel', 'username', 'email / username'],
+            'password'  => ['password', 'kata sandi', 'pass', 'sandi', 'pin'],
+            'phone'     => ['no_hp', 'no hp', 'nohp', 'telepon', 'phone', 'no wa', 'whatsapp', 'no_whatsapp'],
+            'gender'    => ['jenis_kelamin', 'jenis kelamin', 'jk', 'gender', 'l/p', 'l_p'],
+            'role'      => ['peran', 'jabatan', 'role', 'posisi', 'peran / jabatan'],
+            'homeroom'  => ['wali_kelas', 'wali kelas', 'bina_kelas', 'kelas', 'rombel'],
+        ];
+
+        $normalize = function ($str) {
+            $str = strtolower(trim((string)$str));
+            return preg_replace('/[^a-z0-9]/', '', $str);
+        };
+
+        // Detect header row
+        $headerRowIndex = null;
+        $matchedColMap = [];
+        $rowsArray = array_values($data);
+
+        for ($i = 0; $i < min(5, count($rowsArray)); $i++) {
+            $rowCandidate = $rowsArray[$i];
+            $currentMatches = [];
+
+            foreach ($rowCandidate as $colLetter => $cellVal) {
+                $cellNorm = $normalize($cellVal);
+                if (empty($cellNorm)) continue;
+
+                foreach ($columnAliases as $field => $aliases) {
+                    if (isset($currentMatches[$field])) continue;
+                    foreach ($aliases as $alias) {
+                        if ($cellNorm === $normalize($alias)) {
+                            $currentMatches[$field] = $colLetter;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (isset($currentMatches['name'])) {
+                $headerRowIndex = $i;
+                $matchedColMap = $currentMatches;
+                break;
+            }
+        }
+
+        if ($headerRowIndex === null || !isset($matchedColMap['name'])) {
+            $errMsg = 'Header kolom Excel tidak dikenali. Pastikan kolom "Nama Lengkap", "Email", dan "Password" tersedia.';
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => $errMsg], 422);
+            }
+            return back()->with('error', $errMsg);
+        }
+
+        $allRoles = Role::all();
+        $defaultRole = $allRoles->firstWhere('slug', 'guru') ?? $allRoles->firstWhere('slug', 'teacher');
+        $allClasses = ClassModel::all();
+
+        $imported = 0;
+        $createdCount = 0;
+        $updatedCount = 0;
+        $skipped = 0;
+
+        $dataRows = array_slice($rowsArray, $headerRowIndex + 1);
+
+        foreach ($dataRows as $index => $row) {
+            $getVal = function ($field) use ($row, $matchedColMap) {
+                if (!isset($matchedColMap[$field])) return null;
+                $col = $matchedColMap[$field];
+                return isset($row[$col]) ? trim((string)$row[$col]) : null;
+            };
+
+            $name = $getVal('name');
+            if (empty($name)) {
+                $skipped++;
+                continue;
+            }
+
+            $nip = $getVal('nip');
+            $email = $getVal('email');
+            $pass = $getVal('password');
+            $phone = $getVal('phone');
+            $roleInput = $getVal('role');
+            $homeroomInput = $getVal('homeroom');
+
+            // Fallback email if empty
+            if (empty($email)) {
+                if (!empty($nip)) {
+                    $cleanNip = preg_replace('/[^0-9]/', '', $nip);
+                    $email = ($cleanNip ?: 'guru') . '@sekolah.sch.id';
+                } else {
+                    $slugName = Str::slug($name, '');
+                    $email = ($slugName ? substr($slugName, 0, 15) : 'guru') . '_' . rand(100, 999) . '@sekolah.sch.id';
+                }
+            }
+            $email = strtolower(trim($email));
+
+            // Default password if empty
+            $rawPass = !empty($pass) ? $pass : 'guru123';
+
+            // Resolve role
+            $targetRole = null;
+            if (!empty($roleInput)) {
+                $cleanRole = $normalize($roleInput);
+                $targetRole = $allRoles->first(function ($r) use ($cleanRole, $normalize) {
+                    return $normalize($r->slug) === $cleanRole || $normalize($r->name) === $cleanRole;
+                });
+            }
+            if (!$targetRole) {
+                $targetRole = $defaultRole;
+            }
+
+            DB::beginTransaction();
+            try {
+                // Find existing user by email or NIP
+                $existingUser = null;
+                if (!empty($email)) {
+                    $existingUser = User::where('email', $email)->first();
+                }
+                if (!$existingUser && !empty($nip)) {
+                    $existingUser = User::where('nip', $nip)->first();
+                }
+
+                if ($existingUser) {
+                    $updateData = [
+                        'name' => $name,
+                        'status' => 'active',
+                    ];
+                    if (!empty($nip)) $updateData['nip'] = $nip;
+                    if (!empty($phone)) $updateData['phone'] = $phone;
+                    if (!empty($pass)) {
+                        $updateData['password'] = Hash::make($pass);
+                    }
+                    $existingUser->update($updateData);
+
+                    if ($targetRole) {
+                        $existingUser->syncRoles([$targetRole]);
+                    }
+                    $user = $existingUser;
+                    $updatedCount++;
+                } else {
+                    $user = User::create([
+                        'name' => $name,
+                        'email' => $email,
+                        'nip' => $nip,
+                        'phone' => $phone,
+                        'password' => Hash::make($rawPass),
+                        'status' => 'active',
+                    ]);
+
+                    if ($targetRole) {
+                        $user->assignRole($targetRole);
+                    }
+                    $createdCount++;
+                }
+
+                // Homeroom assignment if specified
+                if (!empty($homeroomInput)) {
+                    $cleanHome = $normalize($homeroomInput);
+                    $matchedClass = $allClasses->first(function ($c) use ($cleanHome, $normalize) {
+                        return $normalize($c->name) === $cleanHome;
+                    });
+                    if ($matchedClass) {
+                        $matchedClass->update(['homeroom_teacher_id' => $user->id]);
+                    }
+                }
+
+                DB::commit();
+                $imported++;
+            } catch (\Exception $ex) {
+                DB::rollBack();
+                $skipped++;
+            }
+        }
+
+        $msg = "Import Excel selesai! {$imported} data guru & pegawai diproses ({$createdCount} akun baru, {$updatedCount} diperbarui), {$skipped} baris dilewati.";
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => $msg,
+                'imported' => $imported,
+                'created' => $createdCount,
+                'updated' => $updatedCount,
+                'skipped' => $skipped,
+            ]);
+        }
+
+        return redirect()->route('admin.users.index')->with('success', $msg);
     }
 }

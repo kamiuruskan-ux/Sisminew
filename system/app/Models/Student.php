@@ -131,6 +131,12 @@ class Student extends Model
         return $this->hasMany(BkStudentViolation::class, 'student_id');
     }
 
+    public function halaqahRecords(): HasMany
+    {
+        return $this->hasMany(HalaqahRecord::class, 'student_id')->latest('assessment_date');
+    }
+
+
     public function getAttendancePercentageAttribute(): ?float
     {
         $total = $this->attendances()->count();

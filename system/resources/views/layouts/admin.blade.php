@@ -807,10 +807,27 @@
                         </div>
                         @endif
 
+                        <!-- Standalone Menu Halaqah Al-Qur'an (Tahsin & Tahfidz) -->
+                        @if(auth()->user()->hasPermission('view-learning'))
+                            <a href="{{ route('admin.halaqah.index') }}"
+                               class="nav-link {{ request()->routeIs('admin.halaqah.*') ? 'nav-link-active' : '' }}">
+                                <svg class="nav-icon text-emerald-500 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                                    <path d="M12 6v6"></path>
+                                    <path d="M9 9h6"></path>
+                                </svg>
+                                <div class="flex items-center justify-between w-full">
+                                    <span class="font-bold">Halaqah Al-Qur'an</span>
+                                    <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[9px] rounded">Tahfidz</span>
+                                </div>
+                            </a>
+                        @endif
+
                         <!-- Standalone Menu E-Raport -->
                         @if(auth()->user()->hasPermission('view-learning'))
                         @php
-                            $isRaportActive = request()->routeIs('admin.raport.*') || request()->routeIs('admin.grades.*');
+                            $isRaportActive = request()->routeIs('admin.raport.*') || request()->routeIs('admin.grades.*') || request()->routeIs('admin.quran-raport.*');
                         @endphp
                         <div x-data="{ open: {{ $isRaportActive ? 'true' : 'false' }} }">
                             <button type="button" @click="open = !open" 
@@ -831,12 +848,16 @@
                             <div x-show="open" x-collapse class="pl-4 space-y-1 mt-1 border-l-2 border-slate-200 dark:border-slate-800 ml-4">
                                 <a href="{{ route('admin.grades.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.grades.*') ? 'nav-link-active' : '' }}">Entri Nilai Siswa</a>
                                 <a href="{{ route('admin.raport.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.raport.index') || request()->routeIs('admin.raport.print*') ? 'nav-link-active' : '' }}">
-                                    <span>Cetak Raport Siswa</span>
-                                    <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[9px] rounded">A4/PDF</span>
+                                    <span>Raport Mapel Umum</span>
+                                    <span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-extrabold text-[9px] rounded">A4/PDF</span>
+                                </a>
+                                <a href="{{ route('admin.quran-raport.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.quran-raport.*') ? 'nav-link-active' : '' }}">
+                                    <span class="font-bold text-emerald-600 dark:text-emerald-400">Raport Al-Qur'an</span>
+                                    <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[9px] rounded">Khusus</span>
                                 </a>
                                 <a href="{{ route('admin.raport.settings') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.raport.settings') ? 'nav-link-active' : '' }}">
-                                    <span>Pengaturan E-Raport</span>
-                                    <span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-extrabold text-[9px] rounded">Setting</span>
+                                    <span>Pengaturan Raport</span>
+                                    <span class="px-1.5 py-0.5 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 font-extrabold text-[9px] rounded">Setting</span>
                                 </a>
                             </div>
                         </div>
