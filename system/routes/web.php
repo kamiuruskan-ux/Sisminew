@@ -587,6 +587,8 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|bendahara|operator|kanti
 
         Route::get('teacher-attendances/mobile', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'mobilePortal'])->name('teacher-attendances.mobile');
         Route::get('teacher-attendances/check-status', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'checkTodayStatus'])->name('teacher-attendances.check-status');
+        Route::post('teacher-attendances/toggle-briefing', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'toggleBriefing'])->name('teacher-attendances.toggle-briefing');
+        Route::post('teacher-attendances/update-session-times', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'updateSessionTimes'])->name('teacher-attendances.update-session-times');
 
         Route::get('teacher-attendances/scan', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'scanFace'])->name('teacher-attendances.scan');
         Route::get('teacher-attendances/register-face', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'registerFacePage'])->name('teacher-attendances.register-face-page');

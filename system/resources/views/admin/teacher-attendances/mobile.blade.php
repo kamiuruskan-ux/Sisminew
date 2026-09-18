@@ -108,13 +108,21 @@
                         </h2>
                     </div>
                 </div>
-                <!-- Notif Bell -->
-                <button @click="openNotificationModal = true" class="relative w-10 h-10 rounded-full bg-white border border-slate-200/80 shadow-sm flex items-center justify-center text-slate-600 hover:text-blue-600 active:scale-95 transition-all">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                    </svg>
-                    <span class="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-sm">9+</span>
-                </button>
+                <div class="flex items-center gap-2">
+                    @if($isPrincipal)
+                    <button @click="openPrincipalModal = true" class="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-extrabold text-[11px] shadow-sm flex items-center gap-1 active:scale-95 transition-all">
+                        <span>👑</span>
+                        <span>Kontrol Sesi</span>
+                    </button>
+                    @endif
+                    <!-- Notif Bell -->
+                    <button @click="openNotificationModal = true" class="relative w-10 h-10 rounded-full bg-white border border-slate-200/80 shadow-sm flex items-center justify-center text-slate-600 hover:text-blue-600 active:scale-95 transition-all">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        </svg>
+                        <span class="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-sm">9+</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Hero Welcome Islamic Card -->
@@ -152,6 +160,41 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- LIVE BRIEFING KEPALA SEKOLAH CARD (Real-time Broadcast) -->
+            <div x-show="briefingSession && briefingSession.active"
+                 x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="opacity-0 -translate-y-2 scale-95"
+                 x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                 class="rounded-3xl bg-gradient-to-br from-amber-500 via-orange-600 to-rose-600 p-5 text-white shadow-xl shadow-orange-500/25 relative overflow-hidden animate-pulse-soft border border-orange-300/30">
+                <div class="flex items-center justify-between gap-2 mb-2.5">
+                    <span class="px-3 py-1 rounded-full bg-white/25 backdrop-blur-md text-[10px] font-mono font-black tracking-wider uppercase flex items-center gap-1.5 border border-white/30">
+                        <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
+                        <span>📢 SESI BRIEFING KEPALA SEKOLAH</span>
+                    </span>
+                    <span class="text-[11px] font-bold text-orange-100 font-mono" x-text="'Dibuka ' + (briefingSession.opened_at || '')"></span>
+                </div>
+
+                <h3 class="text-base font-black text-white leading-snug mb-1 drop-shadow-sm" x-text="briefingSession.title"></h3>
+                <p class="text-xs text-orange-100/95 font-medium leading-relaxed mb-4" x-text="briefingSession.content"></p>
+
+                <!-- State: Sudah Hadir vs Hadir Sekarang -->
+                <template x-if="hasAttendedBriefing">
+                    <div class="w-full py-2.5 px-3 rounded-2xl bg-emerald-950/40 border border-emerald-300/50 text-emerald-200 font-extrabold text-xs flex items-center justify-center gap-2 shadow-inner">
+                        <span class="text-base">✅</span>
+                        <span>ALHAMDULILLAH, ANDA TELAH HADIR BRIEFING</span>
+                    </div>
+                </template>
+
+                <template x-if="!hasAttendedBriefing">
+                    <button @click="submitBriefingAttendance()"
+                            :disabled="isSubmitting || (attendanceMode === 'reguler' && !inRadius)"
+                            class="w-full py-3 px-4 rounded-2xl bg-white text-orange-700 hover:bg-orange-50 font-black text-xs shadow-lg active:scale-98 transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:pointer-events-none cursor-pointer">
+                        <span x-show="!isSubmitting">👉 HADIR BRIEFING SEKARANG (GPS)</span>
+                        <span x-show="isSubmitting" class="animate-spin">⏳</span>
+                    </button>
+                </template>
             </div>
 
             <!-- Daily Attendance Progress Status -->
@@ -519,6 +562,48 @@
                 </div>
             </div>
 
+            <!-- Manual Override Notice Banner (If active) -->
+            <template x-if="sessionSettings.manual_override">
+                <div class="rounded-2xl bg-amber-500/10 border border-amber-500/30 p-3.5 text-amber-900 flex items-start gap-2.5 text-xs">
+                    <span class="text-base leading-none">⚡</span>
+                    <div>
+                        <span class="font-extrabold uppercase">Mode Buka Paksa (Manual Override):</span>
+                        <p class="text-[11px] text-amber-800 mt-0.5">Semua sesi presensi saat ini dibuka langsung oleh Kepala Sekolah tanpa pembatasan jam.</p>
+                    </div>
+                </div>
+            </template>
+
+            <!-- SESI BRIEFING KEPALA SEKOLAH CARD (Tab Absen) -->
+            <div x-show="briefingSession && briefingSession.active"
+                 class="rounded-3xl bg-gradient-to-br from-amber-500 via-orange-600 to-rose-600 p-5 text-white shadow-xl shadow-orange-500/25 relative overflow-hidden animate-pulse-soft border border-orange-300/30">
+                <div class="flex items-center justify-between gap-2 mb-2">
+                    <span class="px-3 py-1 rounded-full bg-white/25 backdrop-blur-md text-[10px] font-mono font-black tracking-wider uppercase flex items-center gap-1.5 border border-white/30">
+                        <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
+                        <span>📢 BRIEFING KEPALA SEKOLAH</span>
+                    </span>
+                    <span class="text-[11px] font-bold text-orange-100 font-mono" x-text="'Dibuka ' + (briefingSession.opened_at || '')"></span>
+                </div>
+
+                <h3 class="text-sm font-black text-white leading-snug mb-1" x-text="briefingSession.title"></h3>
+                <p class="text-xs text-orange-100/95 font-medium leading-relaxed mb-3.5" x-text="briefingSession.content"></p>
+
+                <template x-if="hasAttendedBriefing">
+                    <div class="w-full py-2.5 px-3 rounded-2xl bg-emerald-950/40 border border-emerald-300/50 text-emerald-200 font-extrabold text-xs flex items-center justify-center gap-2">
+                        <span>✅</span>
+                        <span>ALHAMDULILLAH, ANDA TELAH HADIR BRIEFING</span>
+                    </div>
+                </template>
+
+                <template x-if="!hasAttendedBriefing">
+                    <button @click="submitBriefingAttendance()"
+                            :disabled="isSubmitting || (attendanceMode === 'reguler' && !inRadius)"
+                            class="w-full py-3 px-4 rounded-2xl bg-white text-orange-700 hover:bg-orange-50 font-black text-xs shadow-lg active:scale-98 transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:pointer-events-none cursor-pointer">
+                        <span x-show="!isSubmitting">👉 HADIR BRIEFING SEKARANG (GPS)</span>
+                        <span x-show="isSubmitting" class="animate-spin">⏳</span>
+                    </button>
+                </template>
+            </div>
+
             <!-- Shift Sesi Presensi Cards -->
             <div class="space-y-3">
 
@@ -526,10 +611,14 @@
                 <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 space-y-3">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h4 class="text-xs font-black text-slate-900 uppercase">SESI 1 / PAGI</h4>
-                            <p class="text-[11px] text-slate-500">Buka: 06:00 | Batas: 07:30 <span x-text="timezoneLabel">WITA</span></p>
+                            <h4 class="text-xs font-black text-slate-900 uppercase">SESI 1 / PAGI (MASUK)</h4>
+                            <p class="text-[11px] text-slate-500">
+                                Buka: <span x-text="sessionSettings.morning_open">06:00</span> | 
+                                Batas: <span x-text="sessionSettings.morning_late">07:30</span> |
+                                Tutup: <span x-text="sessionSettings.morning_close">11:59</span> <span x-text="timezoneLabel">WITA</span>
+                            </p>
                         </div>
-                        <span class="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-extrabold text-[10px]">
+                        <span class="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 font-extrabold text-[10px]" x-text="'Buka ' + sessionSettings.morning_open">
                             Buka 06:00
                         </span>
                     </div>
@@ -540,7 +629,7 @@
                             <template x-if="isMorningOpen()">
                                 <button @click="submitAttendance('check_in')"
                                         :disabled="isSubmitting || (attendanceMode === 'reguler' && !inRadius)"
-                                        class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-extrabold text-xs shadow-md active:scale-98 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none">
+                                        class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-extrabold text-xs shadow-md active:scale-98 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer">
                                     <span x-show="!isSubmitting">👉 PRESENSI MASUK SEKARANG (GPS)</span>
                                     <span x-show="isSubmitting" class="animate-spin">⏳</span>
                                 </button>
@@ -548,7 +637,7 @@
                             <template x-if="!isMorningOpen()">
                                 <div class="w-full py-3 px-4 rounded-xl bg-slate-50 border border-slate-200/80 text-center text-xs font-bold text-slate-400 flex items-center justify-center gap-2">
                                     <span>🔒</span>
-                                    <span>BELUM DIBUKA (Dibuka Pukul 06:00 <span x-text="timezoneLabel">WITA</span>)</span>
+                                    <span>BELUM DIBUKA (Jadwal: <span x-text="sessionSettings.morning_open + ' - ' + sessionSettings.morning_close">06:00 - 11:59</span> <span x-text="timezoneLabel">WITA</span>)</span>
                                 </div>
                             </template>
                         </div>
@@ -569,28 +658,56 @@
                 <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 space-y-3">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h4 class="text-xs font-black text-slate-900 uppercase">SESI 2 / SIANG</h4>
-                            <p class="text-[11px] text-slate-500">Periode: 12:30 - 13:30 <span x-text="timezoneLabel">WITA</span></p>
+                            <h4 class="text-xs font-black text-slate-900 uppercase">SESI 2 / SIANG (DZUHUR)</h4>
+                            <p class="text-[11px] text-slate-500">
+                                Waktu: <span x-text="sessionSettings.afternoon_open + ' - ' + sessionSettings.afternoon_close">12:30 - 13:30</span> <span x-text="timezoneLabel">WITA</span>
+                            </p>
                         </div>
-                        <span class="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-extrabold text-[10px]">
+                        <span class="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-extrabold text-[10px]" x-text="'Buka ' + sessionSettings.afternoon_open">
                             Buka 12:30
                         </span>
                     </div>
 
-                    <div class="w-full py-3 px-4 rounded-xl bg-amber-50/60 border border-amber-200/50 text-center text-xs font-bold text-amber-700 flex items-center justify-center gap-2">
-                        <span>⏳</span>
-                        <span>DIBUKA PUKUL 12:30 - 13:30 <span x-text="timezoneLabel">WITA</span></span>
-                    </div>
+                    <template x-if="!hasAttendedAfternoon">
+                        <div>
+                            <template x-if="isAfternoonOpen()">
+                                <button @click="submitAttendance('afternoon')"
+                                        :disabled="isSubmitting || (attendanceMode === 'reguler' && !inRadius)"
+                                        class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-extrabold text-xs shadow-md active:scale-98 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer">
+                                    <span x-show="!isSubmitting">👉 PRESENSI SIANG (DZUHUR) SEKARANG</span>
+                                    <span x-show="isSubmitting" class="animate-spin">⏳</span>
+                                </button>
+                            </template>
+                            <template x-if="!isAfternoonOpen()">
+                                <div class="w-full py-3 px-4 rounded-xl bg-slate-50 border border-slate-200/80 text-center text-xs font-bold text-slate-400 flex items-center justify-center gap-2">
+                                    <span>🔒</span>
+                                    <span>BELUM DIBUKA (Jadwal: <span x-text="sessionSettings.afternoon_open + ' - ' + sessionSettings.afternoon_close">12:30 - 13:30</span> <span x-text="timezoneLabel">WITA</span>)</span>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <template x-if="hasAttendedAfternoon">
+                        <div class="w-full py-3 px-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 font-extrabold text-xs flex items-center justify-between">
+                            <span class="flex items-center gap-2">
+                                <span class="text-emerald-600 text-base">✅</span>
+                                <span>SUDAH PRESENSI SESI SIANG</span>
+                            </span>
+                            <span class="font-mono text-[11px]">TERVERIFIKASI</span>
+                        </div>
+                    </template>
                 </div>
 
                 <!-- SESI 3 / SORE (PRESENSI PULANG) -->
                 <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 space-y-3">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h4 class="text-xs font-black text-slate-900 uppercase">SESI 3 / SORE</h4>
-                            <p class="text-[11px] text-slate-500">Waktu: 16:00 s.d 23:59 <span x-text="timezoneLabel">WITA</span></p>
+                            <h4 class="text-xs font-black text-slate-900 uppercase">SESI 3 / SORE (PULANG)</h4>
+                            <p class="text-[11px] text-slate-500">
+                                Waktu: <span x-text="sessionSettings.evening_open + ' s.d ' + sessionSettings.evening_close">16:00 s.d 23:59</span> <span x-text="timezoneLabel">WITA</span>
+                            </p>
                         </div>
-                        <span class="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-extrabold text-[10px]">
+                        <span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-extrabold text-[10px]" x-text="'Buka ' + sessionSettings.evening_open">
                             Buka 16:00
                         </span>
                     </div>
@@ -600,7 +717,7 @@
                             <template x-if="isEveningOpen()">
                                 <button @click="submitAttendance('check_out')"
                                         :disabled="isSubmitting || !hasCheckedIn || (attendanceMode === 'reguler' && !inRadius)"
-                                        class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs shadow-md active:scale-98 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none">
+                                        class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs shadow-md active:scale-98 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer">
                                     <span x-show="!isSubmitting">👉 PRESENSI PULANG SEKARANG (GPS)</span>
                                     <span x-show="isSubmitting" class="animate-spin">⏳</span>
                                 </button>
@@ -608,7 +725,7 @@
                             <template x-if="!isEveningOpen()">
                                 <div class="w-full py-3 px-4 rounded-xl bg-rose-50/60 border border-rose-200/50 text-center text-xs font-bold text-rose-700 flex items-center justify-center gap-2">
                                     <span>🔒</span>
-                                    <span>BELUM DIBUKA (Dibuka Pukul 16:00 <span x-text="timezoneLabel">WITA</span>)</span>
+                                    <span>BELUM DIBUKA (Dibuka Pukul <span x-text="sessionSettings.evening_open">16:00</span> <span x-text="timezoneLabel">WITA</span>)</span>
                                 </div>
                             </template>
                         </div>
@@ -1139,11 +1256,183 @@
             </div>
         </div>
 
+        <!-- ============================================================ -->
+        <!-- MODAL 3: KONTROL SESI & LIVE BRIEFING KEPALA SEKOLAH -->
+        <!-- ============================================================ -->
+        @if($isPrincipal)
+        <div x-show="openPrincipalModal"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+             style="display: none;">
+            
+            <div @click.away="openPrincipalModal = false"
+                 class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 space-y-4 max-h-[90vh] flex flex-col shadow-2xl">
+                
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                        <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-sm font-bold">👑</span>
+                        <div>
+                            <h3 class="text-sm font-extrabold text-slate-900">Kontrol Sesi & Briefing</h3>
+                            <p class="text-[10px] text-slate-500">Panel Khusus Kepala Sekolah & Admin</p>
+                        </div>
+                    </div>
+                    <button @click="openPrincipalModal = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold">×</button>
+                </div>
+
+                <!-- Sub-tab switcher inside modal -->
+                <div class="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl text-xs font-bold" x-data="{ principalTab: 'briefing' }">
+                    <button @click="principalTab = 'briefing'"
+                            :class="principalTab === 'briefing' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-600'"
+                            class="py-2 rounded-lg transition-all flex items-center justify-center gap-1.5">
+                        <span>📢</span>
+                        <span>Sesi Briefing</span>
+                    </button>
+                    <button @click="principalTab = 'sesi'"
+                            :class="principalTab === 'sesi' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600'"
+                            class="py-2 rounded-lg transition-all flex items-center justify-center gap-1.5">
+                        <span>⏰</span>
+                        <span>Jam Presensi</span>
+                    </button>
+
+                    <!-- TAB A: KONTROL SESI BRIEFING -->
+                    <div x-show="principalTab === 'briefing'" class="col-span-2 space-y-3 pt-2">
+                        <!-- Toggle Sesi Status -->
+                        <div class="p-3 rounded-xl border flex items-center justify-between"
+                             :class="briefingSession.active ? 'bg-emerald-50/80 border-emerald-200' : 'bg-slate-50 border-slate-200'">
+                            <div>
+                                <span class="text-[10px] font-black uppercase tracking-wider block"
+                                      :class="briefingSession.active ? 'text-emerald-700' : 'text-slate-500'">Status Sesi Briefing</span>
+                                <span class="text-xs font-extrabold"
+                                      :class="briefingSession.active ? 'text-emerald-800' : 'text-slate-700'"
+                                      x-text="briefingSession.active ? '🟢 SEDANG AKTIF / DIBUKA' : '🔴 SEDANG TUTUP / NONAKTIF'"></span>
+                            </div>
+                            <button type="button"
+                                    @click="toggleBriefingSession(!briefingSession.active)"
+                                    :disabled="briefingForm.isSaving"
+                                    :class="briefingSession.active ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'"
+                                    class="py-2 px-3.5 rounded-xl font-extrabold text-xs shadow-sm transition-all active:scale-95 disabled:opacity-50">
+                                <span x-text="briefingSession.active ? 'Tutup Sesi' : 'Buka Sesi Live'"></span>
+                            </button>
+                        </div>
+
+                        <!-- Judul Briefing Input -->
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-bold text-slate-700 block">Judul / Topik Briefing</label>
+                            <input type="text" x-model="briefingForm.title"
+                                   placeholder="Contoh: Briefing Pagi Kedisiplinan & KBM Santri"
+                                   class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none">
+                        </div>
+
+                        <!-- Isi Briefing Input -->
+                        <div class="space-y-1">
+                            <label class="text-[11px] font-bold text-slate-700 block">Isi Arahan / Ringkasan Briefing</label>
+                            <textarea x-model="briefingForm.content" rows="3"
+                                      placeholder="Tuliskan poin-poin penting arahan kepala sekolah kepada seluruh asatidzah..."
+                                      class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none"></textarea>
+                        </div>
+
+                        <!-- Simpan & Update Briefing -->
+                        <button type="button" @click="saveBriefingContent()"
+                                :disabled="briefingForm.isSaving"
+                                class="w-full py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-xs shadow-md active:scale-98 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50">
+                            <span x-show="!briefingForm.isSaving">💾 Simpan Perubahan Briefing</span>
+                            <span x-show="briefingForm.isSaving" class="animate-spin">⏳</span>
+                        </button>
+                    </div>
+
+                    <!-- TAB B: PENGATURAN JAM SESI PRESENSI -->
+                    <div x-show="principalTab === 'sesi'" class="col-span-2 space-y-3 pt-2 max-h-[55vh] overflow-y-auto pr-1">
+                        
+                        <!-- Manual Override Toggle -->
+                        <div class="p-3 rounded-xl bg-amber-50/90 border border-amber-200 space-y-1.5">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" x-model="sessionsForm.manual_override" class="w-4 h-4 rounded text-amber-600 focus:ring-amber-400">
+                                <span class="text-xs font-black text-amber-900">Buka Paksa Semua Sesi (Override)</span>
+                            </label>
+                            <p class="text-[10px] text-amber-800 leading-snug">
+                                Jika dicentang, semua tombol presensi (Pagi, Siang, Pulang) dapat langsung ditekan tanpa dibatasi jam buka/tutup.
+                            </p>
+                        </div>
+
+                        <!-- Sesi Pagi -->
+                        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                            <span class="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                                <span>🌅</span> SESI 1 (PAGI / MASUK)
+                            </span>
+                            <div class="grid grid-cols-3 gap-2 text-[11px]">
+                                <div>
+                                    <span class="text-slate-500 block text-[10px] font-bold">Jam Buka</span>
+                                    <input type="time" x-model="sessionsForm.morning_open" class="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs font-mono font-bold">
+                                </div>
+                                <div>
+                                    <span class="text-slate-500 block text-[10px] font-bold text-rose-600">Batas Telat</span>
+                                    <input type="time" x-model="sessionsForm.morning_late" class="w-full px-2 py-1.5 rounded-lg border border-rose-300 text-xs font-mono font-bold text-rose-700">
+                                </div>
+                                <div>
+                                    <span class="text-slate-500 block text-[10px] font-bold">Jam Tutup</span>
+                                    <input type="time" x-model="sessionsForm.morning_close" class="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs font-mono font-bold">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sesi Siang -->
+                        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                            <span class="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                                <span>☀️</span> SESI 2 (SIANG / DZUHUR)
+                            </span>
+                            <div class="grid grid-cols-2 gap-2 text-[11px]">
+                                <div>
+                                    <span class="text-slate-500 block text-[10px] font-bold">Jam Buka</span>
+                                    <input type="time" x-model="sessionsForm.afternoon_open" class="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs font-mono font-bold">
+                                </div>
+                                <div>
+                                    <span class="text-slate-500 block text-[10px] font-bold">Jam Tutup</span>
+                                    <input type="time" x-model="sessionsForm.afternoon_close" class="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs font-mono font-bold">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sesi Pulang -->
+                        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                            <span class="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                                <span>🌇</span> SESI 3 (SORE / PULANG)
+                            </span>
+                            <div class="grid grid-cols-2 gap-2 text-[11px]">
+                                <div>
+                                    <span class="text-slate-500 block text-[10px] font-bold">Jam Buka</span>
+                                    <input type="time" x-model="sessionsForm.evening_open" class="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs font-mono font-bold">
+                                </div>
+                                <div>
+                                    <span class="text-slate-500 block text-[10px] font-bold">Jam Tutup</span>
+                                    <input type="time" x-model="sessionsForm.evening_close" class="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs font-mono font-bold">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Simpan Jam Sesi -->
+                        <button type="button" @click="saveSessionTimes()"
+                                :disabled="sessionsForm.isSaving"
+                                class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md active:scale-98 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50">
+                            <span x-show="!sessionsForm.isSaving">💾 Simpan Jadwal Jam Sesi</span>
+                            <span x-show="sessionsForm.isSaving" class="animate-spin">⏳</span>
+                        </button>
+                    </div>
+                </div>
+
+                <button @click="openPrincipalModal = false" class="w-full py-2.5 rounded-xl bg-slate-100 font-bold text-xs text-slate-700 hover:bg-slate-200 transition-all">
+                    Tutup Panel
+                </button>
+            </div>
+        </div>
+        @endif
+
     </div>
 
     <!-- Application Script Logic -->
     <script>
-        function mobilePortalApp() {
+        window.mobilePortalApp = function() {
             return {
                 // Tab state: 'beranda' | 'jadwal' | 'absen' | 'laporan' | 'profil'
                 activeTab: 'beranda',
@@ -1151,11 +1440,12 @@
                 // Modals
                 openLogModal: false,
                 openNotificationModal: false,
+                openPrincipalModal: false,
 
                 // School coordinates & config
-                schoolLat: {{ $schoolLat }},
-                schoolLong: {{ $schoolLong }},
-                schoolRadius: {{ $schoolRadius }},
+                schoolLat: {{ (float) $schoolLat }},
+                schoolLong: {{ (float) $schoolLong }},
+                schoolRadius: {{ (int) $schoolRadius }},
                 timezoneLabel: '{{ $timezoneLabel ?? "WITA" }}',
                 attendancePercentage: {{ $attendancePercentage }},
 
@@ -1187,6 +1477,33 @@
                 hasCheckedOut: {{ !empty($todayAttendance?->check_out) ? 'true' : 'false' }},
                 checkOutTime: '{{ $todayAttendance?->check_out ?? "" }}',
 
+                // Sesi Briefing & Siang Attendance states
+                hasAttendedBriefing: {{ $hasAttendedBriefing ? 'true' : 'false' }},
+                hasAttendedAfternoon: {{ $hasAttendedAfternoon ? 'true' : 'false' }},
+
+                // Sesi Settings & Briefing Settings from Server
+                sessionSettings: @json($sessionSettings),
+                briefingSession: @json($briefingSession),
+                isPrincipal: {{ $isPrincipal ? 'true' : 'false' }},
+
+                // Principal Form models
+                briefingForm: {
+                    title: '{{ addslashes($briefingSession['title'] ?? '') }}',
+                    content: '{{ addslashes($briefingSession['content'] ?? '') }}',
+                    isSaving: false
+                },
+                sessionsForm: {
+                    morning_open: '{{ $sessionSettings['morning_open'] ?? '06:00' }}',
+                    morning_late: '{{ $sessionSettings['morning_late'] ?? '07:30' }}',
+                    morning_close: '{{ $sessionSettings['morning_close'] ?? '11:59' }}',
+                    afternoon_open: '{{ $sessionSettings['afternoon_open'] ?? '12:30' }}',
+                    afternoon_close: '{{ $sessionSettings['afternoon_close'] ?? '13:30' }}',
+                    evening_open: '{{ $sessionSettings['evening_open'] ?? '16:00' }}',
+                    evening_close: '{{ $sessionSettings['evening_close'] ?? '23:59' }}',
+                    manual_override: {{ $sessionSettings['manual_override'] ? 'true' : 'false' }},
+                    isSaving: false
+                },
+
                 // Submission state
                 isSubmitting: false,
                 alertMsg: '',
@@ -1197,7 +1514,7 @@
                     setInterval(() => this.updateClockAndGreetings(), 1000);
                     this.detectGps();
 
-                    // Background Polling setiap 10 detik agar realtime tersinkronisasi jika ditap via fingerprint admin
+                    // Polling sinkronisasi status setiap 10 detik
                     setInterval(() => {
                         this.pollStatus();
                     }, 10000);
@@ -1245,18 +1562,31 @@
                     }
                 },
 
-                isMorningOpen() {
+                parseTimeToMinutes(timeStr) {
+                    if (!timeStr || typeof timeStr !== 'string' || !timeStr.includes(':')) return 0;
+                    const parts = timeStr.split(':');
+                    return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+                },
+
+                isTimeInRange(openStr, closeStr) {
+                    if (this.sessionSettings && this.sessionSettings.manual_override) return true;
                     const now = new Date();
                     const currentMinutes = now.getHours() * 60 + now.getMinutes();
-                    // Window: 06:00 (360m) - 11:59 (719m)
-                    return currentMinutes >= 360 && currentMinutes <= 719;
+                    const openMin = this.parseTimeToMinutes(openStr);
+                    const closeMin = this.parseTimeToMinutes(closeStr);
+                    return currentMinutes >= openMin && currentMinutes <= closeMin;
+                },
+
+                isMorningOpen() {
+                    return this.isTimeInRange(this.sessionSettings.morning_open, this.sessionSettings.morning_close);
+                },
+
+                isAfternoonOpen() {
+                    return this.isTimeInRange(this.sessionSettings.afternoon_open, this.sessionSettings.afternoon_close);
                 },
 
                 isEveningOpen() {
-                    const now = new Date();
-                    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-                    // Window: 16:00 (960m) - 23:59 (1439m)
-                    return currentMinutes >= 960 && currentMinutes <= 1439;
+                    return this.isTimeInRange(this.sessionSettings.evening_open, this.sessionSettings.evening_close);
                 },
 
                 detectGps() {
@@ -1309,17 +1639,30 @@
                         });
                         const data = await res.json();
 
+                        if (data.briefing_active !== undefined) {
+                            this.briefingSession.active = data.briefing_active;
+                        }
+                        if (data.briefing_title) {
+                            this.briefingSession.title = data.briefing_title;
+                        }
+
                         if (data.has_record) {
                             if (!this.hasCheckedIn && data.has_checked_in) {
                                 this.hasCheckedIn = true;
                                 this.checkInTime = data.check_in_time;
                                 this.checkInMethod = data.method_label;
-                                this.showAlert('success', `Tersinkronisasi! Presensi Masuk telah tercatat (${data.check_in_time}).`);
+                                this.showAlert('success', `Tersinkronisasi! Presensi Masuk tercatat (${data.check_in_time}).`);
                             }
                             if (!this.hasCheckedOut && data.has_checked_out) {
                                 this.hasCheckedOut = true;
                                 this.checkOutTime = data.check_out_time;
-                                this.showAlert('success', `Tersinkronisasi! Presensi Pulang telah tercatat (${data.check_out_time}).`);
+                                this.showAlert('success', `Tersinkronisasi! Presensi Pulang tercatat (${data.check_out_time}).`);
+                            }
+                            if (data.has_attended_briefing !== undefined) {
+                                this.hasAttendedBriefing = data.has_attended_briefing;
+                            }
+                            if (data.has_attended_afternoon !== undefined) {
+                                this.hasAttendedAfternoon = data.has_attended_afternoon;
                             }
                         }
                     } catch (e) {
@@ -1334,6 +1677,14 @@
                     }
                     if (type === 'check_out' && this.hasCheckedOut) {
                         this.showAlert('error', 'Anda sudah melakukan presensi pulang hari ini!');
+                        return;
+                    }
+                    if (type === 'afternoon' && this.hasAttendedAfternoon) {
+                        this.showAlert('error', 'Anda sudah melakukan presensi siang hari ini!');
+                        return;
+                    }
+                    if (type === 'briefing' && this.hasAttendedBriefing) {
+                        this.showAlert('error', 'Anda sudah mencatat kehadiran briefing hari ini!');
                         return;
                     }
 
@@ -1371,10 +1722,20 @@
                                 this.hasCheckedIn = true;
                                 this.checkInTime = data.attendance.check_in;
                                 this.showAlert('success', 'Alhamdulillah! Presensi Masuk Berhasil Tercatat.');
-                            } else {
+                            } else if (type === 'check_out') {
                                 this.hasCheckedOut = true;
                                 this.checkOutTime = data.attendance.check_out;
                                 this.showAlert('success', 'Alhamdulillah! Presensi Pulang Berhasil Tercatat.');
+                            } else if (type === 'afternoon') {
+                                this.hasAttendedAfternoon = true;
+                                this.showAlert('success', 'Alhamdulillah! Presensi Sesi Siang Berhasil Dicatat.');
+                            } else if (type === 'briefing') {
+                                this.hasAttendedBriefing = true;
+                                if (!this.hasCheckedIn && data.attendance && data.attendance.check_in) {
+                                    this.hasCheckedIn = true;
+                                    this.checkInTime = data.attendance.check_in;
+                                }
+                                this.showAlert('success', data.message || 'Alhamdulillah! Kehadiran Briefing Berhasil Dicatat.');
                             }
                         } else {
                             this.showAlert('error', data.message || 'Gagal melakukan presensi. Silakan coba lagi.');
@@ -1383,6 +1744,80 @@
                         this.showAlert('error', 'Terjadi kesalahan jaringan atau server. Pastikan koneksi internet stabil.');
                     } finally {
                         this.isSubmitting = false;
+                    }
+                },
+
+                submitBriefingAttendance() {
+                    this.submitAttendance('briefing');
+                },
+
+                async toggleBriefingSession(activeState) {
+                    this.briefingForm.isSaving = true;
+                    try {
+                        const res = await fetch('{{ route('admin.teacher-attendances.toggle-briefing') }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                active: activeState ? 1 : 0,
+                                title: this.briefingForm.title,
+                                content: this.briefingForm.content
+                            })
+                        });
+                        const data = await res.json();
+                        if (res.ok && data.success) {
+                            this.briefingSession = data.briefing;
+                            this.showAlert('success', data.message);
+                        } else {
+                            this.showAlert('error', data.message || 'Gagal mengubah status sesi briefing.');
+                        }
+                    } catch (err) {
+                        this.showAlert('error', 'Gagal menghubungi server.');
+                    } finally {
+                        this.briefingForm.isSaving = false;
+                    }
+                },
+
+                async saveBriefingContent() {
+                    this.toggleBriefingSession(this.briefingSession.active);
+                },
+
+                async saveSessionTimes() {
+                    this.sessionsForm.isSaving = true;
+                    try {
+                        const res = await fetch('{{ route('admin.teacher-attendances.update-session-times') }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                morning_open: this.sessionsForm.morning_open,
+                                morning_late: this.sessionsForm.morning_late,
+                                morning_close: this.sessionsForm.morning_close,
+                                afternoon_open: this.sessionsForm.afternoon_open,
+                                afternoon_close: this.sessionsForm.afternoon_close,
+                                evening_open: this.sessionsForm.evening_open,
+                                evening_close: this.sessionsForm.evening_close,
+                                manual_override: this.sessionsForm.manual_override ? 1 : 0,
+                            })
+                        });
+                        const data = await res.json();
+                        if (res.ok && data.success) {
+                            this.sessionSettings = data.sessions;
+                            this.showAlert('success', data.message);
+                            this.openPrincipalModal = false;
+                        } else {
+                            this.showAlert('error', data.message || 'Gagal menyimpan pengaturan sesi.');
+                        }
+                    } catch (err) {
+                        this.showAlert('error', 'Gagal menghubungi server.');
+                    } finally {
+                        this.sessionsForm.isSaving = false;
                     }
                 },
 
@@ -1398,6 +1833,14 @@
                     alert('Untuk menginstal aplikasi ini ke layar utama smartphone:\n1. Buka menu browser (ikon titik tiga / tombol bagikan).\n2. Pilih "Tambahkan ke Layar Utama" / "Add to Home Screen".');
                 }
             }
+        };
+
+        // Alpine Initialization Register
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('mobilePortalApp', window.mobilePortalApp);
+        });
+        if (window.Alpine) {
+            Alpine.data('mobilePortalApp', window.mobilePortalApp);
         }
     </script>
 </body>

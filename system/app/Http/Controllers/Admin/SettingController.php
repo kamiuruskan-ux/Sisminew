@@ -71,6 +71,23 @@ class SettingController extends Controller
             'school_attendance_radius' => 'nullable|integer|min:10',
             'school_timezone_label' => 'nullable|string|in:WIB,WITA,WIT',
 
+            // Pengaturan Waktu Sesi Presensi Pegawai & Asatidzah
+            'attendance_morning_open' => 'nullable|string',
+            'attendance_morning_late' => 'nullable|string',
+            'attendance_morning_close' => 'nullable|string',
+            'attendance_afternoon_open' => 'nullable|string',
+            'attendance_afternoon_close' => 'nullable|string',
+            'attendance_evening_open' => 'nullable|string',
+            'attendance_evening_close' => 'nullable|string',
+            'attendance_manual_override' => 'nullable|in:0,1',
+
+            // Pengaturan Sesi Briefing Kepala Sekolah
+            'briefing_session_active' => 'nullable|in:0,1',
+            'briefing_title' => 'nullable|string|max:255',
+            'briefing_content' => 'nullable|string',
+            'briefing_opened_at' => 'nullable|string',
+
+
             // Branding & Theme
             'theme_preset' => 'nullable|string',
             'theme_mode_default' => 'nullable|string|in:light,dark,system',
@@ -183,6 +200,23 @@ class SettingController extends Controller
             'school_longitude' => 'school_longitude',
             'school_attendance_radius' => 'school_attendance_radius',
             'school_timezone_label' => 'school_timezone_label',
+            
+            // Jam Sesi Presensi
+            'attendance_morning_open' => 'attendance_morning_open',
+            'attendance_morning_late' => 'attendance_morning_late',
+            'attendance_morning_close' => 'attendance_morning_close',
+            'attendance_afternoon_open' => 'attendance_afternoon_open',
+            'attendance_afternoon_close' => 'attendance_afternoon_close',
+            'attendance_evening_open' => 'attendance_evening_open',
+            'attendance_evening_close' => 'attendance_evening_close',
+            'attendance_manual_override' => 'attendance_manual_override',
+
+            // Sesi Briefing Kepala Sekolah
+            'briefing_session_active' => 'briefing_session_active',
+            'briefing_title' => 'briefing_title',
+            'briefing_content' => 'briefing_content',
+            'briefing_opened_at' => 'briefing_opened_at',
+
             'theme_preset' => 'theme_preset',
             'theme_mode_default' => 'theme_mode_default',
             'primary_color' => 'primary_color',

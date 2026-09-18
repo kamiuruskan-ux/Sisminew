@@ -215,8 +215,8 @@ class TeacherAttendanceController extends Controller
         // 2. GPS GEOFENCING VALIDATION
         $workLoc = $request->work_location ?? 'school';
         if ($workLoc === 'school') {
-            $schoolLat = (float) Setting::get('school_latitude', -6.2088);
-            $schoolLong = (float) Setting::get('school_longitude', 106.8456);
+            $schoolLat = (float) Setting::get('school_latitude', -0.8917);
+            $schoolLong = (float) Setting::get('school_longitude', 119.8707);
             $maxRadius = (int) Setting::get('school_attendance_radius', 100); // meters default 100m
 
             if ($request->filled('latitude') && $request->filled('longitude')) {
@@ -233,7 +233,7 @@ class TeacherAttendanceController extends Controller
                 $distance = round($earthRadius * $c);
 
                 if ($distance > $maxRadius) {
-                    $errMsg = "Presensi Gagal: Posisi Anda ({$distance} meter) berada di luar batas radius sekolah (Maksimal: {$maxRadius} meter). Dekati area sekolah atau gunakan scanner sidik jari di laptop admin.";
+                    $errMsg = "Presensi Gagal: Posisi Anda ({$distance} meter) berada di luar batas radius sekolah (Maksimal: {$maxRadius} meter). Dekati area sekolah atau gunakan moda Dinas Luar.";
                     if ($request->wantsJson() || $request->ajax()) {
                         return response()->json([
                             'success' => false,
@@ -271,7 +271,56 @@ class TeacherAttendanceController extends Controller
         $attendance->method = 'mobile_gps';
         $attendance->device_info = $request->header('User-Agent', 'Mobile Phone');
 
-        if ($request->type === 'check_in') {
+        // Check batas jam keterlambatan dari pengaturan (default 07:30)
+        $lateThreshold = Setting::get('attendance_morning_late', '07:30');
+        if (!str_contains($lateThreshold, ':')) {
+            $lateThreshold = '07:30';
+        }
+        $lateTimestamp = strtotime($lateThreshold . ':00');
+
+        if ($request->type === 'briefing') {
+            $briefingTitle = Setting::get('briefing_title', 'Briefing Pagi Dewan Guru');
+            $briefingActive = Setting::get('briefing_session_active', '0') == '1';
+
+            if (!$briefingActive) {
+                $errMsg = 'Sesi Briefing saat ini belum dibuka atau telah ditutup oleh Kepala Sekolah.';
+                if ($request->wantsJson() || $request->ajax()) {
+                    return response()->json(['success' => false, 'message' => $errMsg], 422);
+                }
+                return back()->with('error', $errMsg);
+            }
+
+            // Jika belum check_in pagi, jadikan sekaligus check_in
+            if (empty($attendance->check_in)) {
+                $attendance->check_in = $nowTime;
+                $attendance->check_in_lat = $request->latitude;
+                $attendance->check_in_long = $request->longitude;
+                if ($photoName) {
+                    $attendance->check_in_photo = $photoName;
+                }
+                $attendance->work_location = $workLoc;
+                $attendance->status = (strtotime($nowTime) > $lateTimestamp) ? 'late' : 'present';
+            }
+
+            // Catat kehadiran briefing ke dalam notes
+            $briefingTag = "[Hadir Briefing: {$briefingTitle} @ {$nowTime}]";
+            if (empty($attendance->notes)) {
+                $attendance->notes = $briefingTag;
+            } elseif (!str_contains($attendance->notes, 'Hadir Briefing:')) {
+                $attendance->notes = trim($attendance->notes) . ' | ' . $briefingTag;
+            }
+
+            $msg = "Alhamdulillah! Kehadiran Briefing '{$briefingTitle}' berhasil dicatat pada {$nowTime}";
+        } elseif ($request->type === 'afternoon') {
+            // Sesi Siang (Dzuhur / Checklist)
+            $afternoonTag = "[Hadir Sesi Siang @ {$nowTime}]";
+            if (empty($attendance->notes)) {
+                $attendance->notes = $afternoonTag;
+            } elseif (!str_contains($attendance->notes, 'Hadir Sesi Siang')) {
+                $attendance->notes = trim($attendance->notes) . ' | ' . $afternoonTag;
+            }
+            $msg = "Presensi SESI SIANG berhasil dicatat pada {$nowTime}";
+        } elseif ($request->type === 'check_in') {
             $attendance->check_in = $nowTime;
             $attendance->check_in_lat = $request->latitude;
             $attendance->check_in_long = $request->longitude;
@@ -280,14 +329,15 @@ class TeacherAttendanceController extends Controller
             }
             $attendance->work_location = $workLoc;
 
-            // Auto determine late status (Threshold: 07:30)
-            if (strtotime($nowTime) > strtotime('07:30:00')) {
+            // Auto determine late status
+            if (strtotime($nowTime) > $lateTimestamp) {
                 $attendance->status = 'late';
             } else {
                 $attendance->status = 'present';
             }
             $msg = 'Presensi MASUK via Mobile GPS berhasil dicatat pada ' . $nowTime;
         } else {
+
             $attendance->check_out = $nowTime;
             $attendance->check_out_lat = $request->latitude;
             $attendance->check_out_long = $request->longitude;
@@ -840,6 +890,32 @@ class TeacherAttendanceController extends Controller
         $schoolRadius = (int) Setting::get('school_attendance_radius', 100);
         $timezoneLabel = Setting::get('school_timezone_label', 'WITA');
 
+        // Pengaturan Jam Sesi Presensi Mandiri
+        $sessionSettings = [
+            'morning_open' => Setting::get('attendance_morning_open', '06:00'),
+            'morning_late' => Setting::get('attendance_morning_late', '07:30'),
+            'morning_close' => Setting::get('attendance_morning_close', '11:59'),
+            'afternoon_open' => Setting::get('attendance_afternoon_open', '12:30'),
+            'afternoon_close' => Setting::get('attendance_afternoon_close', '13:30'),
+            'evening_open' => Setting::get('attendance_evening_open', '16:00'),
+            'evening_close' => Setting::get('attendance_evening_close', '23:59'),
+            'manual_override' => (bool) Setting::get('attendance_manual_override', '0'),
+        ];
+
+        // Sesi Briefing Kepala Sekolah
+        $briefingSession = [
+            'active' => (bool) Setting::get('briefing_session_active', '0'),
+            'title' => Setting::get('briefing_title', 'Briefing Pagi Dewan Guru & Asatidzah'),
+            'content' => Setting::get('briefing_content', 'Penguatan kedisiplinan santri dan pembiasaan adab islami.'),
+            'opened_at' => Setting::get('briefing_opened_at', date('H:i')),
+        ];
+
+        // Cek apakah user adalah Kepala Sekolah / Admin
+        $isPrincipal = $user->hasRole('kepala-sekolah') || $user->hasRole('admin') || $user->hasRole('super-admin');
+
+        $hasAttendedBriefing = !empty($todayAttendance?->notes) && str_contains($todayAttendance->notes, 'Hadir Briefing:');
+        $hasAttendedAfternoon = !empty($todayAttendance?->notes) && str_contains($todayAttendance->notes, 'Hadir Sesi Siang');
+
         // Announcements
         $announcements = \App\Models\Announcement::query()
             ->when(method_exists(\App\Models\Announcement::class, 'scopePublished'), fn($q) => $q->published())
@@ -940,7 +1016,12 @@ class TeacherAttendanceController extends Controller
             'latestSchoolAttendances',
             'announcements',
             'hadithToday',
-            'agendas'
+            'agendas',
+            'sessionSettings',
+            'briefingSession',
+            'isPrincipal',
+            'hasAttendedBriefing',
+            'hasAttendedAfternoon'
         ));
     }
 
@@ -956,6 +1037,9 @@ class TeacherAttendanceController extends Controller
             ->where('date', $today)
             ->first();
 
+        $briefingActive = (bool) Setting::get('briefing_session_active', '0');
+        $briefingTitle = Setting::get('briefing_title', 'Briefing Pagi Dewan Guru');
+
         if (!$attendance) {
             return response()->json([
                 'has_record' => false,
@@ -963,11 +1047,17 @@ class TeacherAttendanceController extends Controller
                 'has_checked_out' => false,
                 'can_check_in' => true,
                 'can_check_out' => false,
+                'has_attended_briefing' => false,
+                'has_attended_afternoon' => false,
+                'briefing_active' => $briefingActive,
+                'briefing_title' => $briefingTitle,
             ]);
         }
 
         $hasCheckedIn = !empty($attendance->check_in);
         $hasCheckedOut = !empty($attendance->check_out);
+        $hasAttendedBriefing = !empty($attendance->notes) && str_contains($attendance->notes, 'Hadir Briefing:');
+        $hasAttendedAfternoon = !empty($attendance->notes) && str_contains($attendance->notes, 'Hadir Sesi Siang');
 
         return response()->json([
             'has_record' => true,
@@ -981,6 +1071,97 @@ class TeacherAttendanceController extends Controller
             'method_label' => $attendance->method_label,
             'status' => $attendance->status,
             'status_label' => $attendance->status_label,
+            'has_attended_briefing' => $hasAttendedBriefing,
+            'has_attended_afternoon' => $hasAttendedAfternoon,
+            'briefing_active' => $briefingActive,
+            'briefing_title' => $briefingTitle,
+        ]);
+    }
+
+    /**
+     * Live Briefing Session Toggle & Content Manager (for Principal / Admin)
+     */
+    public function toggleBriefing(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user->hasRole('kepala-sekolah') && !$user->hasRole('admin') && !$user->hasRole('super-admin')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hanya Kepala Sekolah atau Administrator yang berwenang membuka sesi briefing.'
+            ], 403);
+        }
+
+        $active = $request->boolean('active');
+        Setting::set('briefing_session_active', $active ? '1' : '0');
+
+        if ($request->filled('title')) {
+            Setting::set('briefing_title', trim($request->title));
+        }
+        if ($request->filled('content')) {
+            Setting::set('briefing_content', trim($request->content));
+        }
+        if ($active) {
+            Setting::set('briefing_opened_at', date('H:i'));
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $active ? 'Sesi Briefing Kepala Sekolah Resmi Dibuka!' : 'Sesi Briefing Ditutup.',
+            'briefing' => [
+                'active' => (bool) Setting::get('briefing_session_active', '0'),
+                'title' => Setting::get('briefing_title', 'Briefing Pagi Dewan Guru & Asatidzah'),
+                'content' => Setting::get('briefing_content', 'Penguatan kedisiplinan santri dan pembiasaan adab islami.'),
+                'opened_at' => Setting::get('briefing_opened_at', date('H:i')),
+            ]
+        ]);
+    }
+
+    /**
+     * Quick Update for Attendance Session Times (Pagi, Siang, Pulang & Override)
+     */
+    public function updateSessionTimes(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user->hasRole('kepala-sekolah') && !$user->hasRole('admin') && !$user->hasRole('super-admin')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki hak akses mengubah jadwal sesi presensi.'
+            ], 403);
+        }
+
+        $fields = [
+            'attendance_morning_open' => $request->morning_open,
+            'attendance_morning_late' => $request->morning_late,
+            'attendance_morning_close' => $request->morning_close,
+            'attendance_afternoon_open' => $request->afternoon_open,
+            'attendance_afternoon_close' => $request->afternoon_close,
+            'attendance_evening_open' => $request->evening_open,
+            'attendance_evening_close' => $request->evening_close,
+        ];
+
+        foreach ($fields as $key => $val) {
+            if ($val !== null) {
+                Setting::set($key, trim($val));
+            }
+        }
+
+        if ($request->has('manual_override')) {
+            Setting::set('attendance_manual_override', $request->boolean('manual_override') ? '1' : '0');
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pengaturan jam sesi presensi berhasil disimpan!',
+            'sessions' => [
+                'morning_open' => Setting::get('attendance_morning_open', '06:00'),
+                'morning_late' => Setting::get('attendance_morning_late', '07:30'),
+                'morning_close' => Setting::get('attendance_morning_close', '11:59'),
+                'afternoon_open' => Setting::get('attendance_afternoon_open', '12:30'),
+                'afternoon_close' => Setting::get('attendance_afternoon_close', '13:30'),
+                'evening_open' => Setting::get('attendance_evening_open', '16:00'),
+                'evening_close' => Setting::get('attendance_evening_close', '23:59'),
+                'manual_override' => (bool) Setting::get('attendance_manual_override', '0'),
+            ]
         ]);
     }
 }

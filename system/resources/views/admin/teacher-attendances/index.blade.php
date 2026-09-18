@@ -12,6 +12,89 @@
     showDeleteModal: false,
     deleteTarget: null,
     deleteFormAction: '',
+
+    showSesiBriefingModal: false,
+    briefingActive: {{ Setting::get('briefing_session_active', '0') == '1' ? 'true' : 'false' }},
+    briefingTitle: '{{ addslashes(Setting::get('briefing_title', 'Briefing Pagi Dewan Guru & Asatidzah')) }}',
+    briefingContent: '{{ addslashes(Setting::get('briefing_content', 'Penguatan kedisiplinan santri dan pembiasaan adab islami.')) }}',
+    briefingOpenedAt: '{{ Setting::get('briefing_opened_at', date('H:i')) }}',
+    
+    // Sessions config
+    sessionMorningOpen: '{{ Setting::get('attendance_morning_open', '06:00') }}',
+    sessionMorningLate: '{{ Setting::get('attendance_morning_late', '07:30') }}',
+    sessionMorningClose: '{{ Setting::get('attendance_morning_close', '11:59') }}',
+    sessionAfternoonOpen: '{{ Setting::get('attendance_afternoon_open', '12:30') }}',
+    sessionAfternoonClose: '{{ Setting::get('attendance_afternoon_close', '13:30') }}',
+    sessionEveningOpen: '{{ Setting::get('attendance_evening_open', '16:00') }}',
+    sessionEveningClose: '{{ Setting::get('attendance_evening_close', '23:59') }}',
+    sessionManualOverride: {{ Setting::get('attendance_manual_override', '0') == '1' ? 'true' : 'false' }},
+    isSavingConfig: false,
+
+    async toggleBriefing(activeState) {
+        this.isSavingConfig = true;
+        try {
+            const res = await fetch('{{ route('admin.teacher-attendances.toggle-briefing') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    active: activeState ? 1 : 0,
+                    title: this.briefingTitle,
+                    content: this.briefingContent
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                this.briefingActive = data.briefing.active;
+                this.briefingOpenedAt = data.briefing.opened_at;
+                alert(data.message);
+            } else {
+                alert(data.message || 'Gagal mengubah sesi briefing.');
+            }
+        } catch (e) {
+            alert('Kesalahan jaringan: ' + e.message);
+        } finally {
+            this.isSavingConfig = false;
+        }
+    },
+
+    async saveSessionTimes() {
+        this.isSavingConfig = true;
+        try {
+            const res = await fetch('{{ route('admin.teacher-attendances.update-session-times') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    morning_open: this.sessionMorningOpen,
+                    morning_late: this.sessionMorningLate,
+                    morning_close: this.sessionMorningClose,
+                    afternoon_open: this.sessionAfternoonOpen,
+                    afternoon_close: this.sessionAfternoonClose,
+                    evening_open: this.sessionEveningOpen,
+                    evening_close: this.sessionEveningClose,
+                    manual_override: this.sessionManualOverride ? 1 : 0
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(data.message);
+                this.showSesiBriefingModal = false;
+            } else {
+                alert(data.message || 'Gagal menyimpan pengaturan sesi.');
+            }
+        } catch (e) {
+            alert('Kesalahan jaringan: ' + e.message);
+        } finally {
+            this.isSavingConfig = false;
+        }
+    },
     
     // Manual Edit/Record Form State
     form: {
@@ -280,6 +363,13 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
                 <span>Portal HP (Lock GPS) ↗</span>
             </a>
+
+            <!-- Kontrol Sesi Presensi & Live Briefing Modal Trigger -->
+            <button type="button" @click="showSesiBriefingModal = true"
+                    class="inline-flex items-center space-x-2 px-3.5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-orange-500/25 cursor-pointer">
+                <span>👑</span>
+                <span>Sesi & Briefing ⚙️</span>
+            </button>
 
             <!-- Pengaturan Radius GPS Shortcut Button -->
             <a href="{{ route('admin.settings', ['tab' => 'contact']) }}"
@@ -981,6 +1071,180 @@
                             Tutup Scanner
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- MODAL: KONTROL JAM SESI & LIVE BRIEFING KEPALA SEKOLAH -->
+        <!-- ============================================================ -->
+        <div x-show="showSesiBriefingModal"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+             style="display: none;">
+            
+            <div @click.away="showSesiBriefingModal = false"
+                 class="bg-white dark:bg-[#1E293B] w-full max-w-xl rounded-3xl p-6 space-y-5 max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-700">
+                
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-9 h-9 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center text-lg font-bold">👑</span>
+                        <div>
+                            <h3 class="text-base font-extrabold text-slate-900 dark:text-white">Kontrol Jam Sesi & Live Briefing</h3>
+                            <p class="text-xs text-slate-500">Pengaturan Waktu Absensi & Sesi Briefing Kepala Sekolah</p>
+                        </div>
+                    </div>
+                    <button type="button" @click="showSesiBriefingModal = false" class="text-slate-400 hover:text-slate-600 text-2xl font-bold">×</button>
+                </div>
+
+                <div class="space-y-4 overflow-y-auto flex-1 pr-1" x-data="{ activeSettingTab: 'briefing' }">
+                    
+                    <!-- Tab Selector -->
+                    <div class="grid grid-cols-2 gap-2 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl text-xs font-bold">
+                        <button type="button" @click="activeSettingTab = 'briefing'"
+                                :class="activeSettingTab === 'briefing' ? 'bg-white dark:bg-[#0F172A] text-orange-600 shadow-sm' : 'text-slate-500'"
+                                class="py-2 rounded-xl transition-all flex items-center justify-center gap-1.5">
+                            <span>📢</span>
+                            <span>Sesi Briefing Kepala Sekolah</span>
+                        </button>
+                        <button type="button" @click="activeSettingTab = 'sesi'"
+                                :class="activeSettingTab === 'sesi' ? 'bg-white dark:bg-[#0F172A] text-blue-600 shadow-sm' : 'text-slate-500'"
+                                class="py-2 rounded-xl transition-all flex items-center justify-center gap-1.5">
+                            <span>⏰</span>
+                            <span>Pengaturan Jam Sesi</span>
+                        </button>
+                    </div>
+
+                    <!-- TAB 1: BRIEFING KEPALA SEKOLAH -->
+                    <div x-show="activeSettingTab === 'briefing'" class="space-y-4 pt-1">
+                        
+                        <!-- Toggle Status -->
+                        <div class="p-4 rounded-2xl border flex items-center justify-between"
+                             :class="briefingActive ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'">
+                            <div>
+                                <span class="text-[10px] font-black uppercase tracking-wider block"
+                                      :class="briefingActive ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500'">Status Sesi Briefing</span>
+                                <span class="text-sm font-extrabold"
+                                      :class="briefingActive ? 'text-emerald-800 dark:text-emerald-300' : 'text-slate-700 dark:text-slate-300'"
+                                      x-text="briefingActive ? '🟢 AKTIF & DAPAT DIABSEN PEGAWAI' : '🔴 TUTUP / NONAKTIF'"></span>
+                            </div>
+                            <button type="button"
+                                    @click="toggleBriefing(!briefingActive)"
+                                    :disabled="isSavingConfig"
+                                    :class="briefingActive ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'"
+                                    class="py-2.5 px-4 rounded-xl font-extrabold text-xs shadow-sm transition-all active:scale-95 disabled:opacity-50 cursor-pointer">
+                                <span x-text="briefingActive ? 'Tutup Sesi Briefing' : 'Buka Sesi Live'"></span>
+                            </button>
+                        </div>
+
+                        <!-- Judul Briefing -->
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-700 dark:text-slate-300 block">Judul / Topik Briefing</label>
+                            <input type="text" x-model="briefingTitle"
+                                   placeholder="Contoh: Briefing Pagi Kedisiplinan & KBM Santri"
+                                   class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none text-slate-900 dark:text-white">
+                        </div>
+
+                        <!-- Isi / Ringkasan Briefing -->
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-slate-700 dark:text-slate-300 block">Isi Arahan / Ringkasan Materi Briefing</label>
+                            <textarea x-model="briefingContent" rows="4"
+                                      placeholder="Tuliskan poin-poin arahan kepala sekolah yang dapat dibaca oleh seluruh asatidzah di aplikasi mobile..."
+                                      class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none text-slate-900 dark:text-white"></textarea>
+                        </div>
+
+                        <button type="button" @click="toggleBriefing(briefingActive)"
+                                :disabled="isSavingConfig"
+                                class="w-full py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-xs shadow-md active:scale-98 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer">
+                            <span x-show="!isSavingConfig">💾 Simpan Perubahan Materi Briefing</span>
+                            <span x-show="isSavingConfig" class="animate-spin">⏳</span>
+                        </button>
+                    </div>
+
+                    <!-- TAB 2: PENGATURAN JAM SESI PRESENSI -->
+                    <div x-show="activeSettingTab === 'sesi'" class="space-y-4 pt-1">
+                        
+                        <!-- Manual Override Toggle -->
+                        <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-1">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" x-model="sessionManualOverride" class="w-4 h-4 rounded text-amber-600 focus:ring-amber-400">
+                                <span class="text-xs font-black text-amber-900 dark:text-amber-200">Mode Buka Paksa (Manual Override)</span>
+                            </label>
+                            <p class="text-[11px] text-amber-800 dark:text-amber-300/80 leading-relaxed">
+                                Jika diaktifkan, semua sesi presensi (Pagi, Siang, Pulang) di aplikasi mobile akan langsung dibuka tanpa batasan jam buka/tutup.
+                            </p>
+                        </div>
+
+                        <!-- Sesi 1 Pagi -->
+                        <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-2.5">
+                            <span class="text-xs font-black text-slate-800 dark:text-white flex items-center gap-1.5">
+                                <span>🌅</span> SESI 1 (PAGI / MASUK)
+                            </span>
+                            <div class="grid grid-cols-3 gap-2.5 text-xs">
+                                <div>
+                                    <span class="text-slate-500 block text-[10px] font-bold mb-1">Jam Buka</span>
+                                    <input type="time" x-model="sessionMorningOpen" class="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono font-bold">
+                                </div>
+                                <div>
+                                    <span class="text-rose-600 dark:text-rose-400 block text-[10px] font-bold mb-1">Batas Telat</span>
+                                    <input type="time" x-model="sessionMorningLate" class="w-full px-2.5 py-1.5 rounded-xl border border-rose-300 dark:border-rose-600 bg-white dark:bg-slate-900 text-xs font-mono font-bold text-rose-600">
+                                </div>
+                                <div>
+                                    <span class="text-slate-500 block text-[10px] font-bold mb-1">Jam Tutup</span>
+                                    <input type="time" x-model="sessionMorningClose" class="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono font-bold">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sesi 2 Siang -->
+                        <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-2.5">
+                            <span class="text-xs font-black text-slate-800 dark:text-white flex items-center gap-1.5">
+                                <span>☀️</span> SESI 2 (SIANG / DZUHUR)
+                            </span>
+                            <div class="grid grid-cols-2 gap-2.5 text-xs">
+                                <div>
+                                    <span class="text-slate-500 block text-[10px] font-bold mb-1">Jam Buka</span>
+                                    <input type="time" x-model="sessionAfternoonOpen" class="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono font-bold">
+                                </div>
+                                <div>
+                                    <span class="text-slate-500 block text-[10px] font-bold mb-1">Jam Tutup</span>
+                                    <input type="time" x-model="sessionAfternoonClose" class="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono font-bold">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sesi 3 Sore -->
+                        <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-2.5">
+                            <span class="text-xs font-black text-slate-800 dark:text-white flex items-center gap-1.5">
+                                <span>🌇</span> SESI 3 (SORE / PULANG)
+                            </span>
+                            <div class="grid grid-cols-2 gap-2.5 text-xs">
+                                <div>
+                                    <span class="text-slate-500 block text-[10px] font-bold mb-1">Jam Buka</span>
+                                    <input type="time" x-model="sessionEveningOpen" class="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono font-bold">
+                                </div>
+                                <div>
+                                    <span class="text-slate-500 block text-[10px] font-bold mb-1">Jam Tutup</span>
+                                    <input type="time" x-model="sessionEveningClose" class="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-mono font-bold">
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="button" @click="saveSessionTimes()"
+                                :disabled="isSavingConfig"
+                                class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md active:scale-98 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer">
+                            <span x-show="!isSavingConfig">💾 Simpan Jadwal Jam Sesi</span>
+                            <span x-show="isSavingConfig" class="animate-spin">⏳</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                    <button type="button" @click="showSesiBriefingModal = false" class="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition">
+                        Tutup
+                    </button>
                 </div>
             </div>
         </div>
