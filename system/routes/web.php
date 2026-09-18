@@ -136,6 +136,11 @@ Route::prefix('parent')->name('parent.')->group(function () {
 Route::post('logout', [LoginController::class, 'logout'])->name('logout')->middleware('auth');
 Route::get('logout', [LoginController::class, 'logoutConfirm'])->middleware('auth');
 
+// Safety alias for profile-settings route
+Route::get('profile-settings', function () {
+    return redirect()->route('admin.profile');
+})->name('profile-settings')->middleware('auth');
+
 
 /*
 |--------------------------------------------------------------------------
