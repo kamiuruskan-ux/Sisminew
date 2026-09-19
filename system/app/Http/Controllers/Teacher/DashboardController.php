@@ -16,6 +16,14 @@ class DashboardController extends Controller
      */
     public function index()
     {
+        // Deteksi apakah pengguna mengakses dari perangkat seluler (smartphone / tablet)
+        $userAgent = request()->header('User-Agent', '');
+        $isMobile = preg_match('/(android|avantgo|blackberry|bolt|boost|cricket|docomo|fone|hiptop|mini|mobi|palm|phone|pie|tablet|up\.browser|up\.link|webos|wos|iphone|ipad|ipod)/i', $userAgent);
+
+        if ($isMobile) {
+            return redirect()->route('admin.teacher-attendances.mobile');
+        }
+
         $user = Auth::user();
 
         $stats = [

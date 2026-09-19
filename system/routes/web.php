@@ -640,6 +640,7 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|bendahara|operator|kanti
     Route::middleware('permission:manage-attendance')->group(function () {
         Route::put('attendances/settings', [AttendanceController::class, 'updateSettings'])->name('attendances.update-settings');
         Route::post('attendances', [AttendanceController::class, 'store'])->name('attendances.store');
+        Route::post('attendances/bulk', [AttendanceController::class, 'store'])->name('attendances.bulk.store');
         Route::get('attendances/{attendance}/edit', [AttendanceController::class, 'edit'])->name('attendances.edit');
         Route::put('attendances/{attendance}', [AttendanceController::class, 'update'])->name('attendances.update');
         Route::delete('attendances/{attendance}', [AttendanceController::class, 'destroy'])->name('attendances.destroy');
@@ -742,6 +743,28 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|bendahara|operator|kanti
         Route::post('database-maintenance/backup', [DatabaseMaintenanceController::class, 'backup'])->name('database-maintenance.backup');
         Route::get('database-maintenance/download/{filename}', [DatabaseMaintenanceController::class, 'download'])->name('database-maintenance.download');
         Route::delete('database-maintenance/destroy/{filename}', [DatabaseMaintenanceController::class, 'destroy'])->name('database-maintenance.destroy');
+
+        // Cryptographic License Key Generator Tool
+        Route::get('license-generator', function () {
+            return view('admin.license.generator');
+        })->name('license-generator.index');
+        Route::post('license-generator', function (\Illuminate\Http\Request $request) {
+            $request->validate([
+                'domain' => 'required|string',
+                'client_name' => 'required|string',
+            ]);
+            $key = \App\Services\LicenseManager::generateLicense($request->domain, $request->client_name);
+            if ($request->auto_install) {
+                \App\Services\LicenseManager::saveLicense($key);
+            }
+            return back()->with([
+                'generated_key' => $key,
+                'gen_domain' => $request->domain,
+                'gen_client' => $request->client_name,
+                'gen_type' => 'LIFETIME',
+                'auto_installed' => (bool) $request->auto_install,
+            ]);
+        })->name('license-generator.process');
     });
 });
 
@@ -766,6 +789,15 @@ Route::prefix('spmb')->name('spmb.')->group(function () {
     Route::get('/', [RegisterController::class, 'create'])->name('register');
     Route::post('/', [RegisterController::class, 'store'])->name('register.store');
     Route::get('success/{registration}', [RegisterController::class, 'success'])->name('success');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Teacher Portal & Dashboard Routes
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'role:guru|teacher|super-admin|admin'])->prefix('teacher')->name('teacher.')->group(function () {
+    Route::get('/dashboard', [TeacherDashboardController::class, 'index'])->name('dashboard');
 });
 
 /*
@@ -835,6 +867,7 @@ Route::middleware(['auth', 'role:student', 'verify.pin'])->prefix('student')->na
     Route::get('/savings/deposit', [\App\Http\Controllers\Student\StudentSavingsController::class, 'showDepositForm'])->name('savings.deposit.show');
     Route::post('/savings/deposit', [\App\Http\Controllers\Student\StudentSavingsController::class, 'checkoutDeposit'])->name('savings.deposit.checkout');
     Route::post('/savings/upload-proof', [\App\Http\Controllers\Student\StudentSavingsController::class, 'uploadManualProof'])->name('savings.deposit.upload-proof');
+    Route::post('/savings/upload-proof-alias', [\App\Http\Controllers\Student\StudentSavingsController::class, 'uploadManualProof'])->name('savings.upload-proof');
     Route::post('/savings/deposit/cancel/{transaction}', [\App\Http\Controllers\Student\StudentSavingsController::class, 'cancelDeposit'])->name('savings.deposit.cancel');
 
     // Payments
