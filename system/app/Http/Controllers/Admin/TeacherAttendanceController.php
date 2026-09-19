@@ -555,45 +555,61 @@ class TeacherAttendanceController extends Controller
     public function checkTodayStatus(Request $request)
     {
         $user = auth()->user();
-        $today = date('Y-m-d');
+        $now = \Carbon\Carbon::now();
+        $today = $now->format('Y-m-d');
         $attendance = TeacherAttendance::where('user_id', $user->id)
             ->where('date', $today)
             ->first();
 
+        $sessionService = app(\App\Services\AttendanceSessionService::class);
+        $schedule = $sessionService->getScheduleSettings();
+        $activeSession = $sessionService->resolveActiveSession($now, null, $attendance);
+
         $briefingActive = (bool) Setting::get('briefing_session_active', '0');
         $briefingTitle = Setting::get('briefing_title', 'Briefing Pagi Dewan Guru');
+        $timezoneLabel = Setting::get('school_timezone_label', 'WITA');
 
-        if (!$attendance) {
-            return response()->json([
-                'has_record' => false,
-                'has_checked_in' => false,
-                'has_checked_out' => false,
-                'can_check_in' => true,
-                'can_check_out' => false,
-                'has_attended_briefing' => false,
-                'has_attended_afternoon' => false,
-                'briefing_active' => $briefingActive,
-                'briefing_title' => $briefingTitle,
-            ]);
-        }
+        $school = [
+            'latitude' => (float) Setting::get('school_latitude', -0.8917),
+            'longitude' => (float) Setting::get('school_longitude', 119.8707),
+            'radius' => (int) Setting::get('school_attendance_radius', 100),
+            'name' => Setting::get('school_name', config('app.name', 'SDIT AL-FAHMI PALU')),
+            'address' => Setting::get('school_address', 'Jl. Gelatik No. 12, Kel. Birobuli Utara, Kec. Palu Selatan, Kota Palu'),
+        ];
 
-        $hasCheckedIn = !empty($attendance->check_in);
-        $hasCheckedOut = !empty($attendance->check_out);
-        $hasAttendedBriefing = !empty($attendance->notes) && str_contains($attendance->notes, 'Hadir Briefing:');
-        $hasAttendedAfternoon = !empty($attendance->notes) && str_contains($attendance->notes, 'Hadir Sesi Siang');
+        $hasCheckedIn = $attendance && !empty($attendance->check_in);
+        $hasCheckedOut = $attendance && !empty($attendance->check_out);
+        $hasMidday = $attendance && !empty($attendance->midday_at);
+        $hasAttendedBriefing = $attendance && !empty($attendance->notes) && str_contains($attendance->notes, 'Hadir Briefing:');
+        $hasAttendedAfternoon = $attendance && !empty($attendance->notes) && str_contains($attendance->notes, 'Hadir Sesi Siang');
 
         return response()->json([
-            'has_record' => true,
+            'success' => true,
+            'server_time' => $now->format('H:i:s'),
+            'server_date' => $today,
+            'timezone_label' => $timezoneLabel,
+            'active_session' => $activeSession,
+            'schedule' => $schedule,
+            'school' => $school,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'nip' => $user->nip,
+                'has_fingerprint' => !empty($user->fingerprint_template),
+            ],
+            'has_record' => (bool) $attendance,
             'has_checked_in' => $hasCheckedIn,
             'has_checked_out' => $hasCheckedOut,
+            'has_midday' => $hasMidday,
             'can_check_in' => !$hasCheckedIn,
             'can_check_out' => $hasCheckedIn && !$hasCheckedOut,
-            'check_in_time' => $attendance->check_in,
-            'check_out_time' => $attendance->check_out,
-            'method' => $attendance->method,
-            'method_label' => $attendance->method_label,
-            'status' => $attendance->status,
-            'status_label' => $attendance->status_label,
+            'check_in_time' => $attendance?->check_in,
+            'midday_time' => $attendance?->midday_at,
+            'check_out_time' => $attendance?->check_out,
+            'method' => $attendance?->method,
+            'method_label' => $attendance?->method_label,
+            'status' => $attendance?->status,
+            'status_label' => $attendance?->status_label,
             'has_attended_briefing' => $hasAttendedBriefing,
             'has_attended_afternoon' => $hasAttendedAfternoon,
             'briefing_active' => $briefingActive,

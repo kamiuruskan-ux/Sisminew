@@ -12,6 +12,16 @@
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- DigitalPersona Web SDK Official Bundles -->
+    <script src="{{ asset('vendor/digitalpersona/websdk.client.bundle.min.js') }}"></script>
+    <script src="{{ asset('vendor/digitalpersona/dp.core.umd.min.js') }}"></script>
+    <script src="{{ asset('vendor/digitalpersona/dp.devices.umd.min.js') }}"></script>
+
+    <!-- Attendance Modular Services -->
+    <script src="{{ asset('js/attendance/LoggerService.js') }}"></script>
+    <script src="{{ asset('js/attendance/FingerprintService.js') }}"></script>
+
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     <style>
@@ -80,88 +90,74 @@
     init() {
         this.updateClock();
         setInterval(() => this.updateClock(), 1000);
-        this.initUsbHardwareDetection();
-        this.connectDigitalPersonaService();
+        this.initDigitalPersonaSdk();
         this.initLiveAttendanceStream();
     },
 
-    // 0. Native WebUSB & WebHID Real Hardware Detection
-    async initUsbHardwareDetection() {
-        if (navigator.usb) {
-            try {
-                const devices = await navigator.usb.getDevices();
-                if (devices && devices.length > 0) {
-                    const dev = devices[0];
-                    this.deviceConnected = true;
-                    this.deviceName = dev.productName || (dev.manufacturerName ? `${dev.manufacturerName} Optical Reader` : 'USB Optical Scanner');
-                    this.deviceStatus = 'Ready';
-                    this.scanMessage = `Scanner USB (${this.deviceName}) Terdeteksi. Menunggu jari ditempelkan...`;
-                }
-            } catch(e) {}
+    async initDigitalPersonaSdk() {
+        if (window.AttendanceFingerprintService) {
+            window.AttendanceFingerprintService.on('statusChange', (state) => {
+                this.deviceConnected = (state.status !== 'device_disconnected' && state.status !== 'service_unavailable' && state.status !== 'error');
+                this.deviceStatus = state.badge;
+                this.deviceName = window.AttendanceFingerprintService.deviceName || 'HID DigitalPersona U.are.U 4500';
 
-            navigator.usb.addEventListener('connect', (event) => {
-                this.deviceConnected = true;
-                this.deviceName = event.device.productName || 'USB Fingerprint Scanner';
-                this.deviceStatus = 'Ready';
-                this.scanMessage = `Scanner USB (${this.deviceName}) Terhubung. Siap digunakan.`;
-                this.playAudio('success');
-                this.logHardwareEvent('device_connected', { device: this.deviceName });
+                if (state.status === 'device_connected') {
+                    this.scanStage = 'idle';
+                    this.scanMessage = '🟢 Scanner terhubung. Siap digunakan.';
+                } else if (state.status === 'waiting_finger') {
+                    this.scanStage = 'idle';
+                    this.scanMessage = '🟡 Menunggu sidik jari ditempelkan...';
+                } else if (state.status === 'reading') {
+                    this.scanStage = 'finger_detected';
+                    this.scanMessage = '🔵 Sedang membaca sidik jari...';
+                } else if (state.status === 'sample_acquired') {
+                    this.scanStage = 'capturing';
+                    this.scanMessage = '✅ Fingerprint berhasil dibaca! Memverifikasi...';
+                } else if (state.status === 'device_disconnected') {
+                    this.scanStage = 'idle';
+                    this.scanMessage = '🔴 Scanner tidak ditemukan. Silakan sambungkan kabel USB.';
+                } else if (state.status === 'service_unavailable') {
+                    this.scanStage = 'error';
+                    this.scanMessage = '🔴 Service DigitalPersona tidak berjalan di https://localhost:52181.';
+                } else if (state.status === 'error') {
+                    this.scanStage = 'error';
+                    this.scanMessage = state.text;
+                }
             });
 
-            navigator.usb.addEventListener('disconnect', (event) => {
-                this.deviceConnected = false;
-                this.deviceStatus = 'Disconnected';
-                this.scanMessage = 'Scanner USB terputus. Silakan hubungkan kembali kabel scanner.';
-                this.playAudio('error');
-                this.logHardwareEvent('device_removed');
+            window.AttendanceFingerprintService.on('sampleCaptured', (sampleData) => {
+                this.onHardwareSampleCaptured(sampleData);
             });
-        }
 
-        if (navigator.hid && !this.deviceConnected) {
-            try {
-                const hidDevices = await navigator.hid.getDevices();
-                if (hidDevices && hidDevices.length > 0) {
-                    const hdev = hidDevices[0];
-                    this.deviceConnected = true;
-                    this.deviceName = hdev.productName || 'HID Biometric Device';
-                    this.deviceStatus = 'Ready';
-                    this.scanMessage = `Scanner HID (${this.deviceName}) Terdeteksi.`;
-                }
-            } catch(e) {}
+            await window.AttendanceFingerprintService.init();
         }
     },
 
     async pairUsbScanner() {
+        if (window.AttendanceFingerprintService) {
+            this.scanMessage = 'Memeriksa scanner DigitalPersona...';
+            const ok = await window.AttendanceFingerprintService.refreshScanner();
+            if (ok) {
+                this.playAudio('success');
+                return;
+            }
+        }
+
         if (navigator.usb) {
             try {
                 const device = await navigator.usb.requestDevice({ filters: [] });
                 if (device) {
-                    this.deviceConnected = true;
-                    this.deviceName = device.productName || (device.manufacturerName ? `${device.manufacturerName} Scanner` : 'USB Fingerprint Scanner');
-                    this.deviceStatus = 'Ready';
-                    this.scanMessage = `Scanner (${this.deviceName}) berhasil dipasangkan. Silakan tempelkan jari.`;
-                    this.playAudio('success');
-                    this.logHardwareEvent('device_paired', { device: this.deviceName });
-                    return;
-                }
-            } catch(e) {}
-        }
-
-        if (navigator.hid) {
-            try {
-                const hidDevices = await navigator.hid.requestDevice({ filters: [] });
-                if (hidDevices && hidDevices.length > 0) {
-                    this.deviceConnected = true;
-                    this.deviceName = hidDevices[0].productName || 'HID Fingerprint Reader';
-                    this.deviceStatus = 'Ready';
-                    this.scanMessage = `Scanner (${this.deviceName}) terhubung.`;
+                    this.deviceName = device.productName || 'USB Fingerprint Scanner';
+                    if (window.AttendanceFingerprintService) {
+                        await window.AttendanceFingerprintService.refreshScanner();
+                    }
                     this.playAudio('success');
                     return;
                 }
             } catch(e) {}
         }
 
-        alert('Tidak ada scanner USB yang dipilih atau browser tidak mengizinkan akses USB.');
+        alert('Tidak ada scanner USB yang dipilih atau scanner belum terhubung.');
     },
 
     updateClock() {
@@ -204,108 +200,7 @@
         } catch(e) {}
     },
 
-    // 1. Continuous Real USB Device Detection (HID DigitalPersona WebSDK)
-    connectDigitalPersonaService() {
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = wsProtocol + '//127.0.0.1:52181';
-
-        try {
-            if (this.webSocket) {
-                try { this.webSocket.close(); } catch(e) {}
-            }
-
-            this.webSocket = new WebSocket(wsUrl);
-
-            this.webSocket.onopen = () => {
-                this.deviceConnected = true;
-                this.deviceStatus = 'Ready';
-                this.scanMessage = 'Scanner Siap. Tempelkan jari guru pada sensor...';
-                console.log('[HID DigitalPersona] Desktop Service Connected on port 52181');
-
-                this.logHardwareEvent('device_connected', { port: 52181 });
-
-                // Enumerate connected optical hardware readers
-                try {
-                    this.webSocket.send(JSON.stringify({ command: 'EnumerateDevices' }));
-                    this.webSocket.send(JSON.stringify({ command: 'StartAcquisition', SampleFormat: 'PngBiometric' }));
-                } catch(e) {}
-            };
-
-            this.webSocket.onmessage = (event) => {
-                try {
-                    const msg = JSON.parse(event.data);
-
-                    // A. Hardware Device Detected / Description
-                    if (msg.event === 'DeviceConnected' || msg.devices || msg.DeviceDescription) {
-                        this.deviceConnected = true;
-                        this.deviceName = msg.DeviceDescription || (msg.devices && msg.devices[0]?.name) || 'HID DigitalPersona 4500';
-                        this.deviceStatus = 'Ready';
-                        if (msg.DeviceUid) {
-                            this.dpDeviceUid = msg.DeviceUid;
-                        }
-                    }
-
-                    // B. Finger Placed on Sensor
-                    if (msg.event === 'FingerDetected' || msg.status === 'touch') {
-                        this.scanStage = 'finger_detected';
-                        this.deviceStatus = 'Capturing Fingerprint';
-                        this.scanMessage = 'Jari terdeteksi pada sensor optik...';
-                    }
-
-                    // C. Biometric Capture in Progress
-                    if (msg.event === 'CaptureStarted') {
-                        this.scanStage = 'capturing';
-                        this.deviceStatus = 'Busy';
-                        this.scanMessage = 'Memindai kontur sidik jari...';
-                    }
-
-                    // D. Biometric Samples Acquired from Real Hardware
-                    if (msg.event === 'SamplesAcquired' || msg.samples || msg.sample) {
-                        const sampleData = (msg.samples && msg.samples[0]) || msg.sample || msg.data;
-                        this.onHardwareSampleCaptured(sampleData);
-                    }
-
-                    // E. Sensor Quality Feedback
-                    if (msg.event === 'QualityReported') {
-                        this.qualityScore = msg.quality ?? 85;
-                        if (msg.quality > 0) {
-                            this.scanMessage = 'Kualitas sensor: tekan jari lebih mantap dan bersihkan prisma sensor.';
-                        }
-                    }
-
-                    // F. Device Disconnected / Unplugged
-                    if (msg.event === 'DeviceDisconnected') {
-                        this.deviceConnected = false;
-                        this.deviceStatus = 'Disconnected';
-                        this.scanStage = 'idle';
-                        this.scanMessage = 'Scanner USB terputus. Silakan hubungkan kembali scanner.';
-                        this.logHardwareEvent('device_removed');
-                    }
-                } catch(err) {}
-            };
-
-            this.webSocket.onerror = () => {
-                this.deviceConnected = false;
-                this.deviceStatus = 'Disconnected';
-                this.scanStage = 'idle';
-            };
-
-            this.webSocket.onclose = () => {
-                this.deviceConnected = false;
-                this.deviceStatus = 'Disconnected';
-                this.scanStage = 'idle';
-                
-                // Continuous background reconnect retry without page reload
-                clearTimeout(this.reconnectTimer);
-                this.reconnectTimer = setTimeout(() => {
-                    this.connectDigitalPersonaService();
-                }, 3000);
-            };
-        } catch(e) {
-            this.deviceConnected = false;
-            this.deviceStatus = 'Disconnected';
-        }
-    },
+    // 1. DigitalPersona Scanner lifecycle managed via AttendanceFingerprintService (@digitalpersona/devices)
 
     // 2. Real Fingerprint Capture Processing Pipeline
     onHardwareSampleCaptured(sampleData) {

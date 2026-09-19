@@ -184,6 +184,59 @@
         </div>
     @endif
 
+    <!-- REAL-TIME ATTENDANCE TELEMETRY STATUS PANEL (REQUIREMENT 8) -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+        <!-- 1. Status GPS -->
+        <div class="p-3.5 rounded-2xl bg-white dark:bg-[#1A222C] border border-slate-200 dark:border-slate-800 shadow-2xs space-y-1.5 transition-all">
+            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Status GPS</span>
+            <div class="flex items-center gap-1.5 font-black text-xs" :class="gpsStatusTextClass">
+                <span class="w-2.5 h-2.5 rounded-full" :class="gpsStatusDotClass"></span>
+                <span x-text="gpsStatusBadge">🟡 Memeriksa...</span>
+            </div>
+            <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate" x-text="gpsStatusSubText">Izin Browser</p>
+        </div>
+
+        <!-- 2. Status Fingerprint -->
+        <div class="p-3.5 rounded-2xl bg-white dark:bg-[#1A222C] border border-slate-200 dark:border-slate-800 shadow-2xs space-y-1.5 transition-all">
+            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Status Fingerprint</span>
+            <div class="flex items-center gap-1.5 font-black text-xs" :class="fpStatusTextClass">
+                <span class="w-2.5 h-2.5 rounded-full" :class="fpStatusDotClass"></span>
+                <span x-text="fpStatusBadge">🔴 Scanner tidak ditemukan</span>
+            </div>
+            <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate" x-text="fpStatusSubText">U.are.U 4500 (Local Service)</p>
+        </div>
+
+        <!-- 3. Status Jadwal -->
+        <div class="p-3.5 rounded-2xl bg-white dark:bg-[#1A222C] border border-slate-200 dark:border-slate-800 shadow-2xs space-y-1.5 transition-all">
+            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Status Jadwal</span>
+            <div class="flex items-center gap-1.5 font-black text-xs text-indigo-600 dark:text-indigo-400">
+                <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                <span x-text="scheduleStatusBadge">🟢 Sesi Presensi</span>
+            </div>
+            <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate" x-text="scheduleStatusSubText">Jam Server</p>
+        </div>
+
+        <!-- 4. Status Radius -->
+        <div class="p-3.5 rounded-2xl bg-white dark:bg-[#1A222C] border border-slate-200 dark:border-slate-800 shadow-2xs space-y-1.5 transition-all">
+            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Status Radius</span>
+            <div class="flex items-center gap-1.5 font-black text-xs" :class="radiusStatusTextClass">
+                <span class="w-2.5 h-2.5 rounded-full" :class="radiusStatusDotClass"></span>
+                <span x-text="radiusStatusBadge">🟡 Menghitung...</span>
+            </div>
+            <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate" x-text="radiusStatusSubText">Maks {{ $schoolRadius }}m</p>
+        </div>
+
+        <!-- 5. Status Kesiapan Presensi -->
+        <div class="p-3.5 rounded-2xl bg-white dark:bg-[#1A222C] border border-slate-200 dark:border-slate-800 shadow-2xs space-y-1.5 transition-all col-span-2 sm:col-span-1">
+            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Status Presensi</span>
+            <div class="flex items-center gap-1.5 font-black text-xs" :class="readinessStatusTextClass">
+                <span class="w-2.5 h-2.5 rounded-full" :class="readinessStatusDotClass"></span>
+                <span x-text="readinessStatusBadge">Memvalidasi...</span>
+            </div>
+            <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate" x-text="readinessStatusSubText">Validasi Siap</p>
+        </div>
+    </div>
+
     <!-- MAIN TWO COLUMN SECTION: GPS RADAR & ATTENDANCE ACTIONS -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
@@ -367,9 +420,31 @@
                 </div>
             </div>
 
+            <!-- Dinas Luar Active Session Banner (Requirement 4) -->
+            <div x-show="mode === 'dinas_luar'" x-cloak class="p-4 rounded-2xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                        <span>💼</span>
+                        <span>Mode Dinas / Penugasan Luar</span>
+                    </span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-200 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300">
+                        Bebas Radius Geofence
+                    </span>
+                </div>
+                <div class="text-xs text-purple-900 dark:text-purple-100 font-medium">
+                    Anda sedang melakukan: 
+                    <strong class="font-extrabold text-sm block sm:inline mt-0.5 sm:mt-0 text-purple-700 dark:text-purple-300" x-text="dinasSessionInfo.dinasLabel">
+                        Absen Masuk (Dinas Luar)
+                    </strong>
+                </div>
+                <p class="text-[11px] text-purple-700 dark:text-purple-300 leading-relaxed">
+                    Sesi ditentukan otomatis berdasarkan jam server terkini (<span x-text="scheduleConfig.morning_open + '-' + scheduleConfig.morning_close">07.00-11.59</span> Masuk, <span x-text="scheduleConfig.dzuhur_open + '-' + scheduleConfig.dzuhur_close">12.00-13.30</span> Siang, <span x-text="scheduleConfig.afternoon_open + '-' + scheduleConfig.afternoon_close">14.00-18.00</span> Pulang). Anda tidak perlu memilih sesi sendiri.
+                </p>
+            </div>
+
             <!-- Dinas Luar Note Input -->
             <div x-show="mode === 'dinas_luar'" x-cloak class="space-y-1.5">
-                <label class="block text-xs font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider">Keterangan / Surat Tugas Dinas Luar *</label>
+                <label class="block text-xs font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wider">Keterangan / Nomor Surat Tugas Dinas Luar *</label>
                 <input type="text" x-model="dinasNotes" placeholder="Contoh: Menghadiri Rapat Koordinasi KKG di Dinas Pendidikan..."
                        class="w-full text-xs px-4 py-2.5 rounded-xl border border-purple-200 dark:border-purple-800 dark:bg-[#24303F] dark:text-white focus:ring-2 focus:ring-purple-500 outline-none">
             </div>
@@ -484,26 +559,49 @@
         <!-- RIGHT (COL 5): BIOMETRIC SCANNER INFO & STATS -->
         <div class="lg:col-span-5 space-y-5">
             
-            <!-- USB Fingerprint Terminal Info Card -->
-            <div class="tailadmin-card p-6 bg-white dark:bg-[#1A222C] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xs space-y-3">
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-lg shrink-0">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11a8.136 8.136 0 00.99 3.845"/></svg>
+            <!-- USB Fingerprint Scanner Interactive Terminal Card (Requirements 1 & 6) -->
+            <div class="tailadmin-card p-6 bg-white dark:bg-[#1A222C] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xs space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-lg shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11a8.136 8.136 0 00.99 3.845"/></svg>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">Scanner Sidik Jari USB</h4>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400">DigitalPersona U.are.U 4500 (Local SDK)</p>
+                        </div>
                     </div>
-                    <div>
-                        <h4 class="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">Terminal Sidik Jari USB Fisik</h4>
-                        <p class="text-[11px] text-slate-500 dark:text-slate-400">HID DigitalPersona 4500</p>
-                    </div>
+                    <button type="button" @click="refreshFingerprintScanner()" 
+                            title="Deteksi Ulang Scanner"
+                            class="p-2 rounded-xl bg-slate-100 dark:bg-[#24303F] hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition cursor-pointer text-xs">
+                        🔄
+                    </button>
                 </div>
-                <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                    Tersedia mesin scanner biometrik fisik di meja piket / gerbang sekolah. Anda dapat melakukan presensi instan tanpa ponsel dengan menempelkan jari pada scanner terminal.
-                </p>
-                <div class="p-3 bg-slate-50 dark:bg-[#24303F] rounded-2xl border border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-xs">
-                    <span class="text-slate-500 dark:text-slate-400 font-medium">Status Terminal:</span>
-                    <span class="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        Aktif di Sekolah
-                    </span>
+
+                <!-- Interactive Biometric Terminal Box -->
+                <div class="p-4 rounded-2xl border transition-all text-center space-y-3"
+                     :class="fpBoxClass">
+                    <div class="relative w-16 h-16 mx-auto rounded-full flex items-center justify-center transition-all"
+                         :class="fpIconContainerClass">
+                        <svg class="w-8 h-8" :class="fpIconClass" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11a8.136 8.136 0 00.99 3.845"/>
+                        </svg>
+                        <span x-show="fpState === 'waiting_finger'" class="absolute inset-0 rounded-full border-2 border-amber-400 animate-ping opacity-75"></span>
+                        <span x-show="fpState === 'reading'" class="absolute inset-0 rounded-full border-2 border-blue-500 animate-spin opacity-90"></span>
+                    </div>
+
+                    <div>
+                        <div class="font-extrabold text-xs" :class="fpStatusTextClass" x-text="fpStatusBadge">
+                            🔴 Scanner tidak ditemukan
+                        </div>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5" x-text="fpInstructionText">
+                            Hubungkan scanner U.are.U 4500 USB atau jalankan DigitalPersona Local Device Access di https://localhost:52181.
+                        </p>
+                    </div>
+
+                    <div class="pt-1 text-[10px] text-slate-400 font-medium">
+                        🛡️ Presensi sidik jari sekolah diverifikasi langsung tanpa syarat sinyal GPS.
+                    </div>
                 </div>
             </div>
 
@@ -657,27 +755,48 @@
 @endsection
 
 @section('scripts')
+<!-- DigitalPersona Web SDK Official Bundles -->
+<script src="{{ asset('vendor/digitalpersona/websdk.client.bundle.min.js') }}"></script>
+<script src="{{ asset('vendor/digitalpersona/dp.core.umd.min.js') }}"></script>
+<script src="{{ asset('vendor/digitalpersona/dp.devices.umd.min.js') }}"></script>
+
+<!-- Modular Attendance Services -->
+<script src="{{ asset('js/attendance/LoggerService.js') }}"></script>
+<script src="{{ asset('js/attendance/PermissionService.js') }}"></script>
+<script src="{{ asset('js/attendance/RadiusService.js') }}"></script>
+<script src="{{ asset('js/attendance/GPSService.js') }}"></script>
+<script src="{{ asset('js/attendance/ScheduleService.js') }}"></script>
+<script src="{{ asset('js/attendance/FingerprintService.js') }}"></script>
+<script src="{{ asset('js/attendance/AttendanceService.js') }}"></script>
+
 <script>
 function teacherAttendanceApp() {
     return {
-        currentTime: '00:00:00',
+        // Core Coordinates & Geofence
         schoolLat: {{ $schoolLat }},
         schoolLong: {{ $schoolLong }},
         schoolRadius: {{ $schoolRadius }},
+        schoolName: '{{ $schoolName }}',
+        schoolAddress: '{{ $schoolAddress }}',
+        timezoneLabel: '{{ $timezoneLabel }}',
+        userId: {{ $user->id }},
+        csrfToken: '{{ csrf_token() }}',
+
+        // Dynamic State
+        currentTime: '00:00:00',
         activeSessionType: '{{ $activeSession['type'] ?? 'check_in' }}',
         activeSessionName: '{{ $activeSession['name'] ?? 'Presensi' }}',
         isAlreadyDone: {{ ($activeSession['is_already_done'] ?? false) ? 'true' : 'false' }},
         isHoliday: {{ (!empty($activeSession['holiday']['is_holiday'])) ? 'true' : 'false' }},
         gpsRequired: {{ !empty($attendanceSettings['gps_enabled']) ? 'true' : 'false' }},
-        schedule: @json($attendanceSettings),
+        scheduleConfig: @json($attendanceSettings),
 
-        // GPS States: 'prompt', 'searching', 'connected', 'denied', 'disabled'
-        gpsState: 'searching',
+        // GPS Telemetry
+        gpsState: 'searching', // 'prompt' | 'searching' | 'retrying' | 'connected' | 'denied' | 'disabled'
         isInsecureHttp: false,
         isLocating: false,
         isSubmitting: false,
         searchingMessage: 'Mendeteksi koordinat GPS satelit...',
-
         userLat: null,
         userLong: null,
         accuracy: null,
@@ -685,141 +804,365 @@ function teacherAttendanceApp() {
         inRadius: false,
         currentAddress: '',
 
-        mode: 'reguler',
+        // Attendance Mode & Dinas Luar (Requirement 4)
+        mode: 'reguler', // 'reguler' | 'dinas_luar'
         dinasNotes: '',
+        dinasSessionInfo: {
+            sessionType: 'check_in',
+            sessionName: 'Sesi Pagi (Masuk)',
+            dinasLabel: 'Absen Masuk (Dinas Luar)',
+            isActive: true
+        },
 
+        // Fingerprint Hardware Scanner (Requirement 1)
+        fpState: 'device_disconnected', // 'device_disconnected' | 'device_connected' | 'waiting_finger' | 'reading' | 'sample_acquired' | 'service_unavailable' | 'error'
+        fpStatusBadge: '🔴 Scanner tidak ditemukan',
+        fpStatusTextClass: 'text-rose-600 dark:text-rose-400',
+        fpStatusDotClass: 'bg-rose-500',
+        fpStatusSubText: 'U.are.U 4500 (Local Service)',
+        fpInstructionText: 'Hubungkan scanner U.are.U 4500 USB atau jalankan DigitalPersona Local Device Access di https://localhost:52181.',
+        fpBoxClass: 'bg-slate-50/50 dark:bg-slate-900/30 border-slate-200 dark:border-slate-800',
+        fpIconContainerClass: 'bg-slate-100 dark:bg-slate-800 text-slate-400',
+        fpIconClass: 'text-slate-400',
+
+        // Status Panel Telemetry (Requirement 8)
+        gpsStatusBadge: '🟡 Memeriksa...',
+        gpsStatusTextClass: 'text-amber-600 dark:text-amber-400',
+        gpsStatusDotClass: 'bg-amber-500 animate-ping',
+        gpsStatusSubText: 'Izin Browser',
+
+        scheduleStatusBadge: '🟢 Sesi Presensi',
+        scheduleStatusSubText: 'Jam Server',
+
+        radiusStatusBadge: '🟡 Menghitung...',
+        radiusStatusTextClass: 'text-amber-600 dark:text-amber-400',
+        radiusStatusDotClass: 'bg-amber-500',
+        radiusStatusSubText: 'Maks {{ $schoolRadius }}m',
+
+        readinessStatusBadge: 'Memvalidasi...',
+        readinessStatusTextClass: 'text-slate-600 dark:text-slate-300',
+        readinessStatusDotClass: 'bg-slate-400',
+        readinessStatusSubText: 'Validasi Sistem',
+
+        // Confirmation Modal
         showConfirmModal: false,
         confirmTitle: '',
         confirmMessage: '',
 
         init() {
-            this.startClock();
-            this.checkProtocol();
+            // 1. Check secure context
+            this.isInsecureHttp = !AttendancePermissionService.isSecure;
+            if (this.isInsecureHttp) {
+                AttendanceLogger.warn('PERMISSION', 'Insecure HTTP context detected. Browser may restrict GPS.');
+            }
+
+            // 2. Initialize ScheduleService (Server Clock & Sesi Aktif)
+            AttendanceScheduleService.init({
+                schedule: this.scheduleConfig,
+                timezoneLabel: this.timezoneLabel,
+                serverTime: '{{ date('H:i:s') }}',
+                serverDate: '{{ date('Y-m-d') }}',
+                activeSession: {
+                    type: this.activeSessionType,
+                    name: this.activeSessionName,
+                    is_already_done: this.isAlreadyDone,
+                    is_holiday: this.isHoliday
+                }
+            });
+
+            AttendanceScheduleService.on('tick', (timeStr) => {
+                this.currentTime = timeStr;
+                this.updateDinasSessionInfo();
+                this.updateStatusPanel();
+            });
+
+            AttendanceScheduleService.on('sessionChange', (newSession) => {
+                AttendanceLogger.schedule('Active session updated by server:', newSession);
+                this.activeSessionType = newSession.type;
+                this.activeSessionName = newSession.name;
+                this.isAlreadyDone = Boolean(newSession.is_already_done);
+                this.updateDinasSessionInfo();
+                this.updateStatusPanel();
+            });
+
+            // 3. Initialize AttendanceService Config
+            AttendanceUnifiedService.init({
+                csrfToken: this.csrfToken,
+                userId: this.userId,
+                school: {
+                    latitude: this.schoolLat,
+                    longitude: this.schoolLong,
+                    radius: this.schoolRadius,
+                    name: this.schoolName
+                }
+            });
+
+            // 4. Initialize GPS Service with permission lifecycle (Requirement 2)
+            this.setupGpsListeners();
             if (this.gpsRequired) {
-                this.detectPermissionAndLocate();
+                AttendanceGPSService.init().catch(() => {});
             } else {
                 this.gpsState = 'connected';
                 this.inRadius = true;
-            }
-        },
-
-        startClock() {
-            const update = () => {
-                const d = new Date();
-                this.currentTime = d.toLocaleTimeString('id-ID', { hour12: false });
-            };
-            update();
-            setInterval(update, 1000);
-        },
-
-        checkProtocol() {
-            if (!window.isSecureContext && location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                this.isInsecureHttp = true;
-            }
-        },
-
-        async detectPermissionAndLocate() {
-            if (!navigator.geolocation) {
-                this.gpsState = 'disabled';
-                return;
+                this.updateStatusPanel();
             }
 
-            if (navigator.permissions && navigator.permissions.query) {
-                try {
-                    const status = await navigator.permissions.query({ name: 'geolocation' });
-                    this.handlePermissionStatus(status.state);
-                    status.onchange = () => {
-                        this.handlePermissionStatus(status.state);
-                    };
-                    return;
-                } catch (e) {
-                    // Fallback directly to requesting location
+            // 5. Initialize DigitalPersona Fingerprint Web SDK (Requirement 1)
+            this.setupFingerprintListeners();
+            // Allow small tick for DOM and SDK scripts to hydrate
+            setTimeout(() => {
+                AttendanceFingerprintService.init().catch(() => {});
+            }, 600);
+
+            this.updateDinasSessionInfo();
+            this.updateStatusPanel();
+        },
+
+        setupGpsListeners() {
+            AttendanceGPSService.on('stateChange', (state, payload) => {
+                this.gpsState = state;
+                this.isLocating = (state === 'searching' || state === 'retrying');
+
+                if (state === 'searching') {
+                    this.searchingMessage = 'Menghubungkan ke satelit GPS presisi tinggi (15s timeout)...';
+                } else if (state === 'retrying') {
+                    this.searchingMessage = `Mengoptimalkan sinyal satelit (Percobaan ${payload?.retry || 1}/${payload?.maxRetries || 3})...`;
                 }
-            }
 
-            this.requestLocation();
-        },
+                this.updateStatusPanel();
+            });
 
-        handlePermissionStatus(state) {
-            if (state === 'granted') {
-                this.requestLocation();
-            } else if (state === 'denied') {
-                this.gpsState = 'denied';
+            AttendanceGPSService.on('position', (coords) => {
+                this.userLat = coords.latitude;
+                this.userLong = coords.longitude;
+                this.accuracy = coords.accuracy || 10;
+                this.gpsState = 'connected';
                 this.isLocating = false;
-            } else {
-                this.gpsState = 'prompt';
+
+                // Calculate distance via RadiusService
+                this.distanceMeters = AttendanceRadiusService.calculateDistance(
+                    this.schoolLat,
+                    this.schoolLong,
+                    this.userLat,
+                    this.userLong
+                );
+
+                this.inRadius = AttendanceRadiusService.isWithinRadius(this.distanceMeters, this.schoolRadius);
+
+                if (this.inRadius) {
+                    this.currentAddress = this.schoolAddress;
+                } else {
+                    this.currentAddress = `Koordinat Satelit: ${this.userLat.toFixed(5)}, ${this.userLong.toFixed(5)}`;
+                }
+
+                this.updateStatusPanel();
+            });
+
+            AttendanceGPSService.on('error', (err) => {
                 this.isLocating = false;
-            }
+                this.updateStatusPanel();
+            });
         },
 
-        requestLocation() {
-            if (!navigator.geolocation) {
-                this.gpsState = 'disabled';
-                return;
-            }
+        setupFingerprintListeners() {
+            AttendanceFingerprintService.on('statusChange', (data) => {
+                this.fpState = data.status;
+                this.fpStatusBadge = data.badge;
 
-            this.isLocating = true;
-            this.gpsState = 'searching';
-            this.searchingMessage = 'Menghubungkan ke satelit GPS presisi tinggi...';
+                if (data.status === 'device_connected') {
+                    this.fpStatusTextClass = 'text-emerald-600 dark:text-emerald-400';
+                    this.fpStatusDotClass = 'bg-emerald-500';
+                    this.fpStatusSubText = 'Scanner Terhubung (Siap)';
+                    this.fpInstructionText = 'Scanner U.are.U 4500 aktif. Tempelkan jari Anda pada prisma sensor untuk presensi.';
+                    this.fpBoxClass = 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800';
+                    this.fpIconContainerClass = 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-300';
+                    this.fpIconClass = 'text-emerald-600 dark:text-emerald-300';
 
-            navigator.geolocation.getCurrentPosition(
-                (pos) => this.onPositionSuccess(pos),
-                (err) => {
-                    this.searchingMessage = 'Mengoptimalkan koordinat via jaringan seluler / Wi-Fi...';
-                    navigator.geolocation.getCurrentPosition(
-                        (fallbackPos) => this.onPositionSuccess(fallbackPos),
-                        (finalErr) => this.onPositionError(finalErr),
-                        { enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 }
-                    );
-                },
-                { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
-            );
+                } else if (data.status === 'waiting_finger') {
+                    this.fpStatusTextClass = 'text-amber-600 dark:text-amber-400';
+                    this.fpStatusDotClass = 'bg-amber-500 animate-pulse';
+                    this.fpStatusSubText = 'Menunggu Sidik Jari';
+                    this.fpInstructionText = 'Sensor aktif. Silakan tempelkan jari pada sensor scanner biometrik.';
+                    this.fpBoxClass = 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700';
+                    this.fpIconContainerClass = 'bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-300';
+                    this.fpIconClass = 'text-amber-600 dark:text-amber-300';
+
+                } else if (data.status === 'reading') {
+                    this.fpStatusTextClass = 'text-blue-600 dark:text-blue-400';
+                    this.fpStatusDotClass = 'bg-blue-500 animate-spin';
+                    this.fpStatusSubText = 'Sedang Membaca Sensor...';
+                    this.fpInstructionText = 'Jari terdeteksi. Memindai kontur sidik jari dan kualitas citra...';
+                    this.fpBoxClass = 'bg-blue-50/50 dark:bg-blue-950/20 border-blue-300 dark:border-blue-700';
+                    this.fpIconContainerClass = 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300';
+                    this.fpIconClass = 'text-blue-600 dark:text-blue-300';
+
+                } else if (data.status === 'sample_acquired') {
+                    this.fpStatusTextClass = 'text-emerald-600 dark:text-emerald-400 font-black';
+                    this.fpStatusDotClass = 'bg-emerald-500 animate-bounce';
+                    this.fpStatusSubText = 'Berhasil Dibaca!';
+                    this.fpInstructionText = 'Sidik jari berhasil dibaca. Mengirimkan verifikasi biometrik ke server sekolah...';
+                    this.fpBoxClass = 'bg-emerald-100/60 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-600';
+                    this.fpIconContainerClass = 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30';
+                    this.fpIconClass = 'text-white';
+
+                } else {
+                    // Disconnected or Service unavailable
+                    this.fpStatusTextClass = 'text-rose-600 dark:text-rose-400';
+                    this.fpStatusDotClass = 'bg-rose-500';
+                    this.fpStatusSubText = (data.status === 'service_unavailable') ? 'Service Port 52181 Mati' : 'U.are.U 4500 Belum Tersambung';
+                    this.fpInstructionText = 'Hubungkan scanner USB U.are.U 4500 atau pastikan service DigitalPersona Local Device Access aktif pada https://localhost:52181.';
+                    this.fpBoxClass = 'bg-slate-50 dark:bg-[#24303F] border-slate-200 dark:border-slate-700';
+                    this.fpIconContainerClass = 'bg-slate-100 dark:bg-slate-800 text-slate-400';
+                    this.fpIconClass = 'text-slate-400';
+                }
+
+                this.updateStatusPanel();
+            });
+
+            // Auto-Submit attendance when finger is captured on this scanner (Requirement 1 & 6)
+            AttendanceFingerprintService.on('sampleCaptured', async (sampleData) => {
+                if (this.isSubmitting) return;
+
+                AttendanceLogger.fingerprint('Fingerprint captured on Presensi Mandiri terminal. Submitting directly to server...');
+                this.isSubmitting = true;
+
+                try {
+                    const result = await AttendanceUnifiedService.submitFingerprintAttendance(sampleData, {
+                        userId: this.userId,
+                        deviceName: 'HID DigitalPersona U.are.U 4500'
+                    });
+
+                    if (result.success) {
+                        this.confirmTitle = 'Presensi Biometrik Berhasil!';
+                        this.confirmMessage = result.message || 'Sidik jari Anda telah terverifikasi dan tercatat ke sistem.';
+                        this.showConfirmModal = true;
+                    } else {
+                        alert(result.message || 'Sidik jari tidak dikenali oleh sistem presensi.');
+                    }
+                } catch (e) {
+                    alert('Gagal memproses verifikasi sidik jari ke server sekolah.');
+                } finally {
+                    this.isSubmitting = false;
+                }
+            });
         },
 
-        onPositionSuccess(pos) {
-            this.isLocating = false;
-            this.userLat = pos.coords.latitude;
-            this.userLong = pos.coords.longitude;
-            this.accuracy = pos.coords.accuracy || 10;
-            this.gpsState = 'connected';
+        updateDinasSessionInfo() {
+            this.dinasSessionInfo = AttendanceScheduleService.getDinasLuarSessionInfo();
+        },
 
-            this.calculateDistance();
-
-            if (this.inRadius) {
-                this.currentAddress = '{{ $schoolAddress }}';
+        updateStatusPanel() {
+            // 1. Status GPS Badge
+            if (this.gpsState === 'connected') {
+                this.gpsStatusBadge = '🟢 GPS Aktif';
+                this.gpsStatusTextClass = 'text-emerald-600 dark:text-emerald-400';
+                this.gpsStatusDotClass = 'bg-emerald-500';
+                this.gpsStatusSubText = this.accuracy ? `Akurasi ± ${Math.round(this.accuracy)}m` : 'Satelit Terkunci';
+            } else if (this.gpsState === 'searching' || this.gpsState === 'retrying') {
+                this.gpsStatusBadge = '🟡 Mencari GPS...';
+                this.gpsStatusTextClass = 'text-amber-600 dark:text-amber-400';
+                this.gpsStatusDotClass = 'bg-amber-500 animate-ping';
+                this.gpsStatusSubText = 'Mengunci Satelit';
+            } else if (this.gpsState === 'denied') {
+                this.gpsStatusBadge = '🔴 Izin Ditolak';
+                this.gpsStatusTextClass = 'text-rose-600 dark:text-rose-400';
+                this.gpsStatusDotClass = 'bg-rose-500';
+                this.gpsStatusSubText = 'Buka Izin Lokasi';
             } else {
-                this.currentAddress = 'Koordinat: ' + this.userLat.toFixed(5) + ', ' + this.userLong.toFixed(5);
+                this.gpsStatusBadge = '⚠️ GPS Mati';
+                this.gpsStatusTextClass = 'text-amber-600 dark:text-amber-400';
+                this.gpsStatusDotClass = 'bg-amber-500';
+                this.gpsStatusSubText = 'Sensor Nonaktif';
             }
-        },
 
-        onPositionError(err) {
-            this.isLocating = false;
-            if (err.code === err.PERMISSION_DENIED) {
-                this.gpsState = 'denied';
-            } else if (err.code === err.POSITION_UNAVAILABLE) {
-                this.gpsState = 'disabled';
-            } else if (err.code === err.TIMEOUT) {
-                this.gpsState = 'disabled';
+            // 2. Status Jadwal Badge
+            const currentSession = AttendanceScheduleService.resolveCurrentSession();
+            if (currentSession.type === 'check_in') {
+                this.scheduleStatusBadge = '🟢 Sesi Pagi (Masuk)';
+                this.scheduleStatusSubText = `${this.scheduleConfig.morning_open} - ${this.scheduleConfig.morning_close} ${this.timezoneLabel}`;
+            } else if (currentSession.type === 'midday') {
+                this.scheduleStatusBadge = '☀️ Sesi Siang (Dzuhur)';
+                this.scheduleStatusSubText = `${this.scheduleConfig.dzuhur_open} - ${this.scheduleConfig.dzuhur_close} ${this.timezoneLabel}`;
+            } else if (currentSession.type === 'check_out') {
+                this.scheduleStatusBadge = '🌇 Sesi Sore (Pulang)';
+                this.scheduleStatusSubText = `${this.scheduleConfig.afternoon_open} - ${this.scheduleConfig.afternoon_close} ${this.timezoneLabel}`;
             } else {
-                this.gpsState = 'disabled';
+                this.scheduleStatusBadge = '⏱️ Di Luar Jadwal';
+                this.scheduleStatusSubText = 'Presensi Ditutup';
+            }
+
+            // 3. Status Radius Badge
+            if (this.mode === 'dinas_luar') {
+                this.radiusStatusBadge = '💼 Bebas Radius';
+                this.radiusStatusTextClass = 'text-purple-600 dark:text-purple-400';
+                this.radiusStatusDotClass = 'bg-purple-500';
+                this.radiusStatusSubText = 'Dinas Luar Aktif';
+            } else if (this.inRadius) {
+                this.radiusStatusBadge = '🟢 Dalam Area';
+                this.radiusStatusTextClass = 'text-emerald-600 dark:text-emerald-400';
+                this.radiusStatusDotClass = 'bg-emerald-500';
+                this.radiusStatusSubText = this.distanceMeters !== null ? `Jarak: ${this.distanceMeters}m` : 'Area Sekolah';
+            } else if (this.distanceMeters !== null) {
+                this.radiusStatusBadge = '🔴 Di Luar Radius';
+                this.radiusStatusTextClass = 'text-rose-600 dark:text-rose-400';
+                this.radiusStatusDotClass = 'bg-rose-500';
+                this.radiusStatusSubText = `${this.distanceMeters}m (Maks ${this.schoolRadius}m)`;
+            } else {
+                this.radiusStatusBadge = '🟡 Menghitung...';
+                this.radiusStatusTextClass = 'text-amber-600 dark:text-amber-400';
+                this.radiusStatusDotClass = 'bg-amber-500 animate-pulse';
+                this.radiusStatusSubText = 'Menunggu GPS';
+            }
+
+            // 4. Status Kesiapan Presensi
+            if (this.isAlreadyDone) {
+                this.readinessStatusBadge = '✓ Sesi Selesai';
+                this.readinessStatusTextClass = 'text-emerald-600 dark:text-emerald-400 font-black';
+                this.readinessStatusDotClass = 'bg-emerald-500';
+                this.readinessStatusSubText = 'Tercatat di Server';
+            } else if (currentSession.type === 'outside_window') {
+                this.readinessStatusBadge = 'Terkunci (Jadwal)';
+                this.readinessStatusTextClass = 'text-slate-500 dark:text-slate-400';
+                this.readinessStatusDotClass = 'bg-slate-400';
+                this.readinessStatusSubText = 'Menunggu Sesi Dibuka';
+            } else if (this.mode === 'dinas_luar') {
+                this.readinessStatusBadge = 'Siap Presensi Dinas';
+                this.readinessStatusTextClass = 'text-purple-600 dark:text-purple-400 font-black';
+                this.readinessStatusDotClass = 'bg-purple-500 animate-pulse';
+                this.readinessStatusSubText = 'Lampirkan Catatan';
+            } else if (this.inRadius) {
+                this.readinessStatusBadge = '🟢 Siap Presensi';
+                this.readinessStatusTextClass = 'text-emerald-600 dark:text-emerald-400 font-black';
+                this.readinessStatusDotClass = 'bg-emerald-500 animate-ping';
+                this.readinessStatusSubText = 'Geofence Valid';
+            } else {
+                this.readinessStatusBadge = 'Menunggu Validasi';
+                this.readinessStatusTextClass = 'text-amber-600 dark:text-amber-400';
+                this.readinessStatusDotClass = 'bg-amber-500';
+                this.readinessStatusSubText = 'Periksa GPS / Area';
             }
         },
 
-        calculateDistance() {
-            if (!this.userLat || !this.userLong) return;
-            const R = 6371e3; // meters
-            const φ1 = (this.schoolLat * Math.PI) / 180;
-            const φ2 = (this.userLat * Math.PI) / 180;
-            const Δφ = ((this.userLat - this.schoolLat) * Math.PI) / 180;
-            const Δλ = ((this.userLong - this.schoolLong) * Math.PI) / 180;
+        // Request Location / Real Refresh GPS (Requirement 3)
+        async requestLocation() {
+            try {
+                this.isLocating = true;
+                await AttendanceGPSService.refreshLocation();
+            } catch (err) {
+                AttendanceLogger.warn('GPS', 'Refresh GPS failed:', err.message);
+            } finally {
+                this.isLocating = false;
+                this.updateStatusPanel();
+            }
+        },
 
-            const a =
-                Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-                Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            this.distanceMeters = Math.round(R * c);
-
-            this.inRadius = this.distanceMeters <= this.schoolRadius;
+        // Manual Re-detect Scanner (Requirement 1)
+        async refreshFingerprintScanner() {
+            try {
+                await AttendanceFingerprintService.refreshScanner();
+            } catch (e) {
+                AttendanceLogger.warn('FINGERPRINT', 'Scanner refresh failed:', e);
+            }
         },
 
         isActionDisabled() {
@@ -827,15 +1170,25 @@ function teacherAttendanceApp() {
             if (this.isHoliday) return true;
             if (this.activeSessionType === 'outside_window') return true;
             if (this.isAlreadyDone) return true;
+
             if (this.mode === 'reguler' && this.gpsRequired) {
                 if (this.gpsState !== 'connected' || !this.inRadius) return true;
             }
-            if (this.mode === 'dinas_luar' && !this.dinasNotes.trim()) return true;
+
+            if (this.mode === 'dinas_luar' && !this.dinasNotes.trim()) {
+                return true;
+            }
+
             return false;
         },
 
         getButtonGradientClass() {
             if (this.isActionDisabled()) return 'bg-slate-400 opacity-70 cursor-not-allowed';
+
+            if (this.mode === 'dinas_luar') {
+                return 'bg-gradient-to-r from-purple-600 to-indigo-600 shadow-purple-600/30';
+            }
+
             if (this.activeSessionType === 'check_in') {
                 return 'bg-gradient-to-r from-emerald-600 to-teal-600 shadow-emerald-600/30';
             }
@@ -850,55 +1203,45 @@ function teacherAttendanceApp() {
 
         getSubmitButtonLabel() {
             if (this.isSubmitting) return 'Memverifikasi Presensi ke Server...';
-            if (this.activeSessionType === 'check_in') return 'Presensi Masuk (Check-In)';
-            if (this.activeSessionType === 'midday') return 'Konfirmasi Presensi Dzuhur';
-            if (this.activeSessionType === 'check_out') return 'Presensi Pulang (Check-Out)';
+
+            // Dinas Luar mode explicit label (Requirement 4)
+            if (this.mode === 'dinas_luar') {
+                if (this.activeSessionType === 'check_in') return '💼 Simpan Absen Masuk (Dinas Luar)';
+                if (this.activeSessionType === 'midday') return '💼 Simpan Absen Siang (Dinas Luar)';
+                if (this.activeSessionType === 'check_out') return '💼 Simpan Absen Pulang (Dinas Luar)';
+                return `💼 Simpan Presensi (${this.dinasSessionInfo.dinasLabel})`;
+            }
+
+            // Reguler mode
+            if (this.activeSessionType === 'check_in') return '🌅 Presensi Masuk (Check-In)';
+            if (this.activeSessionType === 'midday') return '☀️ Konfirmasi Presensi Dzuhur';
+            if (this.activeSessionType === 'check_out') return '🌇 Presensi Pulang (Check-Out)';
             return 'Simpan Presensi (' + this.activeSessionName + ')';
         },
 
         async submitAttendance() {
             if (this.isActionDisabled()) return;
 
-            if (this.mode === 'reguler' && this.gpsRequired && !this.inRadius) {
-                alert('Anda berada di luar radius sekolah (' + this.distanceMeters + 'm). Presensi reguler wajib berada dalam radius ' + this.schoolRadius + 'm.');
-                return;
-            }
-
-            if (this.mode === 'dinas_luar' && !this.dinasNotes.trim()) {
-                alert('Harap isi keterangan atau surat tugas dinas luar.');
-                return;
-            }
-
             this.isSubmitting = true;
 
             try {
-                const res = await fetch('{{ route('admin.teacher-attendances.self-checkin') }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        type: this.activeSessionType,
-                        latitude: this.userLat,
-                        longitude: this.userLong,
-                        accuracy: this.accuracy,
-                        attendance_mode: this.mode,
-                        dinas_notes: this.dinasNotes
-                    })
+                const currentSession = AttendanceScheduleService.resolveCurrentSession();
+                const result = await AttendanceUnifiedService.submitGpsAttendance({
+                    mode: this.mode,
+                    session: currentSession,
+                    coords: AttendanceGPSService.currentCoords,
+                    dinasNotes: this.dinasNotes
                 });
 
-                const data = await res.json();
-                if (data.success) {
+                if (result.success) {
                     this.confirmTitle = 'Presensi Berhasil Disimpan!';
-                    this.confirmMessage = data.message || 'Presensi Anda telah tercatat dan tersinkronisasi ke sistem.';
+                    this.confirmMessage = result.message || 'Presensi Anda telah tercatat dan tersinkronisasi ke server sekolah.';
                     this.showConfirmModal = true;
                 } else {
-                    alert(data.message || 'Gagal menyimpan presensi.');
+                    alert(result.message || 'Gagal menyimpan presensi.');
                 }
-            } catch (e) {
-                alert('Terjadi kendala jaringan saat menghubungi server. Silakan coba kembali.');
+            } catch (err) {
+                alert(err.message || 'Terjadi kendala jaringan saat menghubungi server.');
             } finally {
                 this.isSubmitting = false;
             }
@@ -910,6 +1253,7 @@ function teacherAttendanceApp() {
 
 @push('scripts')
 <script>
-// Redundant push ensuring execution in all layout setups
+// Fallback redundant push
 </script>
 @endpush
+

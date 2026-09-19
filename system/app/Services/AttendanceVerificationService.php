@@ -94,13 +94,22 @@ class AttendanceVerificationService
         $schoolLong = (float) Setting::get('school_longitude', 119.8707);
         $maxRadius = (int) Setting::get('school_attendance_radius', 100);
         $gpsEnabled = Setting::get('attendance_gps_enabled', '1') == '1';
+        $manualOverride = Setting::get('attendance_manual_override', '0') == '1';
+        $isDinasLuar = in_array($workLocation, ['dinas_luar', 'outstation', 'tugas_luar']);
 
-        // GPS disabled in admin settings, dinas luar, or manual override bypasses radius check
-        if (!$gpsEnabled || $workLocation === 'dinas_luar' || $manualOverride) {
+        // GPS disabled in admin settings, dinas luar (outstation), or manual override bypasses radius check
+        if (!$gpsEnabled || $isDinasLuar || $manualOverride) {
+            \Illuminate\Support\Facades\Log::info('[Attendance Geofence Bypass]', [
+                'gps_enabled' => $gpsEnabled,
+                'work_location' => $workLocation,
+                'manual_override' => $manualOverride
+            ]);
+
             return [
                 'valid' => true,
                 'distance' => 0,
                 'max_radius' => $maxRadius,
+                'bypassed' => true
             ];
         }
 

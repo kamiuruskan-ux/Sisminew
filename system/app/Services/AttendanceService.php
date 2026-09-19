@@ -158,6 +158,15 @@ class AttendanceService
         $userAgent = $params['user_agent'] ?? request()->userAgent();
         $deviceName = $params['device_name'] ?? ($params['device_info'] ?? $userAgent);
 
+        \Illuminate\Support\Facades\Log::info('[Attendance Pipeline Request]', [
+            'user_id' => $user->id,
+            'name' => $user->name,
+            'method' => $method,
+            'ip' => $ip,
+            'type' => $params['type'] ?? null,
+            'work_location' => $params['work_location'] ?? null,
+        ]);
+
         // 1. VALIDATE TEACHER STATUS & ROLE
         $teacherCheck = $this->verificationService->validateTeacherAccount($user);
         if (!$teacherCheck['valid']) {
@@ -216,12 +225,13 @@ class AttendanceService
         }
 
         // 6. GPS GEOFENCING VALIDATION
+        // If method is mobile_gps, check radius. If fingerprint, RADIUS IS EXPLICITLY BYPASSED!
         $workLoc = $params['work_location'] ?? 'school';
         $userLat = isset($params['latitude']) ? (float)$params['latitude'] : null;
         $userLong = isset($params['longitude']) ? (float)$params['longitude'] : null;
         $distance = null;
 
-        if ($method === 'mobile_gps' || !empty($userLat)) {
+        if ($method === 'mobile_gps') {
             $gpsCheck = $this->verificationService->validateGpsGeofence($userLat, $userLong, $workLoc);
             $distance = $gpsCheck['distance'];
 
@@ -233,6 +243,12 @@ class AttendanceService
                     'longitude' => $userLong,
                 ]);
 
+                \Illuminate\Support\Facades\Log::warning('[Attendance Rejected: Out of Radius]', [
+                    'user_id' => $user->id,
+                    'distance' => $distance,
+                    'max_radius' => $gpsCheck['max_radius']
+                ]);
+
                 return [
                     'success' => false,
                     'message' => $gpsCheck['message'],
@@ -242,6 +258,12 @@ class AttendanceService
                     'status_code' => 422,
                 ];
             }
+        } elseif ($method === 'fingerprint') {
+            // Fingerprint at school hardware scanner is unconditionally geofence-valid
+            \Illuminate\Support\Facades\Log::info('[Attendance Fingerprint Verified - Geofence Skipped]', [
+                'user_id' => $user->id,
+                'device_name' => $deviceName
+            ]);
         }
 
         // 7. PROCESS PHOTO ATTACHMENT
