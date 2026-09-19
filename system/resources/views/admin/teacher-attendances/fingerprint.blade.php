@@ -117,11 +117,15 @@
                 if (state.status === 'device_connected') {
                     this.scanStage = 'idle';
                     this.sslUnauthorized = false;
-                    this.scanMessage = '🟢 Scanner terhubung. Mengaktifkan sensor optik...';
+                    if (this.activeTab === 'standby') {
+                        this.scanMessage = '🟢 Scanner terhubung. Klik sensor atau Tes Sensor untuk mengaktifkan.';
+                    }
                 } else if (state.status === 'waiting_finger') {
                     this.scanStage = 'idle';
                     this.sslUnauthorized = false;
-                    this.scanMessage = '🟡 Sensor optik aktif. Tempelkan jari pada kaca scanner...';
+                    if (this.activeTab === 'standby') {
+                        this.scanMessage = '🟡 Sensor optik aktif. Tempelkan jari pada kaca scanner...';
+                    }
                 } else if (state.status === 'reading') {
                     this.scanStage = 'finger_detected';
                     this.scanMessage = '🔵 Sedang membaca sidik jari...';
@@ -157,12 +161,20 @@
     async rearmSensor() {
         if (window.AttendanceFingerprintService) {
             this.scanMessage = '🔄 Mengaktifkan sensor scanner...';
-            const ok = await window.AttendanceFingerprintService.startCapture();
+            const ok = await window.AttendanceFingerprintService.startCapture(true);
             if (ok) {
                 this.sensorArmed = true;
                 this.playAudio('success');
+                if (this.activeTab === 'standby') {
+                    this.scanMessage = '🟡 Sensor optik aktif. Tempelkan jari pada kaca scanner...';
+                } else {
+                    this.enrollMessage = this.enrollTeacherId 
+                        ? `Guru dipilih! Silakan tempelkan jari pada scanner untuk Scan ${this.enrollStep + 1}/3.`
+                        : 'Pilih guru di dropdown terlebih dahulu.';
+                }
             } else {
                 this.sensorArmed = false;
+                this.scanMessage = 'Sensor scanner belum siap. Klik sensor pad atau Deteksi USB untuk mencoba lagi.';
             }
             return ok;
         }
@@ -329,7 +341,7 @@
         this.activeTab = tab;
         setTimeout(() => {
             this.rearmSensor();
-        }, 100);
+        }, 200);
     },
 
     onTeacherSelected() {
@@ -338,7 +350,9 @@
             this.enrollSamples = [];
             this.enrollStatus = 'idle';
             this.enrollMessage = 'Guru dipilih! Silakan tempelkan jari pada scanner untuk Scan 1/3.';
-            this.rearmSensor();
+            setTimeout(() => {
+                this.rearmSensor();
+            }, 250);
         } else {
             this.enrollMessage = 'Pilih guru dan tempelkan jari 3 kali pada scanner untuk merekam template.';
         }
@@ -567,7 +581,8 @@
                     <!-- Hardware Optical Sensor Glass Pad (Clickable to Re-arm) -->
                     <div @click="rearmSensor()"
                          title="Klik untuk mengaktifkan / memicu ulang sensor scanner"
-                         class="relative w-56 h-68 rounded-3xl bg-slate-950 border-2 transition-all duration-500 flex flex-col items-center justify-center select-none shadow-2xl cursor-pointer group"
+                         style="min-height: 288px; height: 288px; width: 240px;"
+                         class="relative w-60 h-72 rounded-3xl bg-slate-950 border-2 transition-all duration-500 flex flex-col items-center justify-center select-none shadow-2xl cursor-pointer group"
                          :class="{
                              'border-emerald-500/60 shadow-emerald-500/30 ring-2 ring-emerald-500/20': deviceConnected && sensorArmed && scanStage === 'idle',
                              'border-amber-400/80 shadow-amber-500/30': deviceConnected && !sensorArmed,
@@ -578,7 +593,7 @@
                          }">
                         
                         <!-- Realtime Sensor Arm Status Pill -->
-                        <div class="absolute top-3 inset-x-0 text-center pointer-events-none">
+                        <div class="absolute top-4 inset-x-0 text-center pointer-events-none">
                             <span class="text-[9px] font-mono font-black uppercase px-2.5 py-0.5 rounded-full border transition-all inline-flex items-center gap-1 shadow-sm"
                                   :class="sensorArmed ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 animate-pulse' : 'bg-amber-500/20 text-amber-300 border-amber-500/40'">
                                 <span class="w-1.5 h-1.5 rounded-full" :class="sensorArmed ? 'bg-emerald-400' : 'bg-amber-400'"></span>
@@ -611,7 +626,7 @@
                         </div>
 
                         <!-- Hardware Logo Caption & Format -->
-                        <div class="absolute bottom-3 inset-x-0 text-center">
+                        <div class="absolute bottom-4 inset-x-0 text-center">
                             <span class="text-[9px] font-mono tracking-widest uppercase font-bold block"
                                   :class="deviceConnected ? 'text-slate-400' : 'text-rose-500/80'"
                                   x-text="deviceConnected ? deviceName : 'SCANNER DISCONNECTED'"></span>
