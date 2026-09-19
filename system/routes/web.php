@@ -631,6 +631,14 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|bendahara|operator|kanti
     Route::delete('employee-tasks/{id}', [\App\Http\Controllers\Admin\EmployeeTaskController::class, 'destroy'])->name('employee-tasks.destroy');
     Route::post('employee-tasks/{id}/toggle', [\App\Http\Controllers\Admin\EmployeeTaskController::class, 'toggleChecklist'])->name('employee-tasks.toggle');
 
+    // Employee Leave & Permit Management (Pengajuan Izin Pegawai & Verifikasi Kepala Sekolah)
+    Route::get('employee-permits', [\App\Http\Controllers\Admin\EmployeePermitController::class, 'index'])->name('employee-permits.index');
+    Route::get('employee-permits/create', [\App\Http\Controllers\Admin\EmployeePermitController::class, 'create'])->name('employee-permits.create');
+    Route::post('employee-permits', [\App\Http\Controllers\Admin\EmployeePermitController::class, 'store'])->name('employee-permits.store');
+    Route::post('employee-permits/{permit}/approve', [\App\Http\Controllers\Admin\EmployeePermitController::class, 'approve'])->name('employee-permits.approve');
+    Route::post('employee-permits/{permit}/reject', [\App\Http\Controllers\Admin\EmployeePermitController::class, 'reject'])->name('employee-permits.reject');
+    Route::delete('employee-permits/{permit}', [\App\Http\Controllers\Admin\EmployeePermitController::class, 'destroy'])->name('employee-permits.destroy');
+
     // Bimbingan & Konseling (BK)
     Route::middleware('permission:view-bk|manage-bk')->group(function () {
         Route::get('bk', [\App\Http\Controllers\Admin\BkCounselingController::class, 'index'])->name('bk.index');

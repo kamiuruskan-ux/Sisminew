@@ -350,6 +350,19 @@
             </p>
         </div>
         <div class="flex flex-wrap items-center gap-2.5">
+            <!-- Izin & Cuti Pegawai Link Button -->
+            <a href="{{ route('admin.employee-permits.index') }}"
+               class="inline-flex items-center space-x-2 px-3.5 py-2.5 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-600 hover:text-white text-purple-700 dark:text-purple-300 text-xs font-bold rounded-xl transition-all border border-purple-200 dark:border-purple-800 cursor-pointer">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                <span>Izin &amp; Cuti Pegawai</span>
+                @php
+                    $pendingPermitsHeaderCount = \App\Models\EmployeePermit::where('status', 'pending')->count();
+                @endphp
+                @if($pendingPermitsHeaderCount > 0)
+                    <span class="px-1.5 py-0.2 rounded-full bg-amber-500 text-white text-[10px] font-extrabold">{{ $pendingPermitsHeaderCount }}</span>
+                @endif
+            </a>
+
             <!-- Scanner Sidik Jari USB Digital Persona Link Button -->
             <a href="{{ route('admin.teacher-attendances.fingerprint') }}"
                class="inline-flex items-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-emerald-600/30 cursor-pointer">

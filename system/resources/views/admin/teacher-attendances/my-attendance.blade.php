@@ -34,12 +34,34 @@
 
         <!-- Live Server Clock & Sesi Aktif -->
         <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 shrink-0">
+            <a href="{{ route('admin.employee-permits.index') }}" class="px-4 py-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 text-xs font-extrabold flex items-center gap-2 transition-all shadow-xs">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                <span>Ajukan Izin / Sakit</span>
+            </a>
             <div class="p-3 rounded-2xl bg-slate-50 dark:bg-[#24303F] border border-slate-200 dark:border-slate-700/60 text-right">
                 <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Waktu Server ({{ $timezoneLabel }})</span>
                 <span class="text-xl font-black font-mono text-slate-900 dark:text-white" x-text="currentTime">00:00:00</span>
             </div>
         </div>
     </div>
+
+    @if($todayAttendance && in_array($todayAttendance->status, ['sick', 'permission']))
+    <!-- Status Izin Resmi Hari Ini -->
+    <div class="p-4 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+            <span class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-base shadow-sm">
+                📋
+            </span>
+            <div>
+                <h4 class="text-xs font-extrabold text-indigo-900 dark:text-indigo-200">Status Kehadiran Hari Ini: {{ $todayAttendance->status_label }}</h4>
+                <p class="text-[11px] text-indigo-700 dark:text-indigo-300">{{ $todayAttendance->notes }}</p>
+            </div>
+        </div>
+        <span class="px-3 py-1 rounded-full text-[10px] font-extrabold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300/40 shrink-0">
+            Resmi Terverifikasi
+        </span>
+    </div>
+    @endif
 
     <!-- Sesi Presensi & Status Hari Ini Grid -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-5">

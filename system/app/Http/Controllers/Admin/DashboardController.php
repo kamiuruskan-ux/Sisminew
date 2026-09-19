@@ -25,6 +25,7 @@ use App\Models\Setting;
 use App\Models\StudentPaymentBill;
 use App\Models\StudentPaymentDetail;
 use App\Models\StudentPermit;
+use App\Models\EmployeePermit;
 use App\Models\TeacherAttendance;
 use App\Models\EmployeeTask;
 use App\Models\User;
@@ -435,6 +436,15 @@ class DashboardController extends Controller
             }
         }
 
+        $pendingEmployeePermitsCount = 0;
+        $recentEmployeePermits = collect();
+        try {
+            $pendingEmployeePermitsCount = EmployeePermit::where('status', 'pending')->count();
+            $recentEmployeePermits = EmployeePermit::with('user')->latest()->take(5)->get();
+        } catch (\Throwable $e) {
+            // Ignore if table not yet migrated
+        }
+
         return view('admin.dashboard', compact(
             'defaultTab',
             'isBendahara',
@@ -486,7 +496,9 @@ class DashboardController extends Controller
             'hasAttendedAfternoon',
             'hadithToday',
             'agendas',
-            'myEmployeeTasks'
+            'myEmployeeTasks',
+            'pendingEmployeePermitsCount',
+            'recentEmployeePermits'
         ));
     }
 }

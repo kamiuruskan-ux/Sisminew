@@ -178,6 +178,28 @@
         </div>
     </div>
 
+    @if(!empty($isPrincipal) && ($pendingEmployeePermitsCount ?? 0) > 0)
+    <!-- Banner Notifikasi Verifikasi Izin Pegawai untuk Kepala Sekolah & Admin -->
+    <div class="p-5 rounded-3xl bg-gradient-to-r from-amber-500/15 via-indigo-500/10 to-transparent border border-amber-300 dark:border-amber-700/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+        <div class="flex items-center gap-3.5">
+            <div class="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-amber-500/30 shrink-0">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h4 class="text-sm font-extrabold text-slate-900 dark:text-white">Verifikasi Izin &amp; Cuti Pegawai</h4>
+                    <span class="px-2 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-extrabold animate-pulse">{{ $pendingEmployeePermitsCount }} Menunggu</span>
+                </div>
+                <p class="text-xs text-slate-600 dark:text-slate-300 mt-0.5">Terdapat {{ $pendingEmployeePermitsCount }} permohonan izin/cuti pegawai yang memerlukan peninjauan dan persetujuan Kepala Sekolah.</p>
+            </div>
+        </div>
+        <a href="{{ route('admin.employee-permits.index') }}" class="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white text-xs font-extrabold flex items-center gap-2 shadow-md shadow-amber-600/20 transition-all shrink-0">
+            <span>Tinjau &amp; Verifikasi Sekarang</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+        </a>
+    </div>
+    @endif
+
     <!-- KPI Metric Cards Grid -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <!-- Card 1: Total Siswa -->

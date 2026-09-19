@@ -64,7 +64,7 @@ class TeacherAttendanceController extends Controller
     public function index(Request $request)
     {
         // Role Separation: If user is teacher/staff without admin permission, redirect to teacher self-attendance page
-        if (!auth()->user()->hasRole('admin|super-admin|operator') && !auth()->user()->hasPermission('manage-attendance')) {
+        if (!auth()->user()->hasRole('admin|super-admin|operator|kepala-sekolah') && !auth()->user()->hasPermission('manage-attendance')) {
             return redirect()->route('admin.teacher-attendances.my-attendance');
         }
 
@@ -167,6 +167,14 @@ class TeacherAttendanceController extends Controller
 
         $attendanceSettings = app(\App\Services\AttendanceSessionService::class)->getScheduleSettings();
 
+        $myPermits = collect();
+        try {
+            $myPermits = \App\Models\EmployeePermit::where('user_id', $user->id)
+                ->latest()
+                ->take(5)
+                ->get();
+        } catch (\Throwable $e) {}
+
         return view('admin.teacher-attendances.my-attendance', compact(
             'user',
             'todayAttendance',
@@ -183,7 +191,8 @@ class TeacherAttendanceController extends Controller
             'lateCount',
             'sickCount',
             'permissionCount',
-            'attendanceRate'
+            'attendanceRate',
+            'myPermits'
         ));
     }
 
