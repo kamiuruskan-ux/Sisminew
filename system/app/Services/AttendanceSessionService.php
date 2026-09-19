@@ -34,9 +34,11 @@ class AttendanceSessionService
         // 3. Manual override or Briefing check
         $override = Setting::get('attendance_manual_override', '0') == '1';
         $briefingActive = Setting::get('briefing_session_active', '0') == '1';
+        $briefingOpenedDate = Setting::get('briefing_opened_date', null);
+        $inMorningWindow = ($currentTime >= ($schedule['morning_open'] ?? '06:00') && $currentTime <= ($schedule['morning_close'] ?? '11:59'));
 
-        // Briefing has priority if opened by principal and not yet recorded by teacher
-        if ($briefingActive && (!$attendance || empty($attendance->notes) || !str_contains($attendance->notes, 'Hadir Briefing:'))) {
+        // Briefing has priority ONLY if opened today and within morning hours
+        if ($briefingActive && $briefingOpenedDate === $now->format('Y-m-d') && $inMorningWindow && (!$attendance || empty($attendance->notes) || !str_contains($attendance->notes, 'Hadir Briefing:'))) {
             return [
                 'type' => 'briefing',
                 'name' => Setting::get('briefing_title', 'Briefing Pagi Dewan Guru'),
