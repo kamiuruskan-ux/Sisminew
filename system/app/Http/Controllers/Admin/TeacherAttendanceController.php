@@ -7,6 +7,7 @@ use App\Models\TeacherAttendance;
 use App\Models\User;
 use App\Models\Setting;
 use App\Services\AttendanceService;
+use App\Services\AttendanceReportService;
 use App\Repositories\Contracts\AttendanceRepositoryInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
@@ -20,13 +21,16 @@ class TeacherAttendanceController extends Controller
 {
     protected AttendanceService $attendanceService;
     protected AttendanceRepositoryInterface $attendanceRepository;
+    protected AttendanceReportService $reportService;
 
     public function __construct(
         AttendanceService $attendanceService,
-        AttendanceRepositoryInterface $attendanceRepository
+        AttendanceRepositoryInterface $attendanceRepository,
+        AttendanceReportService $reportService
     ) {
         $this->attendanceService = $attendanceService;
         $this->attendanceRepository = $attendanceRepository;
+        $this->reportService = $reportService;
     }
 
     /**
@@ -55,10 +59,15 @@ class TeacherAttendanceController extends Controller
     }
 
     /**
-     * Display teacher attendance directory & daily log
+     * Display teacher attendance directory & daily log (Admin Only)
      */
     public function index(Request $request)
     {
+        // Role Separation: If user is teacher/staff without admin permission, redirect to teacher self-attendance page
+        if (!auth()->user()->hasRole('admin|super-admin|operator') && !auth()->user()->hasPermission('manage-attendance')) {
+            return redirect()->route('admin.teacher-attendances.my-attendance');
+        }
+
         $date = $request->input('date', date('Y-m-d'));
         $search = $request->input('search');
         $status = $request->input('status');
@@ -106,9 +115,6 @@ class TeacherAttendanceController extends Controller
             'allTeachers',
             'attendances',
             'date',
-            'search',
-            'status',
-            'location',
             'totalTeachersCount',
             'presentCount',
             'lateCount',
@@ -118,7 +124,68 @@ class TeacherAttendanceController extends Controller
     }
 
     /**
-     * Store or update teacher attendance manually
+     * Dedicated Teacher Attendance Page (Self-Service Mobile & Desktop for Teachers/Staff)
+     */
+    public function myAttendance(Request $request)
+    {
+        $user = auth()->user();
+        $today = date('Y-m-d');
+
+        $todayAttendance = TeacherAttendance::where('user_id', $user->id)
+            ->where('date', $today)
+            ->first();
+
+        $activeSession = app(\App\Services\AttendanceSessionService::class)->resolveActiveSession(now(), null, $todayAttendance);
+
+        $schoolLat = (float) Setting::get('school_latitude', -0.8917);
+        $schoolLong = (float) Setting::get('school_longitude', 119.8707);
+        $schoolRadius = (int) Setting::get('school_attendance_radius', 100);
+        $schoolName = Setting::get('school_name', config('app.name', 'SDIT AL-FAHMI PALU'));
+        $schoolAddress = Setting::get('school_address', 'Jl. Gelatik No. 12, Kel. Birobuli Utara, Kec. Palu Selatan, Kota Palu, Sulawesi Tengah');
+        $timezoneLabel = Setting::get('school_timezone_label', 'WITA');
+
+        // Recent personal attendance history (last 14 days)
+        $recentAttendances = TeacherAttendance::where('user_id', $user->id)
+            ->orderBy('date', 'desc')
+            ->take(14)
+            ->get();
+
+        // Current month personal recap
+        $currentMonth = (int) date('m');
+        $currentYear = (int) date('Y');
+        $monthAttendances = TeacherAttendance::where('user_id', $user->id)
+            ->whereMonth('date', $currentMonth)
+            ->whereYear('date', $currentYear)
+            ->get();
+
+        $presentCount = $monthAttendances->where('status', 'present')->count();
+        $lateCount = $monthAttendances->where('status', 'late')->count();
+        $sickCount = $monthAttendances->where('status', 'sick')->count();
+        $permissionCount = $monthAttendances->where('status', 'permission')->count();
+        $totalRecorded = max(1, $monthAttendances->count());
+        $attendanceRate = round((($presentCount + $lateCount) / $totalRecorded) * 100);
+
+        return view('admin.teacher-attendances.my-attendance', compact(
+            'user',
+            'todayAttendance',
+            'activeSession',
+            'schoolLat',
+            'schoolLong',
+            'schoolRadius',
+            'schoolName',
+            'schoolAddress',
+            'timezoneLabel',
+            'recentAttendances',
+            'presentCount',
+            'lateCount',
+            'sickCount',
+            'permissionCount',
+            'attendanceRate'
+        ));
+    }
+
+    /**
+     * Store manual teacher attendance record (Admin Only)
      */
     public function store(Request $request)
     {
@@ -163,21 +230,36 @@ class TeacherAttendanceController extends Controller
     }
 
     /**
-     * Self check-in/out via webcam selfie or photo for logged in teacher/admin
+     * Self check-in/out via GPS for logged in teacher/admin
      */
     public function selfCheckIn(Request $request)
     {
         $request->validate([
-            'type' => 'required|in:check_in,check_out,afternoon,briefing',
+            'type' => 'nullable|string',
+            'action_type' => 'nullable|string',
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
+            'accuracy' => 'nullable|numeric',
             'photo' => 'nullable|string',
             'work_location' => 'nullable|string',
+            'attendance_mode' => 'nullable|string',
             'notes' => 'nullable|string',
+            'dinas_notes' => 'nullable|string',
         ]);
 
+        $params = $request->all();
+        if ($request->filled('action_type') && !$request->filled('type')) {
+            $params['type'] = $request->action_type;
+        }
+        if ($request->filled('attendance_mode') && !$request->filled('work_location')) {
+            $params['work_location'] = ($request->attendance_mode === 'dinas_luar') ? 'outstation' : 'school';
+        }
+        if ($request->filled('dinas_notes') && !$request->filled('notes')) {
+            $params['notes'] = $request->dinas_notes;
+        }
+
         $user = auth()->user();
-        $result = $this->attendanceService->processGpsAttendance($user, $request->all());
+        $result = $this->attendanceService->processGpsAttendance($user, $params);
 
         if (!$result['success']) {
             if ($request->wantsJson() || $request->ajax()) {
@@ -198,110 +280,24 @@ class TeacherAttendanceController extends Controller
      */
     public function recap(Request $request)
     {
-        $month = $request->input('month', date('m'));
-        $year = $request->input('year', date('Y'));
+        $month = (int) $request->input('month', date('m'));
+        $year = (int) $request->input('year', date('Y'));
 
-        $teachers = User::whereHas('roles', function ($q) {
-            $q->whereIn('slug', ['guru', 'teacher', 'admin', 'operator', 'tata-usaha', 'staff', 'kepala-sekolah']);
-        })->orderBy('name')->get();
-
-        $monthlyAttendances = TeacherAttendance::whereYear('date', $year)
-            ->whereMonth('date', $month)
-            ->get()
-            ->groupBy('user_id');
-
-        $recapData = $teachers->map(function ($teacher) use ($monthlyAttendances) {
-            $userAttendances = $monthlyAttendances->get($teacher->id, collect());
-            $totalPresent = $userAttendances->where('status', 'present')->count();
-            $totalLate = $userAttendances->where('status', 'late')->count();
-            $totalSick = $userAttendances->where('status', 'sick')->count();
-            $totalPermission = $userAttendances->where('status', 'permission')->count();
-            $totalAbsent = $userAttendances->where('status', 'absent')->count();
-            $totalRecorded = $userAttendances->count();
-
-            $percentage = $totalRecorded > 0 ? round((($totalPresent + $totalLate) / $totalRecorded) * 100, 1) : 0;
-
-            return [
-                'teacher' => $teacher,
-                'present' => $totalPresent,
-                'late' => $totalLate,
-                'sick' => $totalSick,
-                'permission' => $totalPermission,
-                'absent' => $totalAbsent,
-                'total' => $totalRecorded,
-                'percentage' => $percentage,
-            ];
-        });
+        $recapData = $this->reportService->getMonthlyRecap($month, $year);
 
         return view('admin.teacher-attendances.recap', compact('recapData', 'month', 'year'));
     }
 
     /**
-     * Export Teacher Attendance to Excel (.xlsx)
+     * Export Teacher Attendance to Excel (.xlsx) with Multi-Session Data
      */
     public function export(Request $request)
     {
         $date = $request->input('date', date('Y-m-d'));
 
-        $attendances = TeacherAttendance::with(['user', 'recorder'])
-            ->where('date', $date)
-            ->get();
+        $spreadsheet = $this->reportService->generateExcelExport($date);
+        $filename = 'Rekap_Presensi_MultiSesi_' . $date . '.xlsx';
 
-        $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Presensi Guru ' . $date);
-
-        // Header
-        $headers = [
-            'A1' => 'No',
-            'B1' => 'Nama Guru / Staff',
-            'C1' => 'Email',
-            'D1' => 'Tanggal',
-            'E1' => 'Jam Masuk',
-            'F1' => 'Jam Pulang',
-            'G1' => 'Status Kehadiran',
-            'H1' => 'Lokasi Kerja',
-            'I1' => 'Catatan',
-            'J1' => 'Dicatat Oleh',
-        ];
-
-        foreach ($headers as $cell => $val) {
-            $sheet->setCellValue($cell, $val);
-        }
-
-        $headerStyle = [
-            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
-            'fill' => [
-                'fillType' => Fill::FILL_SOLID,
-                'startColor' => ['rgb' => '3C50E0']
-            ],
-            'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
-        ];
-        $sheet->getStyle('A1:J1')->applyFromArray($headerStyle);
-        $sheet->getRowDimension(1)->setRowHeight(28);
-
-        $row = 2;
-        $no = 1;
-        foreach ($attendances as $att) {
-            $sheet->setCellValue('A' . $row, $no++);
-            $sheet->setCellValue('B' . $row, $att->user->name ?? '-');
-            $sheet->setCellValue('C' . $row, $att->user->email ?? '-');
-            $sheet->setCellValue('D' . $row, $att->date->format('Y-m-d'));
-            $sheet->setCellValue('E' . $row, $att->check_in ?? '-');
-            $sheet->setCellValue('F' . $row, $att->check_out ?? '-');
-            $sheet->setCellValue('G' . $row, $att->status_label);
-            $sheet->setCellValue('H' . $row, $att->location_label);
-            $sheet->setCellValue('I' . $row, $att->notes ?? '');
-            $sheet->setCellValue('J' . $row, $att->recorder->name ?? 'Sistem / Mandiri');
-            $row++;
-        }
-
-        foreach (range('A', 'J') as $col) {
-            $sheet->getColumnDimension($col)->setAutoSize(true);
-        }
-
-        $filename = 'Rekap_Presensi_Guru_' . $date . '.xlsx';
-        
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment;filename="' . $filename . '"');
         header('Cache-Control: max-age=0');
@@ -499,39 +495,28 @@ class TeacherAttendanceController extends Controller
     }
 
     /**
-     * Store Teacher Fingerprint Template (Enrollment)
+     * Store Teacher Fingerprint Template (Enrollment with 3-Scan Verification)
      */
     public function registerFingerprint(Request $request)
     {
-        $validated = $request->validate([
+        $request->validate([
             'user_id' => 'required|exists:users,id',
-            'fingerprint_template' => 'required|string',
+            'samples' => 'nullable|array',
+            'fingerprint_template' => 'nullable|string',
         ]);
 
-        $teacher = User::findOrFail($validated['user_id']);
-        $teacher->fingerprint_template = $validated['fingerprint_template'];
-        $teacher->fingerprint_registered_at = now();
-        $teacher->save();
+        $userId = (int) $request->user_id;
+        $samples = $request->input('samples');
 
-        // Audit enrollment trail
-        $this->attendanceService->logAudit(
-            $teacher,
-            null,
-            'fingerprint_enrollment',
-            'fingerprint',
-            'success',
-            ['ip' => $request->ip(), 'user_agent' => $request->userAgent()]
-        );
+        if (!empty($samples) && is_array($samples)) {
+            $result = $this->attendanceService->processFingerprintEnrollment($userId, $samples);
+            return response()->json($result, $result['status_code'] ?? 200);
+        }
 
-        return response()->json([
-            'success' => true,
-            'message' => "Sidik jari untuk {$teacher->name} berhasil didaftarkan ke sistem!",
-            'teacher' => [
-                'id' => $teacher->id,
-                'name' => $teacher->name,
-                'registered_at' => $teacher->fingerprint_registered_at->format('d/m/Y H:i'),
-            ],
-        ]);
+        // Direct template fallback
+        $template = $request->input('fingerprint_template');
+        $result = $this->attendanceService->processFingerprintEnrollment($userId, [$template, $template, $template]);
+        return response()->json($result, $result['status_code'] ?? 200);
     }
 
     /**
@@ -698,6 +683,62 @@ class TeacherAttendanceController extends Controller
                 'manual_override' => (bool) Setting::get('attendance_manual_override', '0'),
             ]
         ]);
+    }
+
+    /**
+     * Server-Sent Events (SSE) Live Stream for Real-Time Attendance Dashboard
+     */
+    public function streamEvents(Request $request)
+    {
+        return response()->stream(function () {
+            $lastTimestamp = time() - 2;
+            $iterations = 0;
+
+            while (!connection_aborted() && $iterations < 120) {
+                $events = \Illuminate\Support\Facades\Cache::get('live_attendance_events', []);
+                $newEvents = array_filter($events, fn($e) => ($e['timestamp'] ?? 0) >= $lastTimestamp);
+
+                if (!empty($newEvents)) {
+                    foreach (array_reverse($newEvents) as $event) {
+                        echo "event: attendance_recorded\n";
+                        echo "data: " . json_encode($event) . "\n\n";
+                    }
+                    $lastTimestamp = time();
+                } else {
+                    // Send heartbeat ping to keep HTTP connection alive
+                    echo ": heartbeat\n\n";
+                }
+
+                ob_flush();
+                flush();
+                $iterations++;
+                sleep(2);
+            }
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'Connection' => 'keep-alive',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
+
+    /**
+     * Hardware Telemetry Event Logger (HID DigitalPersona USB)
+     */
+    public function logDeviceEvent(Request $request)
+    {
+        $request->validate([
+            'event' => 'required|string',
+            'device_name' => 'nullable|string',
+            'details' => 'nullable|array',
+        ]);
+
+        $this->attendanceService->logHardwareEvent($request->event, array_merge(
+            $request->details ?? [],
+            ['device_name' => $request->device_name ?? 'HID DigitalPersona 4500 USB']
+        ));
+
+        return response()->json(['success' => true]);
     }
 }
 

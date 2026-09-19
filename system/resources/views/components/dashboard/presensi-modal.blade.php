@@ -195,6 +195,11 @@ function presensiGpsApp() {
         },
 
         detectGps() {
+            if (!window.isSecureContext && location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                this.gpsError = 'Perhatian: Browser memblokir akses GPS pada koneksi HTTP. Buka aplikasi menggunakan HTTPS.';
+                return;
+            }
+
             if (!navigator.geolocation) {
                 this.gpsError = 'Browser Anda tidak mendukung geolokasi GPS.';
                 return;
@@ -203,6 +208,7 @@ function presensiGpsApp() {
             this.gpsLoading = true;
             this.gpsError = null;
 
+            // Attempt 1: High Accuracy
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
                     this.userLat = pos.coords.latitude;
@@ -211,22 +217,30 @@ function presensiGpsApp() {
                     this.gpsLoading = false;
                 },
                 (err) => {
-                    this.gpsLoading = false;
-                    switch (err.code) {
-                        case err.PERMISSION_DENIED:
-                            this.gpsError = 'Izin akses lokasi GPS ditolak oleh browser/perangkat Anda.';
-                            break;
-                        case err.POSITION_UNAVAILABLE:
-                            this.gpsError = 'Informasi lokasi GPS satelit tidak tersedia.';
-                            break;
-                        case err.TIMEOUT:
-                            this.gpsError = 'Permintaan lokasi GPS waktu habis (timeout).';
-                            break;
-                        default:
-                            this.gpsError = 'Gagal mendeteksi lokasi GPS.';
-                    }
+                    // Attempt 2: Fallback to network/wifi triangulation
+                    navigator.geolocation.getCurrentPosition(
+                        (fallbackPos) => {
+                            this.userLat = fallbackPos.coords.latitude;
+                            this.userLong = fallbackPos.coords.longitude;
+                            this.calculateDistance();
+                            this.gpsLoading = false;
+                        },
+                        (finalErr) => {
+                            this.gpsLoading = false;
+                            if (finalErr.code === finalErr.PERMISSION_DENIED) {
+                                this.gpsError = 'Izin lokasi diblokir oleh browser. Klik ikon gembok (🔒) di address bar > Izin Situs > Lokasi > Izinkan.';
+                            } else if (finalErr.code === finalErr.POSITION_UNAVAILABLE) {
+                                this.gpsError = 'Layanan GPS perangkat nonaktif atau sinyal satelit tidak tersedia. Pastikan GPS HP Anda aktif.';
+                            } else if (finalErr.code === finalErr.TIMEOUT) {
+                                this.gpsError = 'Permintaan lokasi GPS waktu habis (timeout). Silakan tekan tombol Refresh GPS.';
+                            } else {
+                                this.gpsError = 'Gagal mendeteksi lokasi GPS perangkat.';
+                            }
+                        },
+                        { enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 }
+                    );
                 },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
             );
         },
 

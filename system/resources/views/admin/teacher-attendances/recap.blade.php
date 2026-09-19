@@ -10,10 +10,14 @@
         <div>
             <h1 class="text-2xl font-extrabold text-[#1C2434] dark:text-white tracking-tight">Laporan Rekapitulasi Presensi Bulanan Guru</h1>
             <p class="text-xs text-[#64748B] dark:text-[#8A99AD] mt-1">
-                Laporan persentase & akumulasi kehadiran harian pendidik serta staff per bulan.
+                Laporan persentase & akumulasi kehadiran harian pendidik serta staff per bulan dengan rincian multi-sesi (Pagi, Siang Dzuhur, Pulang).
             </p>
         </div>
         <div class="flex items-center space-x-3">
+            <a href="{{ route('admin.teacher-attendances.export', ['month' => $month, 'year' => $year]) }}" class="inline-flex items-center space-x-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-md shadow-emerald-600/30">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                <span>Export Excel Rekap</span>
+            </a>
             <a href="{{ route('admin.teacher-attendances.index') }}" class="inline-flex items-center space-x-1.5 px-4 py-2.5 bg-slate-100 dark:bg-[#1A222C] hover:bg-slate-200 text-[#1C2434] dark:text-white text-xs font-bold rounded-xl transition border border-[#E2E8F0] dark:border-[#2E3A47]">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                 <span>Kembali ke Presensi Harian</span>
@@ -57,13 +61,16 @@
                 <thead class="bg-[#F1F5F9] dark:bg-[#1A222C] text-[#64748B] dark:text-[#8A99AD] uppercase tracking-wider font-bold border-b border-[#E2E8F0] dark:border-[#2E3A47]">
                     <tr>
                         <th class="px-6 py-3.5">Nama Guru / Staff</th>
-                        <th class="px-6 py-3.5 text-center">Hadir Tepat Waktu</th>
-                        <th class="px-6 py-3.5 text-center">Terlambat</th>
-                        <th class="px-6 py-3.5 text-center">Sakit</th>
-                        <th class="px-6 py-3.5 text-center">Izin</th>
-                        <th class="px-6 py-3.5 text-center">Alpa</th>
-                        <th class="px-6 py-3.5 text-center">Total Presensi</th>
-                        <th class="px-6 py-3.5 text-right">Persentase Kehadiran</th>
+                        <th class="px-4 py-3.5 text-center bg-sky-50/50 dark:bg-sky-950/20 text-sky-700 dark:text-sky-300">Sesi Pagi</th>
+                        <th class="px-4 py-3.5 text-center bg-amber-50/50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300">Sesi Siang</th>
+                        <th class="px-4 py-3.5 text-center bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300">Sesi Sore</th>
+                        <th class="px-4 py-3.5 text-center">Tepat Waktu</th>
+                        <th class="px-4 py-3.5 text-center">Terlambat</th>
+                        <th class="px-4 py-3.5 text-center">Sakit</th>
+                        <th class="px-4 py-3.5 text-center">Izin</th>
+                        <th class="px-4 py-3.5 text-center">Alpa</th>
+                        <th class="px-4 py-3.5 text-center">Total Hari</th>
+                        <th class="px-6 py-3.5 text-right">Persentase</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-[#E2E8F0] dark:divide-[#2E3A47] text-[#1C2434] dark:text-[#DEE4EE]">
@@ -73,12 +80,15 @@
                                 {{ $row['teacher']->name }}
                                 <p class="text-[11px] text-[#64748B] dark:text-[#8A99AD] font-normal">{{ $row['teacher']->email }}</p>
                             </td>
-                            <td class="px-6 py-4 text-center font-bold text-emerald-600 dark:text-emerald-400">{{ $row['present'] }}</td>
-                            <td class="px-6 py-4 text-center font-bold text-amber-600 dark:text-amber-400">{{ $row['late'] }}</td>
-                            <td class="px-6 py-4 text-center font-bold text-blue-600 dark:text-blue-400">{{ $row['sick'] }}</td>
-                            <td class="px-6 py-4 text-center font-bold text-purple-600 dark:text-purple-400">{{ $row['permission'] }}</td>
-                            <td class="px-6 py-4 text-center font-bold text-rose-600 dark:text-rose-400">{{ $row['absent'] }}</td>
-                            <td class="px-6 py-4 text-center font-extrabold text-[#1C2434] dark:text-white">{{ $row['total'] }} Hari</td>
+                            <td class="px-4 py-4 text-center font-mono font-bold text-sky-600 dark:text-sky-400 bg-sky-50/30 dark:bg-sky-950/10">{{ $row['morning_count'] }}</td>
+                            <td class="px-4 py-4 text-center font-mono font-bold text-amber-600 dark:text-amber-400 bg-amber-50/30 dark:bg-amber-950/10">{{ $row['midday_count'] }}</td>
+                            <td class="px-4 py-4 text-center font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50/30 dark:bg-indigo-950/10">{{ $row['checkout_count'] }}</td>
+                            <td class="px-4 py-4 text-center font-bold text-emerald-600 dark:text-emerald-400">{{ $row['present'] }}</td>
+                            <td class="px-4 py-4 text-center font-bold text-amber-600 dark:text-amber-400">{{ $row['late'] }}</td>
+                            <td class="px-4 py-4 text-center font-bold text-blue-600 dark:text-blue-400">{{ $row['sick'] }}</td>
+                            <td class="px-4 py-4 text-center font-bold text-purple-600 dark:text-purple-400">{{ $row['permission'] }}</td>
+                            <td class="px-4 py-4 text-center font-bold text-rose-600 dark:text-rose-400">{{ $row['absent'] }}</td>
+                            <td class="px-4 py-4 text-center font-extrabold text-[#1C2434] dark:text-white">{{ $row['total'] }} Hari</td>
                             <td class="px-6 py-4 text-right">
                                 <div class="flex items-center justify-end space-x-2">
                                     <span class="font-extrabold text-xs {{ $row['percentage'] >= 85 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
@@ -92,7 +102,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-6 py-12 text-center text-[#64748B] dark:text-[#8A99AD] text-xs font-semibold">
+                            <td colspan="11" class="px-6 py-12 text-center text-[#64748B] dark:text-[#8A99AD] text-xs font-semibold">
                                 Belum ada data presensi pada periode bulan ini.
                             </td>
                         </tr>

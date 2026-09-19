@@ -532,8 +532,9 @@
                 <thead class="bg-[#F1F5F9] dark:bg-[#1A222C] text-[#64748B] dark:text-[#8A99AD] uppercase tracking-wider font-bold border-b border-[#E2E8F0] dark:border-[#2E3A47]">
                     <tr>
                         <th class="px-6 py-3.5">Pendidik / Staff</th>
-                        <th class="px-6 py-3.5">Jam Masuk</th>
-                        <th class="px-6 py-3.5">Jam Pulang</th>
+                        <th class="px-6 py-3.5">Pagi (Masuk)</th>
+                        <th class="px-6 py-3.5">Siang (Dzuhur)</th>
+                        <th class="px-6 py-3.5">Sore (Pulang)</th>
                         <th class="px-6 py-3.5">Status Kehadiran</th>
                         <th class="px-6 py-3.5">Lokasi Kerja</th>
                         <th class="px-6 py-3.5">Keterangan / Bukti</th>
@@ -570,7 +571,7 @@
                                 </div>
                             </td>
 
-                            <!-- Check In -->
+                            <!-- Check In (Pagi) -->
                             <td class="px-6 py-4">
                                 @if($att && $att->check_in)
                                     <div class="flex items-center space-x-1.5">
@@ -586,7 +587,16 @@
                                  @endif
                              </td>
 
-                            <!-- Check Out -->
+                            <!-- Siang (Dzuhur) -->
+                            <td class="px-6 py-4">
+                                 @if($att && $att->midday_at)
+                                     <span class="font-mono font-bold text-amber-600 dark:text-amber-400 text-xs">{{ $att->midday_at }}</span>
+                                 @else
+                                     <span class="text-slate-400 font-mono text-xs">-</span>
+                                 @endif
+                            </td>
+
+                            <!-- Check Out (Pulang) -->
                             <td class="px-6 py-4">
                                  @if($att && $att->check_out)
                                      <div class="flex items-center space-x-1.5">
@@ -626,11 +636,23 @@
                                             Alpa
                                         </span>
                                     @endif
-                                    @if($att->method)
+                                    @if($att->session_name)
                                         <div class="mt-1">
+                                            <span class="text-[9px] font-bold text-slate-500 dark:text-slate-400">
+                                                Sesi: {{ $att->session_name }}
+                                            </span>
+                                        </div>
+                                    @endif
+                                    @if($att->method)
+                                        <div class="mt-0.5 flex flex-wrap gap-1">
                                             <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[9px] font-bold font-mono {{ $att->method === 'fingerprint' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : ($att->method === 'mobile_gps' ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-500') }}">
                                                 <span>{{ $att->method_label }}</span>
                                             </span>
+                                            @if($att->verification_status === 'verified')
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                                                    ✓ Terverifikasi
+                                                </span>
+                                            @endif
                                         </div>
                                     @endif
                                 @else

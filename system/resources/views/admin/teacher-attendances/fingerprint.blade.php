@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Terminal Scanner Sidik Jari Guru (Digital Persona USB) - {{ config('app.name', 'Sekolah') }}</title>
+    <title>Terminal Scanner Sidik Jari Guru (HID DigitalPersona 4500) - {{ config('app.name', 'Sekolah') }}</title>
 
     <!-- Google Fonts Inter & JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,9 +13,6 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-
-    <!-- Digital Persona WebSDK Core Client (Optional External Fallback) -->
-    <script src="https://cdn.jsdelivr.net/npm/es6-shim@0.35.6/es6-shim.min.js"></script>
 
     <style>
         body {
@@ -40,35 +37,51 @@
             100% { top: 10%; opacity: 0.2; }
         }
         .animate-scan-beam {
-            animation: scanBeam 2s infinite ease-in-out;
+            animation: scanBeam 1.8s infinite ease-in-out;
         }
     </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between antialiased selection:bg-emerald-500 selection:text-white"
       x-data="{
     activeTab: 'standby', // 'standby' or 'enroll'
-    scannerConnected: true,
-    scannerStatusText: 'Digital Persona U.are.U 4500 Siap',
-    scanState: 'idle', // 'idle', 'scanning', 'success', 'already', 'error'
-    scanMessage: 'Tempelkan jari guru pada scanner USB di samping laptop...',
+    
+    // Hardware State Indicator (HID DigitalPersona 4500)
+    deviceConnected: false,
+    deviceName: 'HID DigitalPersona 4500',
+    deviceStatus: 'Disconnected', // 'Ready', 'Busy', 'Capturing Fingerprint', 'Disconnected', 'Error', 'Timeout'
+    dpDeviceUid: null,
+    webSocket: null,
+    reconnectTimer: null,
+
+    // Real Fingerprint Capture Progression
+    // 'idle' -> 'finger_detected' -> 'capturing' -> 'extracting' -> 'success' -> 'error'
+    scanStage: 'idle',
+    scanMessage: 'Menunggu jari ditempelkan pada scanner USB...',
+    qualityScore: null,
     scannedTeacher: null,
     scannedTime: '',
     scannedAction: '',
+    scannedSession: '',
 
-    // Enrollment state
+    // Production Enrollment State (3 Scans Required)
     enrollTeacherId: '{{ $selectedTeacherId ?? '' }}',
-    enrollStep: 0,
+    enrollStep: 0, // 0, 1, 2, 3
+    enrollSamples: [],
     enrollStatus: 'idle',
-    enrollMessage: 'Pilih guru dan tempelkan jari 4 kali untuk merekam template.',
+    enrollMessage: 'Pilih guru dan tempelkan jari 3 kali pada scanner untuk merekam template.',
 
-    // Clock
+    // Live Clock
     currentTime: '',
     currentDate: '',
+
+    // Live SSE Event Stream
+    sseSource: null,
 
     init() {
         this.updateClock();
         setInterval(() => this.updateClock(), 1000);
-        this.initWebSdk();
+        this.connectDigitalPersonaService();
+        this.initLiveAttendanceStream();
     },
 
     updateClock() {
@@ -87,8 +100,8 @@
 
             if (type === 'success') {
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-                osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1); // A5
+                osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+                osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1);
                 gain.gain.setValueAtTime(0.3, ctx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
                 osc.start();
@@ -108,22 +121,11 @@
                 osc.start();
                 osc.stop(ctx.currentTime + 0.4);
             }
-        } catch(e) {
-            console.log('Audio error:', e);
-        }
+        } catch(e) {}
     },
 
-    webSocket: null,
-    dpDeviceUid: null,
-    reconnectTimer: null,
-    enrollSamples: [],
-
-    initWebSdk() {
-        this.connectDigitalPersonaService();
-    },
-
+    // 1. Continuous Real USB Device Detection (HID DigitalPersona WebSDK)
     connectDigitalPersonaService() {
-        // HID DigitalPersona WebSDK local service loopback ports (default 52181)
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = wsProtocol + '//127.0.0.1:52181';
 
@@ -135,109 +137,116 @@
             this.webSocket = new WebSocket(wsUrl);
 
             this.webSocket.onopen = () => {
-                this.scannerConnected = true;
-                this.scannerStatusText = 'Digital Persona USB Online (Port 52181)';
-                console.log('Connected to HID DigitalPersona Desktop Service');
+                this.deviceConnected = true;
+                this.deviceStatus = 'Ready';
+                this.scanMessage = 'Scanner Siap. Tempelkan jari guru pada sensor...';
+                console.log('[HID DigitalPersona] Desktop Service Connected on port 52181');
 
-                // Send device enumeration command
+                this.logHardwareEvent('device_connected', { port: 52181 });
+
+                // Enumerate connected optical hardware readers
                 try {
-                    this.webSocket.send(JSON.stringify({
-                        command: 'EnumerateDevices'
-                    }));
-                    // Send acquisition start request (PngBiometric or Raw FMD)
-                    this.webSocket.send(JSON.stringify({
-                        command: 'StartAcquisition',
-                        SampleFormat: 'PngBiometric'
-                    }));
-                } catch(e) {
-                    console.log('Error sending DP handshake:', e);
-                }
+                    this.webSocket.send(JSON.stringify({ command: 'EnumerateDevices' }));
+                    this.webSocket.send(JSON.stringify({ command: 'StartAcquisition', SampleFormat: 'PngBiometric' }));
+                } catch(e) {}
             };
 
             this.webSocket.onmessage = (event) => {
                 try {
                     const msg = JSON.parse(event.data);
 
-                    // 1. Device Detected / Connected
+                    // A. Hardware Device Detected / Description
                     if (msg.event === 'DeviceConnected' || msg.devices || msg.DeviceDescription) {
-                        this.scannerConnected = true;
-                        const deviceName = msg.DeviceDescription || (msg.devices && msg.devices[0]?.name) || 'Digital Persona U.are.U 4500';
-                        this.scannerStatusText = deviceName + ' Siap';
+                        this.deviceConnected = true;
+                        this.deviceName = msg.DeviceDescription || (msg.devices && msg.devices[0]?.name) || 'HID DigitalPersona 4500';
+                        this.deviceStatus = 'Ready';
                         if (msg.DeviceUid) {
                             this.dpDeviceUid = msg.DeviceUid;
                         }
                     }
 
-                    // 2. Real Biometric Fingerprint Sample Acquired
-                    if (msg.event === 'SamplesAcquired' || msg.samples || msg.sample) {
-                        const sampleData = (msg.samples && msg.samples[0]) || msg.sample || msg.data;
-                        this.onHardwareSampleAcquired(sampleData);
+                    // B. Finger Placed on Sensor
+                    if (msg.event === 'FingerDetected' || msg.status === 'touch') {
+                        this.scanStage = 'finger_detected';
+                        this.deviceStatus = 'Capturing Fingerprint';
+                        this.scanMessage = 'Jari terdeteksi pada sensor optik...';
                     }
 
-                    // 3. Quality feedback from optical sensor
-                    if (msg.event === 'QualityReported' && msg.quality > 0) {
-                        this.scanMessage = 'Kualitas sensor: tekan jari lebih mantap dan bersihkan permukaan sensor.';
+                    // C. Biometric Capture in Progress
+                    if (msg.event === 'CaptureStarted') {
+                        this.scanStage = 'capturing';
+                        this.deviceStatus = 'Busy';
+                        this.scanMessage = 'Memindai kontur sidik jari...';
                     }
-                } catch(err) {
-                    console.log('DP message parse:', event.data);
-                }
+
+                    // D. Biometric Samples Acquired from Real Hardware
+                    if (msg.event === 'SamplesAcquired' || msg.samples || msg.sample) {
+                        const sampleData = (msg.samples && msg.samples[0]) || msg.sample || msg.data;
+                        this.onHardwareSampleCaptured(sampleData);
+                    }
+
+                    // E. Sensor Quality Feedback
+                    if (msg.event === 'QualityReported') {
+                        this.qualityScore = msg.quality ?? 85;
+                        if (msg.quality > 0) {
+                            this.scanMessage = 'Kualitas sensor: tekan jari lebih mantap dan bersihkan prisma sensor.';
+                        }
+                    }
+
+                    // F. Device Disconnected / Unplugged
+                    if (msg.event === 'DeviceDisconnected') {
+                        this.deviceConnected = false;
+                        this.deviceStatus = 'Disconnected';
+                        this.scanStage = 'idle';
+                        this.scanMessage = 'Scanner USB terputus. Silakan hubungkan kembali scanner.';
+                        this.logHardwareEvent('device_removed');
+                    }
+                } catch(err) {}
             };
 
             this.webSocket.onerror = () => {
-                this.scannerConnected = false;
-                this.scannerStatusText = 'Layanan USB Offline (Port 52181)';
+                this.deviceConnected = false;
+                this.deviceStatus = 'Disconnected';
+                this.scanStage = 'idle';
             };
 
             this.webSocket.onclose = () => {
-                this.scannerConnected = false;
-                this.scannerStatusText = 'Menghubungkan Scanner (Port 52181)...';
-                // Automatic background polling / retry every 5s
+                this.deviceConnected = false;
+                this.deviceStatus = 'Disconnected';
+                this.scanStage = 'idle';
+                
+                // Continuous background reconnect retry without page reload
                 clearTimeout(this.reconnectTimer);
                 this.reconnectTimer = setTimeout(() => {
                     this.connectDigitalPersonaService();
-                }, 5000);
+                }, 3000);
             };
         } catch(e) {
-            this.scannerConnected = false;
-            this.scannerStatusText = 'Scanner Standby (Mode Uji / Port 52181)';
+            this.deviceConnected = false;
+            this.deviceStatus = 'Disconnected';
         }
     },
 
-    // Handle real physical touch on DigitalPersona sensor
-    onHardwareSampleAcquired(sampleData) {
+    // 2. Real Fingerprint Capture Processing Pipeline
+    onHardwareSampleCaptured(sampleData) {
         if (this.activeTab === 'standby') {
-            // Instant verification from hardware sensor
-            this.submitVerification(null, sampleData);
+            this.scanStage = 'capturing';
+            this.deviceStatus = 'Capturing Fingerprint';
+            this.scanMessage = 'Capturing...';
+
+            setTimeout(() => {
+                this.scanStage = 'extracting';
+                this.scanMessage = 'Extracting Template & Mencocokkan...';
+                this.verifyFingerprintWithServer(sampleData);
+            }, 250);
         } else if (this.activeTab === 'enroll') {
-            // Hardware step acquisition for enrollment
-            this.recordEnrollSampleFromHardware(sampleData);
+            this.recordEnrollmentSample(sampleData);
         }
     },
 
-    // Record sample in 4-step enrollment flow
-    recordEnrollSampleFromHardware(sampleData) {
-        if (!this.enrollTeacherId) {
-            alert('Pilih nama guru terlebih dahulu sebelum menempelkan jari!');
-            return;
-        }
-
-        this.enrollSamples.push(sampleData);
-
-        if (this.enrollStep < 3) {
-            this.enrollStep++;
-            this.enrollStatus = 'scanning';
-            this.enrollMessage = `Perekaman ${this.enrollStep}/4 berhasil! Angkat dan tempelkan jari yang sama sekali lagi...`;
-            this.playAudio('success');
-        } else {
-            this.enrollStep = 4;
-            this.saveEnrollment(this.enrollSamples.join('::'));
-        }
-    },
-
-    // Kirim Verifikasi Sidik Jari ke Server
-    async submitVerification(teacherId = null, sample = null) {
-        this.scanState = 'scanning';
-        this.scanMessage = 'Membaca sidik jari & mencocokkan biometrik...';
+    // 3. Attendance Verification via Backend Unified Pipeline
+    async verifyFingerprintWithServer(sampleData) {
+        this.deviceStatus = 'Busy';
 
         try {
             const res = await fetch('{{ route('admin.teacher-attendances.fingerprint.verify') }}', {
@@ -248,9 +257,8 @@
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    user_id: teacherId,
-                    fingerprint_sample: sample || ('DP_OPTICAL_SAMPLE_' + Date.now()),
-                    device_name: this.scannerStatusText || 'Digital Persona U.are.U 4500 USB (Admin Desk)'
+                    fingerprint_sample: sampleData,
+                    device_name: this.deviceName
                 })
             });
 
@@ -259,68 +267,81 @@
             if (data.success) {
                 this.scannedTeacher = data.teacher;
                 this.scannedTime = new Date().toLocaleTimeString('id-ID');
-                
+                this.scannedSession = data.session_name || data.action_type || 'Presensi';
+                this.qualityScore = data.confidence || 96;
+
                 if (data.already_complete) {
-                    this.scanState = 'already';
+                    this.scanStage = 'already';
+                    this.deviceStatus = 'Ready';
                     this.scanMessage = data.message;
                     this.playAudio('already');
                 } else {
-                    this.scanState = 'success';
-                    this.scannedAction = data.action_type === 'check_in' ? 'MASUK' : 'PULANG';
-                    this.scanMessage = data.message;
+                    this.scanStage = 'success';
+                    this.deviceStatus = 'Ready';
+                    this.scannedAction = data.session_name || (data.action_type === 'check_in' ? 'MASUK' : 'PULANG');
+                    this.scanMessage = 'Fingerprint Captured Successfully! ' + data.message;
                     this.playAudio('success');
 
-                    // Tambahkan ke live list di tabel kanan secara instan
                     this.prependLiveAttendance({
                         name: data.teacher.name,
                         time: this.scannedTime,
                         action: this.scannedAction,
-                        method: 'Sidik Jari (Admin)'
+                        method: 'Sidik Jari (HID 4500)'
                     });
                 }
 
                 setTimeout(() => {
-                    this.scanState = 'idle';
-                    this.scanMessage = 'Tempelkan jari guru pada scanner USB di samping laptop...';
-                }, 5000);
+                    this.scanStage = 'idle';
+                    this.scanMessage = 'Scanner Siap. Tempelkan jari guru berikutnya...';
+                    this.deviceStatus = 'Ready';
+                }, 4500);
             } else {
-                this.scanState = 'error';
+                this.scanStage = 'error';
+                this.deviceStatus = 'Ready';
                 this.scanMessage = data.message || 'Sidik jari tidak dikenali.';
                 this.playAudio('error');
+
                 setTimeout(() => {
-                    this.scanState = 'idle';
-                    this.scanMessage = 'Tempelkan jari guru pada scanner USB di samping laptop...';
-                }, 4000);
+                    this.scanStage = 'idle';
+                    this.scanMessage = 'Scanner Siap. Tempelkan jari guru berikutnya...';
+                }, 3500);
             }
         } catch(err) {
-            console.error('Scan error:', err);
-            this.scanState = 'error';
+            this.scanStage = 'error';
+            this.deviceStatus = 'Error';
             this.scanMessage = 'Terjadi kesalahan komunikasi dengan server.';
             this.playAudio('error');
+
             setTimeout(() => {
-                this.scanState = 'idle';
-                this.scanMessage = 'Tempelkan jari guru pada scanner USB di samping laptop...';
-            }, 4000);
+                this.scanStage = 'idle';
+                this.scanMessage = 'Scanner Siap. Tempelkan jari guru...';
+                this.deviceStatus = 'Ready';
+            }, 3500);
         }
     },
 
-    // Enrolment Perekaman Jari Guru Baru
-    tapEnrollStep() {
+    // 4. Production Enrollment: 3 Real Physical Scans
+    recordEnrollmentSample(sampleData) {
         if (!this.enrollTeacherId) {
-            alert('Pilih nama guru terlebih dahulu!');
+            alert('Pilih nama guru terlebih dahulu sebelum menempelkan jari!');
             return;
         }
 
-        const simulatedSample = 'DP_ENROLL_RAW_' + Date.now();
-        this.recordEnrollSampleFromHardware(simulatedSample);
+        this.enrollSamples.push(sampleData);
+        this.enrollStep = this.enrollSamples.length;
+        this.playAudio('success');
+
+        if (this.enrollStep < 3) {
+            this.enrollStatus = 'scanning';
+            this.enrollMessage = `Scan ${this.enrollStep}/3 berhasil! Angkat dan tempelkan jari yang sama sekali lagi...`;
+        } else {
+            this.enrollStatus = 'saving';
+            this.enrollMessage = '3 Scan selesai! Mengekstrak & memverifikasi konsistensi template...';
+            this.submitEnrollmentToServer();
+        }
     },
 
-    async saveEnrollment(collectedFmd = null) {
-        this.enrollStatus = 'saving';
-        this.enrollMessage = 'Membentuk template biometrik terenkripsi & menyimpan ke database...';
-
-        const finalTemplate = collectedFmd || ('DP_FMD_' + btoa(this.enrollTeacherId + '_' + Date.now()));
-
+    async submitEnrollmentToServer() {
         try {
             const res = await fetch('{{ route('admin.teacher-attendances.fingerprint.register') }}', {
                 method: 'POST',
@@ -331,16 +352,18 @@
                 },
                 body: JSON.stringify({
                     user_id: this.enrollTeacherId,
-                    fingerprint_template: finalTemplate
+                    samples: this.enrollSamples
                 })
             });
 
             const data = await res.json();
+
             if (data.success) {
                 this.enrollStatus = 'done';
                 this.enrollMessage = data.message;
                 this.playAudio('success');
                 this.enrollSamples = [];
+
                 setTimeout(() => {
                     this.enrollStep = 0;
                     this.enrollStatus = 'idle';
@@ -348,12 +371,63 @@
                 }, 3000);
             } else {
                 this.enrollStatus = 'error';
-                this.enrollMessage = data.message || 'Gagal merekam sidik jari.';
+                this.enrollMessage = data.message || 'Perekaman gagal.';
+                this.playAudio('error');
+                // Allow retry if mismatch
+                this.enrollSamples = [];
+                this.enrollStep = 0;
             }
         } catch(err) {
             this.enrollStatus = 'error';
-            this.enrollMessage = 'Gagal menyimpan ke server.';
+            this.enrollMessage = 'Gagal menyimpan template biometrik ke server.';
+            this.playAudio('error');
+            this.enrollSamples = [];
+            this.enrollStep = 0;
         }
+    },
+
+    // 5. Server-Sent Events (SSE) Live Broadcast Stream
+    initLiveAttendanceStream() {
+        try {
+            if (window.EventSource) {
+                this.sseSource = new EventSource('{{ route('teacher-attendances.stream') }}');
+
+                this.sseSource.addEventListener('attendance_recorded', (e) => {
+                    const eventData = JSON.parse(e.data);
+                    if (eventData) {
+                        this.prependLiveAttendance({
+                            name: eventData.teacher_name,
+                            time: eventData.time,
+                            action: eventData.session || eventData.status_label,
+                            method: eventData.method_label
+                        });
+                    }
+                });
+
+                this.sseSource.onerror = () => {
+                    // Auto reconnects natively in browser EventSource
+                };
+            }
+        } catch(e) {}
+    },
+
+    // Log hardware telemetry event to server
+    async logHardwareEvent(event, details = {}) {
+        try {
+            await fetch('{{ route('teacher-attendances.fingerprint.device-event') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    event: event,
+                    device_name: this.deviceName,
+                    details: details
+                })
+            });
+        } catch(e) {}
     },
 
     prependLiveAttendance(item) {
@@ -382,27 +456,30 @@
     <header class="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 px-6 py-4 sticky top-0 z-30">
         <div class="max-w-7xl mx-auto flex items-center justify-between">
             <div class="flex items-center space-x-4">
-                <a href="{{ route('admin.teacher-attendances.index') }}" class="p-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition border border-slate-700">
+                <a href="{{ route('admin.teacher-attendances.index') }}" class="p-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition border border-slate-700" title="Kembali">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                 </a>
                 <div>
                     <div class="flex items-center space-x-2">
-                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                        <span class="w-2.5 h-2.5 rounded-full" :class="deviceConnected ? 'bg-emerald-500 animate-ping' : 'bg-rose-500'"></span>
                         <h1 class="text-lg font-black tracking-tight text-white flex items-center space-x-2">
                             <span>TERMINAL SCANNER SIDIK JARI</span>
-                            <span class="px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">USB Digital Persona 4500</span>
+                            <span class="px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded-md border"
+                                  :class="deviceConnected ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'"
+                                  x-text="deviceName"></span>
                         </h1>
                     </div>
-                    <p class="text-xs text-slate-400 font-medium">Sistem Presensi Meja Piket & Meja Admin Terintegrasi</p>
+                    <p class="text-xs text-slate-400 font-medium">Sistem Presensi Biometrik Hardware Meja Piket Terpadu</p>
                 </div>
             </div>
 
             <!-- Device Connection Indicator & Live Clock -->
             <div class="flex items-center space-x-4">
-                <!-- Device Status Badge -->
-                <div class="flex items-center space-x-2 px-3.5 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-xs">
-                    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                    <span class="text-slate-300 font-semibold" x-text="scannerStatusText"></span>
+                <!-- Device Status Indicator Badge -->
+                <div class="flex items-center space-x-2.5 px-3.5 py-1.5 rounded-xl border text-xs font-semibold transition-all"
+                     :class="deviceConnected ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300' : 'bg-rose-950/40 border-rose-500/30 text-rose-300'">
+                    <span class="w-2 h-2 rounded-full" :class="deviceConnected ? 'bg-emerald-400' : 'bg-rose-400'"></span>
+                    <span x-text="deviceConnected ? '🟢 Scanner Connected (' + deviceStatus + ')' : '🔴 Scanner Not Connected'"></span>
                 </div>
 
                 <!-- Clock -->
@@ -423,7 +500,7 @@
     <!-- Main Content Area -->
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        <!-- Left Side: Terminal Pemindai Sidik Jari (7 Cols) -->
+        <!-- Left Side: Terminal Scanner Hardware Area (7 Cols) -->
         <section class="lg:col-span-7 space-y-6">
             
             <!-- Navigation Tab: Standby vs Enroll -->
@@ -432,13 +509,13 @@
                         :class="activeTab === 'standby' ? 'bg-emerald-600 text-white shadow-lg font-bold' : 'text-slate-400 hover:text-white font-semibold'"
                         class="flex-1 py-2.5 rounded-xl text-xs flex items-center justify-center space-x-2 transition">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11a8.136 8.136 0 00.99 3.845"/></svg>
-                    <span>Mode Standby Presensi (Piket)</span>
+                    <span>Mode Presensi Aktif</span>
                 </button>
                 <button type="button" @click="activeTab = 'enroll'" 
                         :class="activeTab === 'enroll' ? 'bg-indigo-600 text-white shadow-lg font-bold' : 'text-slate-400 hover:text-white font-semibold'"
                         class="flex-1 py-2.5 rounded-xl text-xs flex items-center justify-center space-x-2 transition">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
-                    <span>Perekaman Sidik Jari Guru (Enroll)</span>
+                    <span>Perekaman Sidik Jari (Enroll 3 Scan)</span>
                 </button>
             </div>
 
@@ -452,33 +529,33 @@
                 <!-- Animated Sensor Pad -->
                 <div class="flex flex-col items-center justify-center py-6 text-center">
                     
-                    <!-- Scanner Glass Pad Container -->
-                    <div class="relative w-52 h-64 rounded-3xl bg-slate-950 border-2 transition-all duration-500 flex flex-col items-center justify-center cursor-pointer select-none shadow-2xl group"
+                    <!-- Hardware Optical Sensor Glass Pad -->
+                    <div class="relative w-52 h-64 rounded-3xl bg-slate-950 border-2 transition-all duration-500 flex flex-col items-center justify-center select-none shadow-2xl"
                          :class="{
-                             'border-emerald-500/50 shadow-emerald-500/20': scanState === 'idle',
-                             'border-cyan-400 shadow-cyan-500/40 animate-pulse': scanState === 'scanning',
-                             'border-emerald-400 bg-emerald-950/40 shadow-emerald-500/50': scanState === 'success',
-                             'border-amber-400 bg-amber-950/40 shadow-amber-500/50': scanState === 'already',
-                             'border-rose-500 bg-rose-950/40 shadow-rose-500/50': scanState === 'error'
-                         }"
-                         @click="submitVerification()">
+                             'border-emerald-500/40 shadow-emerald-500/20': deviceConnected && scanStage === 'idle',
+                             'border-amber-400 shadow-amber-500/30': scanStage === 'finger_detected',
+                             'border-cyan-400 shadow-cyan-500/50 animate-pulse': scanStage === 'capturing' || scanStage === 'extracting',
+                             'border-emerald-400 bg-emerald-950/40 shadow-emerald-500/50': scanStage === 'success',
+                             'border-rose-500 bg-rose-950/40 shadow-rose-500/50': !deviceConnected || scanStage === 'error'
+                         }">
                         
                         <!-- Scanning Laser Beam -->
-                        <div x-show="scanState === 'scanning'" class="absolute inset-x-2 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent rounded-full animate-scan-beam z-10 shadow-[0_0_15px_#22d3ee]"></div>
+                        <div x-show="scanStage === 'capturing' || scanStage === 'extracting'" class="absolute inset-x-2 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent rounded-full animate-scan-beam z-10 shadow-[0_0_15px_#22d3ee]"></div>
 
-                        <!-- Fingerprint Icon with Concentric Rings -->
+                        <!-- Fingerprint Vector Graphic with Concentric Rings -->
                         <div class="relative flex items-center justify-center">
-                            <div class="absolute w-36 h-36 rounded-full border border-emerald-500/20 animate-finger-pulse"></div>
-                            <div class="absolute w-28 h-28 rounded-full border border-emerald-500/40"></div>
+                            <div class="absolute w-36 h-36 rounded-full border"
+                                 :class="deviceConnected ? 'border-emerald-500/20 animate-finger-pulse' : 'border-rose-500/20'"></div>
+                            <div class="absolute w-28 h-28 rounded-full border"
+                                 :class="deviceConnected ? 'border-emerald-500/40' : 'border-rose-500/30'"></div>
 
-                            <!-- SVG Fingerprint Optical Vector -->
                             <svg class="w-24 h-24 transition-colors duration-300"
                                  :class="{
-                                     'text-emerald-400/80 group-hover:text-emerald-300': scanState === 'idle',
-                                     'text-cyan-400 animate-pulse': scanState === 'scanning',
-                                     'text-emerald-400': scanState === 'success',
-                                     'text-amber-400': scanState === 'already',
-                                     'text-rose-400': scanState === 'error'
+                                     'text-emerald-400/80': deviceConnected && scanStage === 'idle',
+                                     'text-amber-400 animate-pulse': scanStage === 'finger_detected',
+                                     'text-cyan-400 animate-pulse': scanStage === 'capturing' || scanStage === 'extracting',
+                                     'text-emerald-400': scanStage === 'success',
+                                     'text-rose-400': !deviceConnected || scanStage === 'error'
                                  }"
                                  fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11a8.136 8.136 0 00.99 3.845"/>
@@ -487,29 +564,40 @@
 
                         <!-- Hardware Logo Caption -->
                         <div class="absolute bottom-4 inset-x-0 text-center">
-                            <span class="text-[9px] font-mono tracking-widest text-slate-500 uppercase font-bold">DIGITAL PERSONA OPTICAL</span>
+                            <span class="text-[9px] font-mono tracking-widest uppercase font-bold"
+                                  :class="deviceConnected ? 'text-slate-500' : 'text-rose-500/80'"
+                                  x-text="deviceConnected ? 'HID DIGITALPERSONA OPTICAL' : 'SCANNER DISCONNECTED'"></span>
                         </div>
                     </div>
 
-                    <!-- Status Display Message -->
+                    <!-- Step Progression Status Display Message -->
                     <div class="mt-6 max-w-md">
-                        <h3 class="text-base font-bold text-white tracking-tight" x-text="
-                            scanState === 'scanning' ? 'Memverifikasi Sidik Jari...' :
-                            scanState === 'success' ? 'Presensi Berhasil Dicatat!' :
-                            scanState === 'already' ? 'Status Kehadiran Lengkap' :
-                            scanState === 'error' ? 'Pemindaian Gagal' :
-                            'Scanner Standby & Siap Digunakan'
-                        "></h3>
-                        <p class="text-xs text-slate-400 mt-1" x-text="scanMessage"></p>
+                        <div class="text-xs uppercase tracking-widest font-mono font-bold mb-1"
+                             :class="{
+                                 'text-emerald-400': scanStage === 'success' || (deviceConnected && scanStage === 'idle'),
+                                 'text-amber-400': scanStage === 'finger_detected',
+                                 'text-cyan-400': scanStage === 'capturing' || scanStage === 'extracting',
+                                 'text-rose-400': !deviceConnected || scanStage === 'error'
+                             }"
+                             x-text="
+                                !deviceConnected ? '🔴 SCANNER NOT CONNECTED' :
+                                scanStage === 'finger_detected' ? 'FINGER DETECTED' :
+                                scanStage === 'capturing' ? 'CAPTURING...' :
+                                scanStage === 'extracting' ? 'EXTRACTING TEMPLATE...' :
+                                scanStage === 'success' ? 'FINGERPRINT CAPTURED SUCCESSFULLY' :
+                                scanStage === 'error' ? 'PEMINDAIAN GAGAL' :
+                                'WAITING FINGER...'
+                             "></div>
+                        <p class="text-xs text-slate-400" x-text="deviceConnected ? scanMessage : 'Pastikan kabel scanner USB terpasang ke laptop dan driver DigitalPersona berjalan.'"></p>
                     </div>
 
                     <!-- Result Notification Banner (When Success / Already) -->
                     <template x-if="scannedTeacher">
                         <div class="mt-6 w-full max-w-md p-4 rounded-2xl border transition-all duration-300 flex items-center space-x-4 text-left"
                              :class="{
-                                 'bg-emerald-950/50 border-emerald-500/40 text-emerald-200': scanState === 'success',
-                                 'bg-amber-950/50 border-amber-500/40 text-amber-200': scanState === 'already',
-                                 'bg-slate-800/60 border-slate-700 text-slate-300': scanState === 'idle'
+                                 'bg-emerald-950/50 border-emerald-500/40 text-emerald-200': scanStage === 'success',
+                                 'bg-amber-950/50 border-amber-500/40 text-amber-200': scanStage === 'already',
+                                 'bg-slate-800/60 border-slate-700 text-slate-300': scanStage === 'idle'
                              }">
                             <div class="w-14 h-14 rounded-2xl overflow-hidden bg-slate-800 flex-shrink-0 border border-white/10 flex items-center justify-center">
                                 <template x-if="scannedTeacher.avatar">
@@ -522,43 +610,37 @@
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center space-x-2">
                                     <span class="text-sm font-extrabold text-white truncate" x-text="scannedTeacher.name"></span>
-                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" x-text="scannedAction || 'HADIR'"></span>
+                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" x-text="scannedAction"></span>
                                 </div>
                                 <div class="text-xs text-slate-400 font-mono mt-0.5">NIP: <span x-text="scannedTeacher.nip || '-'"></span></div>
-                                <div class="text-[11px] text-slate-400 mt-1">Waktu: <span class="font-mono font-bold text-white" x-text="scannedTime"></span> via Sidik Jari Admin</div>
+                                <div class="text-[11px] text-slate-400 mt-1">Waktu: <span class="font-mono font-bold text-white" x-text="scannedTime"></span> • <span class="text-emerald-400 font-semibold" x-text="scannedSession"></span></div>
                             </div>
                         </div>
                     </template>
                 </div>
 
-                <!-- Simulation & Testing Dropdown (Untuk Testing Cepat Tanpa Hardware) -->
-                <div class="mt-6 pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-                    <div class="text-slate-400 flex items-center space-x-1.5">
-                        <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
-                        <span>Mode Uji Coba Cepat (Pilih Guru untuk simulasi tap jari):</span>
+                <!-- Hardware Device Diagnostics Bar (No Fake Simulation) -->
+                <div class="mt-6 pt-5 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                    <div class="flex items-center space-x-2 text-slate-400">
+                        <span class="w-2 h-2 rounded-full" :class="deviceConnected ? 'bg-emerald-400' : 'bg-rose-500'"></span>
+                        <span>Perangkat: <strong class="text-white" x-text="deviceName"></strong></span>
                     </div>
-                    <div class="flex items-center space-x-2 w-full sm:w-auto">
-                        <select id="simulatedTeacherSelect" class="bg-slate-800 text-white text-xs rounded-xl px-3 py-2 border border-slate-700 focus:outline-none focus:border-emerald-500 w-full sm:w-56">
-                            @foreach($teachers as $t)
-                                <option value="{{ $t->id }}">{{ $t->name }} ({{ $t->nip ?? 'No NIP' }})</option>
-                            @endforeach
-                        </select>
-                        <button type="button" @click="submitVerification(document.getElementById('simulatedTeacherSelect').value)"
-                                class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition shadow-lg flex-shrink-0">
-                            Simulasi Tap
-                        </button>
+                    <div class="flex items-center space-x-4 text-slate-400 font-mono text-[11px]">
+                        <span>Status: <strong :class="deviceConnected ? 'text-emerald-400' : 'text-rose-400'" x-text="deviceStatus"></strong></span>
+                        <span>Port: <strong>52181</strong></span>
+                        <span x-show="qualityScore">Quality: <strong class="text-cyan-400" x-text="qualityScore + '%'"></strong></span>
                     </div>
                 </div>
             </div>
 
-            <!-- TAB 2: MODE PEREKAMAN SIDIK JARI (ENROLLMENT) -->
+            <!-- TAB 2: MODE PEREKAMAN SIDIK JARI (ENROLLMENT 3 SCANS) -->
             <div x-show="activeTab === 'enroll'" class="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 backdrop-blur-md shadow-2xl">
                 <div class="flex items-center justify-between pb-4 border-b border-slate-800">
                     <div>
                         <h3 class="text-base font-extrabold text-white">Perekaman Biometrik Guru Baru</h3>
-                        <p class="text-xs text-slate-400">Pindai sidik jari 4 kali untuk menghasilkan template Digital Persona</p>
+                        <p class="text-xs text-slate-400">Pindai sidik jari sebanyak 3 kali berturut-turut pada scanner fisik</p>
                     </div>
-                    <span class="px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Enrollment</span>
+                    <span class="px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">3-Scan Enrollment</span>
                 </div>
 
                 <div class="mt-6 space-y-5">
@@ -569,33 +651,33 @@
                             <option value="">-- Pilih Nama Guru --</option>
                             @foreach($teachers as $t)
                                 <option value="{{ $t->id }}">
-                                    {{ $t->name }} (NIP: {{ $t->nip ?? '-' }}) {{ $t->fingerprint_registered_at ? '✓ [Sudah Terdaftar]' : '✕ [Belum Terdaftar]' }}
+                                    {{ $t->name }} (NIP: {{ $t->nip ?? '-' }}) {{ $t->fingerprint_registered_at ? '✓ [Terdaftar]' : '✕ [Belum]' }}
                                 </option>
                             @endforeach
                         </select>
                     </div>
 
-                    <!-- 4 Steps Progress Bar Indicator -->
+                    <!-- 3 Steps Progress Bar Indicator -->
                     <div>
                         <div class="flex justify-between text-xs font-bold text-slate-300 mb-2">
-                            <span>Progres Perekaman Sampel Jari:</span>
-                            <span class="font-mono text-indigo-400" x-text="enrollStep + '/4'"></span>
+                            <span>Progres Perekaman Jari Fisik:</span>
+                            <span class="font-mono text-indigo-400" x-text="'Scan ' + enrollStep + '/3'"></span>
                         </div>
-                        <div class="grid grid-cols-4 gap-2">
-                            <template x-for="i in 4" :key="i">
+                        <div class="grid grid-cols-3 gap-2">
+                            <template x-for="i in 3" :key="i">
                                 <div class="h-3 rounded-full transition-all duration-300"
                                      :class="enrollStep >= i ? 'bg-indigo-500 shadow-md shadow-indigo-500/40' : 'bg-slate-800 border border-slate-700'"></div>
                             </template>
                         </div>
                     </div>
 
-                    <!-- Scanner Touch Pad for Enrollment -->
-                    <div class="p-6 rounded-2xl bg-slate-950 border border-slate-800 text-center flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500/50 transition"
-                         @click="tapEnrollStep()">
-                        <div class="w-20 h-20 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mb-3">
-                            <svg class="w-10 h-10" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11a8.136 8.136 0 00.99 3.845"/></svg>
+                    <!-- Sensor Instructions for Enrollment -->
+                    <div class="p-6 rounded-2xl bg-slate-950 border text-center flex flex-col items-center justify-center transition"
+                         :class="deviceConnected ? 'border-indigo-500/40' : 'border-rose-500/40'">
+                        <div class="w-16 h-16 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mb-3">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11a8.136 8.136 0 00.99 3.845"/></svg>
                         </div>
-                        <div class="font-bold text-white text-sm" x-text="enrollStep === 0 ? 'Klik di sini atau Tempelkan Jari Guru ke Scanner' : 'Tempelkan Jari Sekali Lagi'"></div>
+                        <div class="font-bold text-white text-sm" x-text="deviceConnected ? (enrollStep === 0 ? 'Tempelkan Jari Guru ke Kaca Scanner USB' : 'Angkat & Tempelkan Jari Sekali Lagi') : 'Scanner Belum Terhubung'"></div>
                         <p class="text-xs text-slate-400 mt-1 max-w-sm" x-text="enrollMessage"></p>
                     </div>
                 </div>
@@ -617,7 +699,7 @@
                 </div>
             </div>
 
-            <!-- Daftar Presensi Hari Ini (Live Stream) -->
+            <!-- Daftar Presensi Hari Ini (Live Stream SSE) -->
             <div class="bg-slate-900/60 border border-slate-800 rounded-3xl p-5 backdrop-blur-md shadow-2xl">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
                     <h3 class="text-sm font-extrabold text-white flex items-center space-x-2">
@@ -640,6 +722,9 @@
                                         <span class="px-1.5 py-0.5 rounded text-[9px] font-bold {{ $att->method === 'fingerprint' ? 'bg-emerald-500/20 text-emerald-400' : ($att->method === 'mobile_gps' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-slate-700 text-slate-300') }}">
                                             {{ $att->method_label }}
                                         </span>
+                                        @if($att->session_name)
+                                            <span class="text-slate-500">• {{ $att->session_name }}</span>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -663,7 +748,7 @@
                     <span>Info Sinkronisasi Otomatis</span>
                 </div>
                 <p class="text-[11px] text-slate-400 leading-relaxed">
-                    Setiap kali guru melakukan tap sidik jari di laptop admin ini, sistem akan otomatis mencatat presensi masuk/pulang dan **mengunci tombol presensi di HP guru secara realtime**. Guru tidak perlu lagi melakukan absen manual di ponselnya.
+                    Setiap kali guru melakukan tap sidik jari pada scanner USB ini, presensi dicatat ke dalam sesi yang sesuai (Pagi / Dzuhur / Pulang) dan otomatis mengunci tombol di HP guru secara realtime.
                 </p>
             </div>
         </section>
@@ -671,7 +756,7 @@
 
     <!-- Footer Bar -->
     <footer class="border-t border-slate-800/80 px-6 py-3 text-center text-[11px] text-slate-500">
-        {{ config('app.name', 'Sekolah') }} • Sistem Presensi Biometrik Digital Persona U.are.U 4500 USB & Lock GPS Mobile
+        {{ config('app.name', 'Sekolah') }} • Terminal Presensi Biometrik Hardware HID DigitalPersona 4500 USB
     </footer>
 </body>
 </html>

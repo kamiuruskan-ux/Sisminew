@@ -146,12 +146,12 @@
                 <span class="text-[10px] sm:text-[11px] font-bold text-slate-700 dark:text-slate-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors leading-tight">WA Broadcast</span>
             </a>
 
-            <!-- 6. Presensi Guru -->
-            <a href="{{ route('admin.teacher-attendances.index') }}" class="flex flex-col items-center justify-center text-center group">
+            <!-- 6. Presensi Mandiri Pegawai -->
+            <a href="{{ route('admin.teacher-attendances.my-attendance') }}" class="flex flex-col items-center justify-center text-center group">
                 <div class="w-12 h-12 sm:w-14 sm:h-14 bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 rounded-2xl flex items-center justify-center mb-1.5 shadow-xs group-hover:scale-105 group-hover:shadow-md transition-all border border-rose-100 dark:border-rose-800/60">
                     <svg class="w-5 h-5 sm:w-7 sm:h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>
-                <span class="text-[10px] sm:text-[11px] font-bold text-slate-700 dark:text-slate-200 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors leading-tight">Presensi Guru</span>
+                <span class="text-[10px] sm:text-[11px] font-bold text-slate-700 dark:text-slate-200 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors leading-tight">Presensi Mandiri</span>
             </a>
         </div>
     </div>

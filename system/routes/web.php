@@ -585,15 +585,14 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|bendahara|operator|kanti
         Route::post('student-permits/{permit}/reject', [\App\Http\Controllers\Admin\StudentPermitController::class, 'reject'])->name('student-permits.reject');
         Route::delete('student-permits/{permit}', [\App\Http\Controllers\Admin\StudentPermitController::class, 'destroy'])->name('student-permits.destroy');
 
-        // Teacher Attendance (Presensi Guru & Staff)
+        // Teacher Attendance - Admin Management (Presensi Guru & Staff)
         Route::get('teacher-attendances/fingerprint', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'fingerprintPage'])->name('teacher-attendances.fingerprint');
         Route::post('teacher-attendances/fingerprint/register', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'registerFingerprint'])->name('teacher-attendances.fingerprint.register');
         Route::post('teacher-attendances/fingerprint/verify', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'verifyFingerprint'])->name('teacher-attendances.fingerprint.verify');
 
         Route::get('teacher-attendances/mobile', function () {
-            return redirect()->route('admin.dashboard');
+            return redirect()->route('admin.teacher-attendances.my-attendance');
         })->name('teacher-attendances.mobile');
-        Route::get('teacher-attendances/check-status', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'checkTodayStatus'])->name('teacher-attendances.check-status');
         Route::post('teacher-attendances/toggle-briefing', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'toggleBriefing'])->name('teacher-attendances.toggle-briefing');
         Route::post('teacher-attendances/update-session-times', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'updateSessionTimes'])->name('teacher-attendances.update-session-times');
 
@@ -604,12 +603,19 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|bendahara|operator|kanti
         Route::get('teacher-attendances', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'index'])->name('teacher-attendances.index');
 
         Route::post('teacher-attendances', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'store'])->name('teacher-attendances.store');
-        Route::post('teacher-attendances/self-checkin', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'selfCheckIn'])->name('teacher-attendances.self-checkin');
         Route::post('teacher-attendances/register-face', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'registerFace'])->name('teacher-attendances.register-face');
         Route::post('teacher-attendances/verify-face', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'verifyFace'])->name('teacher-attendances.verify-face');
 
+        Route::get('teacher-attendances/stream', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'streamEvents'])->name('teacher-attendances.stream');
+        Route::post('teacher-attendances/fingerprint/device-event', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'logDeviceEvent'])->name('teacher-attendances.fingerprint.device-event');
+
         Route::delete('teacher-attendances/{id}', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'destroy'])->name('teacher-attendances.destroy');
     });
+
+    // Teacher Self-Service Attendance (Accessible to All Authenticated Teachers & Staff)
+    Route::get('teacher-attendances/my-attendance', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'myAttendance'])->name('teacher-attendances.my-attendance');
+    Route::post('teacher-attendances/self-checkin', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'selfCheckIn'])->name('teacher-attendances.self-checkin');
+    Route::get('teacher-attendances/check-status', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'checkTodayStatus'])->name('teacher-attendances.check-status');
 
     // Employee Tasks & Daily Checklist
     Route::get('employee-tasks', [\App\Http\Controllers\Admin\EmployeeTaskController::class, 'index'])->name('employee-tasks.index');

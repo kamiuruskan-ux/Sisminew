@@ -75,91 +75,17 @@
                     <span>📅</span>
                     <span>{{ \Carbon\Carbon::now()->translatedFormat('l, d F Y') }}</span>
                 </div>
-                @if(isset($todayAttendance) && $todayAttendance)
-                    <div class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/30 backdrop-blur-md rounded-xl text-xs font-bold text-emerald-100 border border-emerald-300/40">
-                        <span class="w-2 h-2 rounded-full bg-emerald-300 animate-ping"></span>
-                        <span>Presensi Hari Ini: {{ $todayAttendance->check_in ?? 'Hadir' }} ({{ ucfirst($todayAttendance->status) }})</span>
-                    </div>
-                @endif
             </div>
-
-            <!-- Multi-Sesi Attendance Pills (If Teacher/Staff) -->
-            @if($isTeacherOrStaff)
-            <div class="pt-2">
-                <p class="text-[11px] font-bold text-white/80 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <span>⏱️</span> Sesi Presensi Mandiri Hari Ini:
-                </p>
-                <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                    <!-- 1. Pagi Masuk -->
-                    <div class="p-2.5 rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 text-center">
-                        <span class="text-[9px] font-extrabold uppercase tracking-wider block text-white/75">1. Pagi Masuk</span>
-                        <span class="text-xs font-black block mt-0.5">
-                            @if(isset($todayAttendance) && $todayAttendance->check_in)
-                                <span class="text-emerald-300">✓ {{ substr($todayAttendance->check_in, 0, 5) }}</span>
-                            @else
-                                <span class="text-white/90">{{ $sessionSettings['morning_open'] ?? '06:00' }} - {{ $sessionSettings['morning_close'] ?? '11:59' }}</span>
-                            @endif
-                        </span>
-                    </div>
-
-                    <!-- 2. Briefing Pagi -->
-                    <div class="p-2.5 rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 text-center">
-                        <span class="text-[9px] font-extrabold uppercase tracking-wider block text-white/75">2. Briefing Guru</span>
-                        <span class="text-xs font-black block mt-0.5">
-                            @if(isset($hasAttendedBriefing) && $hasAttendedBriefing)
-                                <span class="text-emerald-300">✓ Hadir</span>
-                            @elseif(isset($briefingSession) && ($briefingSession['active'] ?? false))
-                                <span class="text-amber-300 animate-pulse">⚡ Buka Sekarang</span>
-                            @else
-                                <span class="text-white/70">-</span>
-                            @endif
-                        </span>
-                    </div>
-
-                    <!-- 3. Sesi Siang -->
-                    <div class="p-2.5 rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 text-center">
-                        <span class="text-[9px] font-extrabold uppercase tracking-wider block text-white/75">3. Dzuhur</span>
-                        <span class="text-xs font-black block mt-0.5">
-                            @if(isset($hasAttendedAfternoon) && $hasAttendedAfternoon)
-                                <span class="text-emerald-300">✓ Hadir</span>
-                            @else
-                                <span class="text-white/90">{{ $sessionSettings['afternoon_open'] ?? '12:30' }}</span>
-                            @endif
-                        </span>
-                    </div>
-
-                    <!-- 4. Sesi Sore -->
-                    <div class="p-2.5 rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 text-center">
-                        <span class="text-[9px] font-extrabold uppercase tracking-wider block text-white/75">4. Ashar</span>
-                        <span class="text-xs font-black block mt-0.5">
-                            <span class="text-white/90">{{ $sessionSettings['evening_open'] ?? '16:00' }}</span>
-                        </span>
-                    </div>
-
-                    <!-- 5. Check Out / Pulang -->
-                    <div class="p-2.5 rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 text-center col-span-2 sm:col-span-1">
-                        <span class="text-[9px] font-extrabold uppercase tracking-wider block text-white/75">5. Pulang</span>
-                        <span class="text-xs font-black block mt-0.5">
-                            @if(isset($todayAttendance) && $todayAttendance->check_out)
-                                <span class="text-emerald-300">✓ {{ substr($todayAttendance->check_out, 0, 5) }}</span>
-                            @else
-                                <span class="text-white/70">KBM Selesai</span>
-                            @endif
-                        </span>
-                    </div>
-                </div>
-            </div>
-            @endif
         </div>
 
         <!-- Right: Action Badges & Buttons -->
         <div class="flex flex-col sm:flex-row xl:flex-col gap-3 shrink-0">
             <!-- Button: Presensi Mandiri (GPS Satelit) Trigger -->
-            <button type="button" @click="openPresensiModal = true"
-                    class="px-5 py-3.5 rounded-2xl bg-white text-slate-900 font-extrabold text-xs sm:text-sm shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer">
+            <a href="{{ route('admin.teacher-attendances.my-attendance') }}"
+               class="px-5 py-3.5 rounded-2xl bg-white text-slate-900 font-extrabold text-xs sm:text-sm shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer">
                 <span class="w-7 h-7 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black">📍</span>
                 <span>Absen Mandiri GPS</span>
-            </button>
+            </a>
 
             <!-- Button: Input Izin Siswa -->
             <button type="button" @click="createPermitModal = true"

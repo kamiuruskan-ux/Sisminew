@@ -863,8 +863,8 @@
                         </div>
                         @endif
 
-                        <!-- Presensi & Kehadiran Dropdown -->
-                        @if(auth()->user()->hasPermission('view-attendance'))
+                        <!-- Presensi & Kehadiran Navigation -->
+                        @if(auth()->user()->hasRole('admin|super-admin|operator') || auth()->user()->hasPermission('manage-attendance'))
                         @php
                             $isAttendanceActive = request()->routeIs('admin.attendances.*') || request()->routeIs('admin.student-permits.*') || request()->routeIs('admin.teacher-attendances.*') || request()->routeIs('admin.qr-attendance.*');
                         @endphp
@@ -884,21 +884,35 @@
                             </button>
 
                             <div x-show="open" x-collapse class="pl-4 space-y-1 mt-1 border-l-2 border-slate-200 dark:border-slate-800 ml-4">
-                                <a href="{{ route('admin.attendances.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.attendances.index') ? 'nav-link-active' : '' }}">Rekap Presensi Siswa</a>
-                                <a href="{{ route('admin.student-permits.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.student-permits.*') ? 'nav-link-active' : '' }}">Permohonan Izin Siswa</a>
-                                <a href="{{ route('admin.attendances.settings') }}" class="nav-link text-xs {{ request()->routeIs('admin.attendances.settings') ? 'nav-link-active' : '' }}">Pengaturan Presensi Siswa</a>
-                                <a href="{{ route('admin.teacher-attendances.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.teacher-attendances.index') ? 'nav-link-active' : '' }}">Presensi Guru &amp; Staff</a>
-                                <a href="{{ route('admin.employee-tasks.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.employee-tasks.*') ? 'nav-link-active' : '' }}">Tugas &amp; Checklist Pegawai</a>
+                                <a href="{{ route('admin.teacher-attendances.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.teacher-attendances.index') ? 'nav-link-active' : '' }}">Manajemen Presensi Guru</a>
+                                <a href="{{ route('admin.teacher-attendances.fingerprint') }}" class="nav-link text-xs {{ request()->routeIs('admin.teacher-attendances.fingerprint') ? 'nav-link-active' : '' }}">Scanner Sidik Jari USB</a>
                                 <a href="{{ route('admin.teacher-attendances.scan') }}" target="_blank" rel="noopener" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.teacher-attendances.scan') ? 'nav-link-active' : '' }}">
                                     <span>Scanner Face ID Guru</span>
                                     <svg class="w-3 h-3 text-indigo-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
                                 </a>
+                                <a href="{{ route('admin.teacher-attendances.recap') }}" class="nav-link text-xs {{ request()->routeIs('admin.teacher-attendances.recap') ? 'nav-link-active' : '' }}">Rekap Bulanan Guru</a>
+                                <a href="{{ route('admin.attendances.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.attendances.index') ? 'nav-link-active' : '' }}">Rekap Presensi Siswa</a>
+                                <a href="{{ route('admin.student-permits.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.student-permits.*') ? 'nav-link-active' : '' }}">Permohonan Izin Siswa</a>
+                                <a href="{{ route('admin.attendances.settings') }}" class="nav-link text-xs {{ request()->routeIs('admin.attendances.settings') ? 'nav-link-active' : '' }}">Pengaturan Presensi Siswa</a>
+                                <a href="{{ route('admin.employee-tasks.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.employee-tasks.*') ? 'nav-link-active' : '' }}">Tugas &amp; Checklist Pegawai</a>
+                                <a href="{{ route('admin.teacher-attendances.my-attendance') }}" class="nav-link text-xs {{ request()->routeIs('admin.teacher-attendances.my-attendance') ? 'nav-link-active' : '' }}">Presensi Mandiri Saya</a>
                                 <a href="{{ route('admin.qr-attendance.scan') }}" target="_blank" rel="noopener" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.qr-attendance.*') ? 'nav-link-active' : '' }}">
                                     <span>Terminal Presensi Siswa (Global)</span>
-                                    <svg class="w-3 h-3 text-cyan-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                    <svg class="w-3 h-3 text-cyan-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
                                 </a>
                             </div>
                         </div>
+                        @else
+                        <!-- Direct Navigation for Teachers / Staff -->
+                        <a href="{{ route('admin.teacher-attendances.my-attendance') }}" 
+                           class="nav-link text-xs {{ request()->routeIs('admin.teacher-attendances.my-attendance') ? 'nav-link-active font-bold text-[#3C50E0] dark:text-indigo-400' : '' }}">
+                            <div class="flex items-center">
+                                <svg class="nav-icon text-emerald-500 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11a8.136 8.136 0 00.99 3.845"/>
+                                </svg>
+                                <span>Presensi Mandiri</span>
+                            </div>
+                        </a>
                         @endif
 
                         <!-- Bimbingan & Konseling Dropdown -->
@@ -1641,7 +1655,7 @@
             </a>
 
             <!-- Presensi (Pusat Aksi) -->
-            <a href="{{ route('admin.teacher-attendances.index') }}" class="flex flex-col items-center justify-center py-1 px-1 transition-all group">
+            <a href="{{ auth()->user()->hasRole('admin|super-admin|operator') ? route('admin.teacher-attendances.index') : route('admin.teacher-attendances.my-attendance') }}" class="flex flex-col items-center justify-center py-1 px-1 transition-all group">
                 <div class="w-10 h-10 rounded-2xl text-white flex items-center justify-center shadow-md shadow-primary/30 transform -translate-y-2 group-hover:scale-105 transition-transform" style="background: linear-gradient(135deg, {{ Setting::get('primary_color', '#3C50E0') }} 0%, {{ Setting::get('secondary_color', '#2563eb') }} 100%);">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>

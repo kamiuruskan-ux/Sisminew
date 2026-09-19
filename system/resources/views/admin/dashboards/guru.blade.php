@@ -72,11 +72,11 @@
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <button type="button" @click="openPresensiModal = true"
-                        class="px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white font-extrabold text-xs shadow-md transition flex items-center gap-1.5 cursor-pointer">
+                <a href="{{ route('admin.teacher-attendances.my-attendance') }}"
+                   class="px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white font-extrabold text-xs shadow-md transition flex items-center gap-1.5 cursor-pointer">
                     <span>📱</span>
                     <span>Presensi GPS Sekarang</span>
-                </button>
+                </a>
             </div>
         </div>
 
@@ -253,7 +253,7 @@
             </a>
 
             <!-- 8. Presensi Guru Saya -->
-            <a href="{{ route('admin.teacher-attendances.index') }}" class="flex flex-col items-center justify-center text-center group">
+            <a href="{{ route('admin.teacher-attendances.my-attendance') }}" class="flex flex-col items-center justify-center text-center group">
                 <div class="w-12 h-12 sm:w-14 sm:h-14 bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 rounded-2xl flex items-center justify-center mb-1.5 shadow-xs group-hover:scale-105 group-hover:shadow-md transition-all border border-amber-100 dark:border-amber-800/60">
                     <svg class="w-5 h-5 sm:w-7 sm:h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>
