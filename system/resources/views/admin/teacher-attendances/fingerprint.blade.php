@@ -14,18 +14,18 @@
     <script src="https://cdn.tailwindcss.com"></script>
 
     <!-- DigitalPersona Web SDK Official Bundles -->
-    <script src="{{ asset('vendor/digitalpersona/websdk.client.bundle.min.js') }}"></script>
+    <script src="{{ file_exists(public_path('vendor/digitalpersona/websdk.client.bundle.min.js')) ? asset('vendor/digitalpersona/websdk.client.bundle.min.js') : asset('system/public/vendor/digitalpersona/websdk.client.bundle.min.js') }}" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='{{ asset('system/public/vendor/digitalpersona/websdk.client.bundle.min.js') }}';}"></script>
     <script>
         if (typeof window !== 'undefined' && window.WebSdk && typeof window.WebSdkCore === 'undefined') {
             window.WebSdkCore = window.WebSdk;
         }
     </script>
-    <script src="{{ asset('vendor/digitalpersona/dp.core.umd.min.js') }}"></script>
-    <script src="{{ asset('vendor/digitalpersona/dp.devices.umd.min.js') }}"></script>
+    <script src="{{ file_exists(public_path('vendor/digitalpersona/dp.core.umd.min.js')) ? asset('vendor/digitalpersona/dp.core.umd.min.js') : asset('system/public/vendor/digitalpersona/dp.core.umd.min.js') }}" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='{{ asset('system/public/vendor/digitalpersona/dp.core.umd.min.js') }}';}"></script>
+    <script src="{{ file_exists(public_path('vendor/digitalpersona/dp.devices.umd.min.js')) ? asset('vendor/digitalpersona/dp.devices.umd.min.js') : asset('system/public/vendor/digitalpersona/dp.devices.umd.min.js') }}" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='{{ asset('system/public/vendor/digitalpersona/dp.devices.umd.min.js') }}';}"></script>
 
     <!-- Attendance Modular Services -->
-    <script src="{{ asset('js/attendance/LoggerService.js') }}"></script>
-    <script src="{{ asset('js/attendance/FingerprintService.js') }}"></script>
+    <script src="{{ file_exists(public_path('js/attendance/LoggerService.js')) ? asset('js/attendance/LoggerService.js') : asset('system/public/js/attendance/LoggerService.js') }}" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='{{ asset('system/public/js/attendance/LoggerService.js') }}';}"></script>
+    <script src="{{ file_exists(public_path('js/attendance/FingerprintService.js')) ? asset('js/attendance/FingerprintService.js') : asset('system/public/js/attendance/FingerprintService.js') }}" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='{{ asset('system/public/js/attendance/FingerprintService.js') }}';}"></script>
 
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 

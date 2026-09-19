@@ -9,12 +9,12 @@
 @endphp
 
 <!-- Ensure Required Modular Attendance Services are Loaded -->
-<script src="{{ asset('js/attendance/LoggerService.js') }}"></script>
-<script src="{{ asset('js/attendance/PermissionService.js') }}"></script>
-<script src="{{ asset('js/attendance/RadiusService.js') }}"></script>
-<script src="{{ asset('js/attendance/GPSService.js') }}"></script>
-<script src="{{ asset('js/attendance/ScheduleService.js') }}"></script>
-<script src="{{ asset('js/attendance/AttendanceService.js') }}"></script>
+<script src="{{ file_exists(public_path('js/attendance/LoggerService.js')) ? asset('js/attendance/LoggerService.js') : asset('system/public/js/attendance/LoggerService.js') }}" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='{{ asset('system/public/js/attendance/LoggerService.js') }}';}"></script>
+<script src="{{ file_exists(public_path('js/attendance/PermissionService.js')) ? asset('js/attendance/PermissionService.js') : asset('system/public/js/attendance/PermissionService.js') }}" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='{{ asset('system/public/js/attendance/PermissionService.js') }}';}"></script>
+<script src="{{ file_exists(public_path('js/attendance/RadiusService.js')) ? asset('js/attendance/RadiusService.js') : asset('system/public/js/attendance/RadiusService.js') }}" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='{{ asset('system/public/js/attendance/RadiusService.js') }}';}"></script>
+<script src="{{ file_exists(public_path('js/attendance/GPSService.js')) ? asset('js/attendance/GPSService.js') : asset('system/public/js/attendance/GPSService.js') }}" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='{{ asset('system/public/js/attendance/GPSService.js') }}';}"></script>
+<script src="{{ file_exists(public_path('js/attendance/ScheduleService.js')) ? asset('js/attendance/ScheduleService.js') : asset('system/public/js/attendance/ScheduleService.js') }}" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='{{ asset('system/public/js/attendance/ScheduleService.js') }}';}"></script>
+<script src="{{ file_exists(public_path('js/attendance/AttendanceService.js')) ? asset('js/attendance/AttendanceService.js') : asset('system/public/js/attendance/AttendanceService.js') }}" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='{{ asset('system/public/js/attendance/AttendanceService.js') }}';}"></script>
 
 <!-- ============================================================ -->
 <!-- UNIVERSAL PRESENSI MANDIRI GPS MODAL (RESPONSIVE POPUP) -->
