@@ -57,6 +57,65 @@
         </div>
     @endif
 
+    <!-- Rekapitulasi Presensi Mandiri & GPS Bulanan Guru/Pegawai -->
+    <div class="tailadmin-card p-5 bg-white dark:bg-[#1A222C] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xs space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-black text-lg">
+                    📍
+                </div>
+                <div>
+                    <h3 class="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">
+                        Presensi Mandiri &amp; Rekapitulasi Kehadiran
+                    </h3>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Bulan {{ \Carbon\Carbon::now()->translatedFormat('F Y') }} &bull; GPS Geofence Terenkripsi</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button type="button" @click="openPresensiModal = true"
+                        class="px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white font-extrabold text-xs shadow-md transition flex items-center gap-1.5 cursor-pointer">
+                    <span>📱</span>
+                    <span>Presensi GPS Sekarang</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 4 Sub-Metrics Kehadiran -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div class="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40">
+                <span class="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider block">Hadir Tepat Waktu</span>
+                <div class="flex items-baseline gap-1 mt-1">
+                    <span class="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono">{{ $onTimeCount ?? 0 }}</span>
+                    <span class="text-[11px] font-bold text-emerald-700 dark:text-emerald-300">Hari</span>
+                </div>
+            </div>
+
+            <div class="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/40">
+                <span class="text-[10px] font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider block">Terlambat</span>
+                <div class="flex items-baseline gap-1 mt-1">
+                    <span class="text-xl font-black text-amber-600 dark:text-amber-400 font-mono">{{ $lateCount ?? 0 }}</span>
+                    <span class="text-[11px] font-bold text-amber-700 dark:text-amber-300">Hari</span>
+                </div>
+            </div>
+
+            <div class="p-3.5 rounded-2xl bg-sky-50/70 dark:bg-sky-950/30 border border-sky-200/60 dark:border-sky-800/40">
+                <span class="text-[10px] font-bold text-sky-700 dark:text-sky-300 uppercase tracking-wider block">Izin / Sakit / Cuti</span>
+                <div class="flex items-baseline gap-1 mt-1">
+                    <span class="text-xl font-black text-sky-600 dark:text-sky-400 font-mono">{{ $permitCount ?? 0 }}</span>
+                    <span class="text-[11px] font-bold text-sky-700 dark:text-sky-300">Hari</span>
+                </div>
+            </div>
+
+            <div class="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/60 dark:border-indigo-800/40">
+                <span class="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider block">Tingkat Kehadiran</span>
+                <div class="flex items-baseline gap-1 mt-1">
+                    <span class="text-xl font-black text-indigo-600 dark:text-indigo-400 font-mono">{{ $attendancePercentage ?? 100 }}</span>
+                    <span class="text-[11px] font-bold text-indigo-700 dark:text-indigo-300">%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 4 KPI Metrics Grid Guru -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <!-- 1. Total Jadwal Mengajar -->
@@ -275,5 +334,158 @@
             </div>
         </div>
     </div>
+
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <!-- TUGAS HARIAN PEGAWAI & AGENDA KEGIATAN SEKOLAH -->
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" x-data="{
+        tasks: @json($myEmployeeTasks ?? []),
+        async toggleTask(taskId) {
+            try {
+                const res = await fetch(`/admin/employee-tasks/${taskId}/toggle`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const t = this.tasks.find(x => x.id === taskId);
+                    if (t) {
+                        t.is_completed = data.is_completed;
+                    }
+                    window.location.reload();
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+    }">
+        <!-- Checklist Harian Pegawai -->
+        <div class="tailadmin-card p-6 bg-white dark:bg-[#1A222C] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xs space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-sm">
+                        📋
+                    </div>
+                    <div>
+                        <h4 class="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">
+                            Tugas &amp; Checklist Harian Pegawai
+                        </h4>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Pantau dan selesaikan rutinitas kerja harian Anda</p>
+                    </div>
+                </div>
+                <a href="{{ route('admin.employee-tasks.index') }}" class="text-xs font-bold text-indigo-600 hover:text-indigo-700">Semua Tugas &rarr;</a>
+            </div>
+
+            <div class="space-y-2.5">
+                @forelse($myEmployeeTasks ?? [] as $mTask)
+                @php
+                    $isDone = $mTask->isCompletedByUserOnDate(auth()->id(), date('Y-m-d'));
+                @endphp
+                <div class="p-3.5 rounded-2xl border transition-all flex items-start gap-3 {{ $isDone ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-800/40' : 'bg-slate-50 dark:bg-[#24303F]/60 border-slate-200/80 dark:border-slate-800' }}">
+                    <button type="button" @click="toggleTask({{ $mTask->id }})"
+                            class="w-6 h-6 rounded-lg flex items-center justify-center transition-all mt-0.5 shrink-0 {{ $isDone ? 'bg-emerald-600 text-white shadow-xs' : 'border-2 border-slate-300 dark:border-slate-600 hover:border-emerald-500' }}">
+                        @if($isDone)
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        @endif
+                    </button>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-xs font-bold text-slate-900 dark:text-white leading-tight {{ $isDone ? 'line-through text-slate-400 dark:text-slate-500' : '' }}">
+                            {{ $mTask->title }}
+                        </p>
+                        @if($mTask->description)
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">{{ $mTask->description }}</p>
+                        @endif
+                    </div>
+                    <span class="px-2 py-0.5 text-[9px] font-extrabold uppercase rounded-md shrink-0 {{ $isDone ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200' : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' }}">
+                        {{ $isDone ? 'Selesai' : 'Pending' }}
+                    </span>
+                </div>
+                @empty
+                <div class="py-6 text-center text-xs font-medium text-slate-400">
+                    Tidak ada checklist tugas wajib untuk hari ini.
+                </div>
+                @endforelse
+            </div>
+        </div>
+
+        <!-- Agenda & Kegiatan Sekolah Terdekat -->
+        <div class="tailadmin-card p-6 bg-white dark:bg-[#1A222C] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xs space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-sm">
+                        📅
+                    </div>
+                    <div>
+                        <h4 class="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">
+                            Agenda &amp; Kegiatan Sekolah
+                        </h4>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Jadwal agenda dewan guru &amp; asatidzah bulan ini</p>
+                    </div>
+                </div>
+                <span class="px-2.5 py-1 text-[10px] font-extrabold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 rounded-lg border border-amber-200/60 dark:border-amber-800/40">
+                    Aktif
+                </span>
+            </div>
+
+            <div class="divide-y divide-slate-100 dark:divide-slate-800">
+                @forelse($agendas ?? [] as $ag)
+                <div class="py-3 flex items-start justify-between gap-3">
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider {{ ($ag['status'] ?? '') === 'AKTIF' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' }}">
+                                {{ $ag['status'] ?? 'SELESAI' }}
+                            </span>
+                            <h5 class="text-xs font-bold text-slate-900 dark:text-white">{{ $ag['title'] }}</h5>
+                        </div>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">{{ $ag['description'] }}</p>
+                        <div class="flex items-center gap-3 text-[10px] text-slate-400 pt-0.5">
+                            <span>🕒 {{ $ag['time'] ?? '-' }}</span>
+                            <span>📍 {{ $ag['location'] ?? '-' }}</span>
+                        </div>
+                    </div>
+                    <span class="text-xs font-mono font-bold text-slate-700 dark:text-slate-300 shrink-0">
+                        {{ \Carbon\Carbon::parse($ag['date'])->format('d M') }}
+                    </span>
+                </div>
+                @empty
+                <div class="py-6 text-center text-xs font-medium text-slate-400">Belum ada agenda kegiatan terdekat.</div>
+                @endforelse
+            </div>
+        </div>
+    </div>
+
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <!-- MUTIARA HADITS NABAWI HARIAN -->
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    @if(isset($hadithToday) && $hadithToday)
+    <div class="rounded-3xl p-6 sm:p-7 text-white shadow-xl relative overflow-hidden transition-all border border-white/10"
+         style="background: linear-gradient(135deg, {{ Setting::get('primary_color', '#3C50E0') }} 0%, {{ Setting::get('secondary_color', '#2563eb') }} 100%);">
+        
+        <div class="absolute -right-10 -bottom-10 w-44 h-44 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+        
+        <div class="relative z-10 space-y-3.5">
+            <div class="flex items-center justify-between">
+                <span class="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-mono font-black uppercase tracking-wider text-white border border-white/25">
+                    ✨ {{ $hadithToday['category'] ?? 'HADITS NABAWI' }}
+                </span>
+                <span class="text-xs text-white/80 font-semibold">{{ $hadithToday['narrator'] ?? '' }}</span>
+            </div>
+
+            <!-- Arabic Calligraphy Text -->
+            <p class="text-right text-lg sm:text-2xl font-bold leading-loose text-white/95 drop-shadow-xs" style="font-family: 'Amiri', serif;">
+                {{ $hadithToday['arabic'] }}
+            </p>
+
+            <!-- Translation -->
+            <p class="text-xs sm:text-sm text-white/90 font-medium leading-relaxed italic border-t border-white/20 pt-3">
+                &ldquo;{{ $hadithToday['translation'] }}&rdquo;
+            </p>
+        </div>
+    </div>
+    @endif
 
 </div>

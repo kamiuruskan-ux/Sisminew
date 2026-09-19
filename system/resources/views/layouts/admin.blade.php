@@ -1640,12 +1640,12 @@
                 <span class="text-[10px] tracking-tight mt-0.5">Tugas</span>
             </a>
 
-            <!-- Presensi Mobile (Pusat Aksi) -->
-            <a href="{{ route('admin.teacher-attendances.mobile') }}" class="flex flex-col items-center justify-center py-1 px-1 transition-all group">
-                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#3C50E0] to-indigo-600 text-white flex items-center justify-center shadow-md shadow-[#3C50E0]/30 transform -translate-y-2 group-hover:scale-105 transition-transform">
+            <!-- Presensi (Pusat Aksi) -->
+            <a href="{{ route('admin.teacher-attendances.index') }}" class="flex flex-col items-center justify-center py-1 px-1 transition-all group">
+                <div class="w-10 h-10 rounded-2xl text-white flex items-center justify-center shadow-md shadow-primary/30 transform -translate-y-2 group-hover:scale-105 transition-transform" style="background: linear-gradient(135deg, {{ Setting::get('primary_color', '#3C50E0') }} 0%, {{ Setting::get('secondary_color', '#2563eb') }} 100%);">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>
-                <span class="text-[10px] font-extrabold tracking-tight -mt-1.5 {{ request()->routeIs('admin.teacher-attendances.mobile') ? 'text-[#3C50E0] dark:text-indigo-400' : 'text-slate-600 dark:text-slate-300' }}">Presensi</span>
+                <span class="text-[10px] font-extrabold tracking-tight -mt-1.5 {{ request()->routeIs('admin.teacher-attendances.*') ? 'text-primary' : 'text-slate-600 dark:text-slate-300' }}">Presensi</span>
             </a>
 
             <!-- Halaqah -->

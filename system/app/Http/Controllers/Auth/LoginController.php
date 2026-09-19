@@ -112,21 +112,6 @@ class LoginController extends Controller
             return redirect()->route('canteen.vendor.dashboard')->with('success', 'Selamat datang di Panel Vendor Kantin, ' . $user->name . '!');
         }
 
-        // Deteksi apakah user login menggunakan peramban mobile (smartphone/tablet)
-        $userAgent = request()->header('User-Agent', '');
-        $isMobile = preg_match('/(android|avantgo|blackberry|bolt|boost|cricket|docomo|fone|hiptop|mini|mobi|palm|phone|pie|tablet|up\.browser|up\.link|webos|wos|iphone|ipad|ipod)/i', $userAgent);
-
-        if ($isMobile) {
-            // Pengguna Guru, Staff, Kepala Sekolah, atau Admin diarahkan langsung ke Mobile Portal PWA
-            if ($user->hasRole('guru') || $user->hasRole('staff') || $user->hasRole('kepala-sekolah') || $user->hasRole('admin') || $user->hasRole('super-admin')) {
-                return redirect()->route('admin.teacher-attendances.mobile')->with('success', 'Selamat datang di Portal Mobile Asatidzah & Pegawai, ' . $user->name . '!');
-            }
-        }
-
-        if ($user->hasRole('guru')) {
-            return redirect()->route('admin.dashboard')->with('success', 'Selamat datang, ' . $user->name . '! Anda telah berhasil login.');
-        }
-
         return redirect()->route('admin.dashboard')->with('success', 'Selamat datang, ' . $user->name . '! Anda telah berhasil login.');
     }
 

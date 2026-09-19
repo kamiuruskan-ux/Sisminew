@@ -21,9 +21,12 @@ use App\Models\Schedule;
 use App\Models\Slider;
 use App\Models\SpmbRegistration;
 use App\Models\Student;
+use App\Models\Setting;
 use App\Models\StudentPaymentBill;
 use App\Models\StudentPaymentDetail;
 use App\Models\StudentPermit;
+use App\Models\TeacherAttendance;
+use App\Models\EmployeeTask;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -309,6 +312,129 @@ class DashboardController extends Controller
 
         $students = Student::with(['user', 'class'])->get();
 
+        // ── 7. Teacher/Employee Mobile Portal Integrated Data ────────────────
+        $today = date('Y-m-d');
+        $todayAttendance = TeacherAttendance::where('user_id', $user->id)
+            ->where('date', $today)
+            ->first();
+
+        $currentMonthStr = date('m');
+        $currentYearStr = date('Y');
+        $monthlyRecords = TeacherAttendance::where('user_id', $user->id)
+            ->whereYear('date', $currentYearStr)
+            ->whereMonth('date', $currentMonthStr)
+            ->get();
+
+        $onTimeCount = $monthlyRecords->where('status', 'present')->count();
+        $lateCount = $monthlyRecords->where('status', 'late')->count();
+        $permitCount = $monthlyRecords->whereIn('status', ['permit', 'sick', 'leave'])->count();
+        $totalDays = $monthlyRecords->count();
+        $attendancePercentage = $totalDays > 0 ? round((($onTimeCount + $lateCount) / $totalDays) * 100) : 100;
+
+        $schoolName = Setting::get('school_name', config('app.name', 'SDIT AL-FAHMI PALU'));
+        $schoolMotto = Setting::get('school_motto', 'Sekolahnya Calon Pemimpin Peradaban');
+        $schoolLat = (float) Setting::get('school_latitude', -0.8917);
+        $schoolLong = (float) Setting::get('school_longitude', 119.8707);
+        $schoolRadius = (int) Setting::get('school_attendance_radius', 100);
+        $timezoneLabel = Setting::get('school_timezone_label', 'WITA');
+
+        $sessionSettings = [
+            'morning_open' => Setting::get('attendance_morning_open', '06:00'),
+            'morning_late' => Setting::get('attendance_morning_late', '07:30'),
+            'morning_close' => Setting::get('attendance_morning_close', '11:59'),
+            'afternoon_open' => Setting::get('attendance_afternoon_open', '12:30'),
+            'afternoon_close' => Setting::get('attendance_afternoon_close', '13:30'),
+            'evening_open' => Setting::get('attendance_evening_open', '16:00'),
+            'evening_close' => Setting::get('attendance_evening_close', '23:59'),
+            'manual_override' => (bool) Setting::get('attendance_manual_override', '0'),
+        ];
+
+        $briefingSession = [
+            'active' => (bool) Setting::get('briefing_session_active', '0'),
+            'title' => Setting::get('briefing_title', 'Briefing Pagi Dewan Guru & Asatidzah'),
+            'content' => Setting::get('briefing_content', 'Penguatan kedisiplinan santri dan pembiasaan adab islami.'),
+            'opened_at' => Setting::get('briefing_opened_at', date('H:i')),
+        ];
+
+        $isPrincipal = $user->hasRole('kepala-sekolah') || $user->hasRole('admin') || $user->hasRole('super-admin');
+        $hasAttendedBriefing = !empty($todayAttendance?->notes) && str_contains($todayAttendance->notes, 'Hadir Briefing:');
+        $hasAttendedAfternoon = !empty($todayAttendance?->notes) && str_contains($todayAttendance->notes, 'Hadir Sesi Siang');
+
+        $hadithList = [
+            [
+                'arabic' => 'الْمُؤْمِنُ الْقَوِيُّ خَيْرٌ وَأَحَبُّ إِلَى اللَّهِ مِنَ الْمُؤْمِنِ الضَّعِيفِ وَفِي كُلٍّ خَيْرٌ',
+                'translation' => 'Mukmin yang kuat lebih baik dan lebih dicintai oleh Allah daripada mukmin yang lemah, dan pada keduanya ada kebaikan.',
+                'narrator' => 'HR. Muslim no. 2664',
+                'category' => 'HADITS NABAWI'
+            ],
+            [
+                'arabic' => 'خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ',
+                'translation' => 'Sebaik-baik kalian adalah orang yang belajar Al-Qur\'an dan mengajarkannya.',
+                'narrator' => 'HR. Bukhari no. 5027',
+                'category' => 'MUTIARA SUNNAH'
+            ],
+            [
+                'arabic' => 'إِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ وَإِنَّمَا لِكُلِّ امْرِئٍ مَا نَوَى',
+                'translation' => 'Sesungguhnya setiap amalan tergantung pada niatnya, dan setiap orang akan mendapatkan apa yang ia niatkan.',
+                'narrator' => 'HR. Bukhari & Muslim',
+                'category' => 'HADITS ARBAIN'
+            ],
+            [
+                'arabic' => 'مَنْ سَلَكَ طَرِيقًا يَلْتَمِسُ فِيهِ عِلْمًا سَهَّلَ اللَّهُ لَهُ بِهِ طَرِيقًا إِلَى الْجَنَّةِ',
+                'translation' => 'Barangsiapa menempuh jalan untuk mencari ilmu, maka Allah akan memudahkan baginya jalan menuju surga.',
+                'narrator' => 'HR. Muslim no. 2699',
+                'category' => 'MUTIARA ILMU'
+            ],
+            [
+                'arabic' => 'اتَّقِ اللَّهَ حَيْثُمَا كُنْتَ وَأَتْبِعِ السَّيِّئَةَ الْحَسَنَةَ تَمْحُهَا وَخَالِقِ النَّاسَ بِخُلُقٍ حَسَنٍ',
+                'translation' => 'Bertakwalah kepada Allah di mana pun engkau berada, iringilah keburukan dengan kebaikan niscaya akan menghapuskannya, dan pergaulilah manusia dengan akhlak terpuji.',
+                'narrator' => 'HR. Tirmidzi no. 1987',
+                'category' => 'HADITS NABAWI'
+            ]
+        ];
+        $hadithToday = $hadithList[date('z') % count($hadithList)];
+
+        $agendas = [
+            [
+                'id' => 1,
+                'title' => 'Rapat Koordinasi Bulanan Guru & Karyawan',
+                'description' => 'Evaluasi kurikulum terpadu dan pembinaan kedisiplinan santri.',
+                'date' => date('Y-m-') . '05',
+                'time' => '13:30 - 15:30',
+                'location' => 'Lantai 2 - Aula Utama',
+                'status' => 'SELESAI',
+            ],
+            [
+                'id' => 2,
+                'title' => 'Penerimaan Raport & Tasmi Quran Semester',
+                'description' => 'Pembagian lembar hasil belajar Tahsin dan Tahfidz di kelas masing-masing.',
+                'date' => date('Y-m-') . '15',
+                'time' => '08:00 - 12:00',
+                'location' => 'Gedung Asatidzah & Selasar',
+                'status' => 'SELESAI',
+            ],
+            [
+                'id' => 3,
+                'title' => 'Kajian Rutin Selasar Guru & Asatidzah',
+                'description' => 'Bedah Kitab Ta\'limul Muta\'allim bersama Pembina Yayasan.',
+                'date' => date('Y-m-') . (date('d') > 19 ? date('d') : '25'),
+                'time' => '16:00 - 17:30',
+                'location' => 'Masjid Sekolah / Selasar',
+                'status' => 'AKTIF',
+            ],
+        ];
+
+        $myEmployeeTasks = collect();
+        if (class_exists(EmployeeTask::class)) {
+            try {
+                $myEmployeeTasks = EmployeeTask::whereHas('assignees', function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                })->get()->filter(fn($t) => $t->appliesToDate($today))->values();
+            } catch (\Throwable $e) {
+                // Ignore if table not yet migrated
+            }
+        }
+
         return view('admin.dashboard', compact(
             'defaultTab',
             'isBendahara',
@@ -340,7 +466,27 @@ class DashboardController extends Controller
             'operatorStats',
             'recentClasses',
             'staffStats',
-            'recentPosts'
+            'recentPosts',
+            'todayAttendance',
+            'onTimeCount',
+            'lateCount',
+            'permitCount',
+            'totalDays',
+            'attendancePercentage',
+            'schoolName',
+            'schoolMotto',
+            'schoolLat',
+            'schoolLong',
+            'schoolRadius',
+            'timezoneLabel',
+            'sessionSettings',
+            'briefingSession',
+            'isPrincipal',
+            'hasAttendedBriefing',
+            'hasAttendedAfternoon',
+            'hadithToday',
+            'agendas',
+            'myEmployeeTasks'
         ));
     }
 }

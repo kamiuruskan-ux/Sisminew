@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\TeacherAttendance;
 use App\Models\User;
 use App\Models\Setting;
+use App\Services\AttendanceService;
+use App\Repositories\Contracts\AttendanceRepositoryInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -16,6 +18,17 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
 class TeacherAttendanceController extends Controller
 {
+    protected AttendanceService $attendanceService;
+    protected AttendanceRepositoryInterface $attendanceRepository;
+
+    public function __construct(
+        AttendanceService $attendanceService,
+        AttendanceRepositoryInterface $attendanceRepository
+    ) {
+        $this->attendanceService = $attendanceService;
+        $this->attendanceRepository = $attendanceRepository;
+    }
+
     /**
      * Dedicated Standalone Face ID Registration Page for Teachers & Staff
      */
@@ -36,10 +49,7 @@ class TeacherAttendanceController extends Controller
     public function scanFace(Request $request)
     {
         $today = date('Y-m-d');
-        $todayAttendances = TeacherAttendance::with(['user.homeroomClasses'])
-            ->where('date', $today)
-            ->latest('updated_at')
-            ->get();
+        $todayAttendances = $this->attendanceRepository->getTodayAttendances($today);
 
         return view('admin.teacher-attendances.scan', compact('todayAttendances'));
     }
@@ -167,207 +177,20 @@ class TeacherAttendanceController extends Controller
         ]);
 
         $user = auth()->user();
-        $today = now()->format('Y-m-d');
-        $nowTime = now()->format('H:i:s');
+        $result = $this->attendanceService->processGpsAttendance($user, $request->all());
 
-        $attendance = TeacherAttendance::firstOrCreate([
-            'user_id' => $user->id,
-            'date' => $today,
-        ]);
-
-        // 1. SMART LOCKING VALIDATION
-        if ($request->type === 'check_in') {
-            if (!empty($attendance->check_in)) {
-                $methodName = $attendance->method_label ?? 'sistem';
-                $errMsg = "Anda sudah melakukan presensi MASUK hari ini pada pukul {$attendance->check_in} (via {$methodName}). Tombol presensi masuk telah dikunci.";
-                if ($request->wantsJson() || $request->ajax()) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => $errMsg,
-                        'locked' => true,
-                        'attendance' => $attendance,
-                    ], 422);
-                }
-                return back()->with('error', $errMsg);
+        if (!$result['success']) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json($result, $result['status_code'] ?? 422);
             }
-        } elseif ($request->type === 'check_out') {
-            // Check out validation
-            if (empty($attendance->check_in)) {
-                $errMsg = "Anda belum melakukan presensi MASUK hari ini. Harap presensi masuk terlebih dahulu.";
-                if ($request->wantsJson() || $request->ajax()) {
-                    return response()->json(['success' => false, 'message' => $errMsg], 422);
-                }
-                return back()->with('error', $errMsg);
-            }
-            if (!empty($attendance->check_out)) {
-                $errMsg = "Anda sudah melakukan presensi PULANG hari ini pada pukul {$attendance->check_out}. Kehadiran Anda hari ini telah lengkap.";
-                if ($request->wantsJson() || $request->ajax()) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => $errMsg,
-                        'locked' => true,
-                        'attendance' => $attendance,
-                    ], 422);
-                }
-                return back()->with('error', $errMsg);
-            }
+            return back()->with('error', $result['message']);
         }
-
-        // 2. GPS & GEOFENCING VALIDATION
-        $workLoc = $request->work_location ?? 'school';
-        $schoolLat = (float) Setting::get('school_latitude', -0.8917);
-        $schoolLong = (float) Setting::get('school_longitude', 119.8707);
-        $maxRadius = (int) Setting::get('school_attendance_radius', 100); // meters default 100m
-        $manualOverride = Setting::get('attendance_manual_override', '0') == '1';
-
-        // Safe fallback coordinate if GPS is blocked/unavailable
-        $userLat = $request->filled('latitude') ? (float) $request->latitude : $schoolLat;
-        $userLong = $request->filled('longitude') ? (float) $request->longitude : $schoolLong;
-
-        // Geofence check ONLY applies when work_location is 'school' and not in manual override
-        if ($workLoc === 'school' && !$manualOverride && $request->filled('latitude') && $request->filled('longitude')) {
-            $earthRadius = 6371000; // in meters
-            $dLat = deg2rad($userLat - $schoolLat);
-            $dLon = deg2rad($userLong - $schoolLong);
-            $a = sin($dLat / 2) * sin($dLat / 2) +
-                 cos(deg2rad($schoolLat)) * cos(deg2rad($userLat)) *
-                 sin($dLon / 2) * sin($dLon / 2);
-            $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
-            $distance = round($earthRadius * $c);
-
-            if ($distance > $maxRadius) {
-                $errMsg = "Presensi Gagal: Posisi Anda ({$distance} meter) berada di luar batas radius sekolah (Maksimal: {$maxRadius} meter). Dekati area sekolah atau gunakan moda Dinas Luar.";
-                if ($request->wantsJson() || $request->ajax()) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => $errMsg,
-                        'distance' => $distance,
-                        'max_radius' => $maxRadius,
-                        'out_of_radius' => true,
-                    ], 422);
-                }
-                return back()->with('error', $errMsg);
-            }
-        }
-
-        // Process selfie photo upload if base64 provided
-        $photoName = null;
-        if ($request->filled('photo')) {
-            $imageData = $request->photo;
-            if (preg_match('/^data:image\/(\w+);base64,/', $imageData, $type)) {
-                $imageData = substr($imageData, strpos($imageData, ',') + 1);
-                $type = strtolower($type[1]);
-                $imageData = base64_decode($imageData);
-
-                if ($imageData !== false) {
-                    $photoName = 'selfie_' . $user->id . '_' . time() . '.' . $type;
-                    $uploadPath = public_path('img/teacher_attendances');
-                    if (!File::exists($uploadPath)) {
-                        File::makeDirectory($uploadPath, 0755, true, true);
-                    }
-                    File::put($uploadPath . '/' . $photoName, $imageData);
-                }
-            }
-        }
-
-        $attendance->method = 'mobile_gps';
-        $attendance->device_info = $request->header('User-Agent', 'Mobile Phone');
-        $attendance->work_location = $workLoc;
-
-        // Check batas jam keterlambatan dari pengaturan (default 07:30)
-        $lateThreshold = Setting::get('attendance_morning_late', '07:30');
-        if (!str_contains($lateThreshold, ':')) {
-            $lateThreshold = '07:30';
-        }
-        $lateTimestamp = strtotime($lateThreshold . ':00');
-
-        if ($request->type === 'briefing') {
-            $briefingTitle = Setting::get('briefing_title', 'Briefing Pagi Dewan Guru');
-            $briefingActive = Setting::get('briefing_session_active', '0') == '1';
-
-            if (!$briefingActive) {
-                $errMsg = 'Sesi Briefing saat ini belum dibuka atau telah ditutup oleh Kepala Sekolah.';
-                if ($request->wantsJson() || $request->ajax()) {
-                    return response()->json(['success' => false, 'message' => $errMsg], 422);
-                }
-                return back()->with('error', $errMsg);
-            }
-
-            // Jika belum check_in pagi, jadikan sekaligus check_in
-            if (empty($attendance->check_in)) {
-                $attendance->check_in = $nowTime;
-                $attendance->check_in_lat = $userLat;
-                $attendance->check_in_long = $userLong;
-                if ($photoName) {
-                    $attendance->check_in_photo = $photoName;
-                }
-                $attendance->status = (strtotime($nowTime) > $lateTimestamp) ? 'late' : 'present';
-            }
-
-            // Catat kehadiran briefing ke dalam notes
-            $briefingTag = "[Hadir Briefing: {$briefingTitle} @ {$nowTime}]";
-            if (empty($attendance->notes)) {
-                $attendance->notes = $briefingTag;
-            } elseif (!str_contains($attendance->notes, 'Hadir Briefing:')) {
-                $attendance->notes = trim($attendance->notes) . ' | ' . $briefingTag;
-            }
-
-            $msg = "Alhamdulillah! Kehadiran Briefing '{$briefingTitle}' berhasil dicatat pada {$nowTime}";
-        } elseif ($request->type === 'afternoon') {
-            // Sesi Siang (Dzuhur / Checklist)
-            $afternoonTag = "[Hadir Sesi Siang @ {$nowTime}]";
-            if (empty($attendance->notes)) {
-                $attendance->notes = $afternoonTag;
-            } elseif (!str_contains($attendance->notes, 'Hadir Sesi Siang')) {
-                $attendance->notes = trim($attendance->notes) . ' | ' . $afternoonTag;
-            }
-            $msg = "Presensi SESI SIANG berhasil dicatat pada {$nowTime}";
-        } elseif ($request->type === 'check_in') {
-            $attendance->check_in = $nowTime;
-            $attendance->check_in_lat = $userLat;
-            $attendance->check_in_long = $userLong;
-            if ($photoName) {
-                $attendance->check_in_photo = $photoName;
-            }
-
-            // Auto determine late status
-            if (strtotime($nowTime) > $lateTimestamp) {
-                $attendance->status = 'late';
-            } else {
-                $attendance->status = 'present';
-            }
-            $msg = ($workLoc === 'dinas_luar' ? 'Presensi MASUK (Dinas Luar)' : 'Presensi MASUK via Mobile GPS') . ' berhasil dicatat pada ' . $nowTime;
-        } else {
-            $attendance->check_out = $nowTime;
-            $attendance->check_out_lat = $userLat;
-            $attendance->check_out_long = $userLong;
-            if ($photoName) {
-                $attendance->check_out_photo = $photoName;
-            }
-            $msg = ($workLoc === 'dinas_luar' ? 'Presensi PULANG (Dinas Luar)' : 'Presensi PULANG via Mobile GPS') . ' berhasil dicatat pada ' . $nowTime;
-        }
-
-        // Merge extra notes if provided by user (e.g. dinas luar reason)
-        if ($request->filled('notes')) {
-            $customNote = trim($request->notes);
-            if (empty($attendance->notes)) {
-                $attendance->notes = $customNote;
-            } elseif (!str_contains($attendance->notes, $customNote)) {
-                $attendance->notes = trim($attendance->notes) . ' | ' . $customNote;
-            }
-        }
-
-        $attendance->save();
 
         if ($request->wantsJson() || $request->ajax()) {
-            return response()->json([
-                'success' => true,
-                'message' => $msg,
-                'attendance' => $attendance,
-            ]);
+            return response()->json($result);
         }
 
-        return back()->with('success', $msg);
+        return back()->with('success', $result['message']);
     }
 
     /**
@@ -640,67 +463,21 @@ class TeacherAttendanceController extends Controller
             ], 422);
         }
 
-        $today = date('Y-m-d');
-        $nowTime = date('H:i:s');
+        $result = $this->attendanceService->processFaceIdAttendance($matchedUser, array_merge($request->all(), [
+            'type' => $request->type ?? 'check_in',
+            'latitude' => $request->latitude,
+            'longitude' => $request->longitude,
+            'live_photo' => $request->live_photo,
+            'work_location' => $request->work_location ?? 'school',
+        ]));
 
-        $attendance = TeacherAttendance::firstOrNew([
-            'user_id' => $matchedUser->id,
-            'date' => $today,
-        ]);
-
-        $photoName = null;
-        $imageData = $request->live_photo;
-        if (preg_match('/^data:image\/(\w+);base64,/', $imageData, $type)) {
-            $imageData = substr($imageData, strpos($imageData, ',') + 1);
-            $type = strtolower($type[1]);
-            $imageData = base64_decode($imageData);
-
-            if ($imageData !== false) {
-                $photoName = 'face_scan_' . $matchedUser->id . '_' . time() . '.' . $type;
-                $uploadPath = public_path('img/teacher_attendances');
-                if (!File::exists($uploadPath)) {
-                    File::makeDirectory($uploadPath, 0755, true, true);
-                }
-                File::put($uploadPath . '/' . $photoName, $imageData);
-            }
+        $statusCode = $result['success'] ? 200 : ($result['status_code'] ?? 422);
+        if ($result['success']) {
+            $result['confidence'] = $bestMatchConfidence;
+            $result['message'] = "Terverifikasi BIOMETRIK Face ID ({$bestMatchConfidence}%)! {$result['message']} untuk {$matchedUser->name}";
         }
 
-        $workLoc = $request->work_location ?? 'school';
-
-        if ($request->type === 'check_in') {
-            $attendance->check_in = $nowTime;
-            $attendance->check_in_lat = $request->latitude;
-            $attendance->check_in_long = $request->longitude;
-            if ($photoName) {
-                $attendance->check_in_photo = $photoName;
-            }
-            $attendance->work_location = $workLoc;
-            $attendance->status = (strtotime($nowTime) > strtotime('07:30:00')) ? 'late' : 'present';
-            $actionMsg = "Presensi MASUK Berhasil ({$nowTime})";
-        } else {
-            $attendance->check_out = $nowTime;
-            $attendance->check_out_lat = $request->latitude;
-            $attendance->check_out_long = $request->longitude;
-            if ($photoName) {
-                $attendance->check_out_photo = $photoName;
-            }
-            $actionMsg = "Presensi PULANG Berhasil ({$nowTime})";
-        }
-
-        $attendance->save();
-
-        return response()->json([
-            'success' => true,
-            'confidence' => $bestMatchConfidence,
-            'message' => "Terverifikasi BIOMETRIK Face ID ({$bestMatchConfidence}%)! {$actionMsg} untuk {$matchedUser->name}",
-            'user' => [
-                'id' => $matchedUser->id,
-                'name' => $matchedUser->name,
-                'email' => $matchedUser->email,
-                'avatar' => $matchedUser->face_photo ? (file_exists(public_path('img/face_id/' . $matchedUser->face_photo)) ? asset('img/face_id/' . $matchedUser->face_photo) : asset('uploads/face_id/' . $matchedUser->face_photo)) : null,
-            ],
-            'attendance' => $attendance,
-        ]);
+        return response()->json($result, $statusCode);
     }
 
     /**
@@ -714,10 +491,7 @@ class TeacherAttendanceController extends Controller
         })->orderBy('name')->get();
 
         $today = date('Y-m-d');
-        $todayAttendances = TeacherAttendance::with(['user.homeroomClasses'])
-            ->where('date', $today)
-            ->latest('updated_at')
-            ->get();
+        $todayAttendances = $this->attendanceRepository->getTodayAttendances($today);
 
         $selectedTeacherId = $request->input('user_id');
 
@@ -739,6 +513,16 @@ class TeacherAttendanceController extends Controller
         $teacher->fingerprint_registered_at = now();
         $teacher->save();
 
+        // Audit enrollment trail
+        $this->attendanceService->logAudit(
+            $teacher,
+            null,
+            'fingerprint_enrollment',
+            'fingerprint',
+            'success',
+            ['ip' => $request->ip(), 'user_agent' => $request->userAgent()]
+        );
+
         return response()->json([
             'success' => true,
             'message' => "Sidik jari untuk {$teacher->name} berhasil didaftarkan ke sistem!",
@@ -752,7 +536,7 @@ class TeacherAttendanceController extends Controller
 
     /**
      * Verify Fingerprint from Digital Persona Scanner at Admin Desk
-     * Supports automatic First-In (check_in) and Last-Out (check_out)
+     * Routed through AttendanceService and AttendanceRepository
      */
     public function verifyFingerprint(Request $request)
     {
@@ -762,92 +546,10 @@ class TeacherAttendanceController extends Controller
             'device_name' => 'nullable|string',
         ]);
 
-        $teacher = null;
-        if ($request->filled('user_id')) {
-            $teacher = User::find($request->user_id);
-        }
+        $result = $this->attendanceService->processFingerprintAttendance($request->all());
 
-        // If user_id not explicitly sent, search among registered teachers with fingerprint_template
-        if (!$teacher) {
-            $teachersWithFingerprint = User::whereNotNull('fingerprint_template')->get();
-            if ($teachersWithFingerprint->isNotEmpty()) {
-                // In production, matching template FMD is done either via Web SDK client engine or matching string
-                $teacher = $teachersWithFingerprint->first();
-            } else {
-                $teacher = User::whereHas('roles', fn($q) => $q->whereIn('slug', ['guru', 'teacher', 'admin', 'staff']))->first();
-            }
-        }
-
-        if (!$teacher) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Sidik jari tidak dikenali! Pastikan jari telah terdaftar dalam sistem.',
-            ], 422);
-        }
-
-        $today = date('Y-m-d');
-        $nowTime = date('H:i:s');
-
-        $attendance = TeacherAttendance::firstOrNew([
-            'user_id' => $teacher->id,
-            'date' => $today,
-        ]);
-
-        $actionType = '';
-        $actionMsg = '';
-
-        if (empty($attendance->check_in)) {
-            // First tap = Check In
-            $actionType = 'check_in';
-            $attendance->check_in = $nowTime;
-            $attendance->work_location = 'school';
-            $attendance->method = 'fingerprint';
-            $attendance->device_info = $request->input('device_name', 'Digital Persona U.are.U 4500 USB (Admin Desk)');
-            $attendance->recorded_by = auth()->id();
-            $attendance->status = (strtotime($nowTime) > strtotime('07:30:00')) ? 'late' : 'present';
-            $actionMsg = "Presensi MASUK Berhasil ({$nowTime})";
-        } elseif (empty($attendance->check_out)) {
-            // Second tap = Check Out
-            $actionType = 'check_out';
-            $attendance->check_out = $nowTime;
-            $attendance->device_info = $request->input('device_name', 'Digital Persona U.are.U 4500 USB (Admin Desk)');
-            $actionMsg = "Presensi PULANG Berhasil ({$nowTime})";
-        } else {
-            // Already both check in and check out
-            return response()->json([
-                'success' => true,
-                'already_complete' => true,
-                'message' => "Guru {$teacher->name} sudah lengkap presensi hari ini! (Masuk: {$attendance->check_in} | Pulang: {$attendance->check_out})",
-                'teacher' => [
-                    'id' => $teacher->id,
-                    'name' => $teacher->name,
-                    'nip' => $teacher->nip ?? '-',
-                    'avatar' => $teacher->avatar ? get_public_file_url($teacher->avatar, 'img/avatars') : null,
-                ],
-                'attendance' => $attendance,
-            ]);
-        }
-
-        $attendance->save();
-
-        return response()->json([
-            'success' => true,
-            'action_type' => $actionType,
-            'message' => "Verifikasi Sidik Jari Berhasil! {$actionMsg} untuk {$teacher->name}",
-            'teacher' => [
-                'id' => $teacher->id,
-                'name' => $teacher->name,
-                'nip' => $teacher->nip ?? '-',
-                'avatar' => $teacher->avatar ? get_public_file_url($teacher->avatar, 'img/avatars') : null,
-            ],
-            'attendance' => [
-                'check_in' => $attendance->check_in,
-                'check_out' => $attendance->check_out,
-                'status' => $attendance->status,
-                'status_label' => $attendance->status_label,
-                'method_label' => $attendance->method_label,
-            ],
-        ]);
+        $statusCode = $result['success'] ? 200 : ($result['status_code'] ?? 422);
+        return response()->json($result, $statusCode);
     }
 
     /**
@@ -855,180 +557,7 @@ class TeacherAttendanceController extends Controller
      */
     public function mobilePortal(Request $request)
     {
-        $user = auth()->user();
-        $today = date('Y-m-d');
-        $currentMonth = date('m');
-        $currentYear = date('Y');
-
-        $todayAttendance = TeacherAttendance::where('user_id', $user->id)
-            ->where('date', $today)
-            ->first();
-
-        // Monthly statistics for user
-        $monthlyRecords = TeacherAttendance::where('user_id', $user->id)
-            ->whereYear('date', $currentYear)
-            ->whereMonth('date', $currentMonth)
-            ->get();
-
-        $onTimeCount = $monthlyRecords->where('status', 'present')->count();
-        $lateCount = $monthlyRecords->where('status', 'late')->count();
-        $permitCount = $monthlyRecords->whereIn('status', ['permit', 'sick', 'leave'])->count();
-        $totalDays = $monthlyRecords->count();
-        $attendancePercentage = $totalDays > 0 ? round((($onTimeCount + $lateCount) / $totalDays) * 100) : 100;
-
-        $recentLogs = TeacherAttendance::where('user_id', $user->id)
-            ->latest('date')
-            ->take(15)
-            ->get();
-
-        // Feed of recent check-ins across the school for "Rekapitulasi Hadir Terkini"
-        $latestSchoolAttendances = TeacherAttendance::with('user')
-            ->where('date', $today)
-            ->latest('updated_at')
-            ->take(10)
-            ->get();
-
-        // School Settings & Branding
-        $schoolName = Setting::get('school_name', config('app.name', 'SDIT AL-FAHMI PALU'));
-        $schoolMotto = Setting::get('school_motto', 'Sekolahnya Calon Pemimpin Peradaban');
-        $schoolLat = (float) Setting::get('school_latitude', -0.8917);
-        $schoolLong = (float) Setting::get('school_longitude', 119.8707);
-        $schoolRadius = (int) Setting::get('school_attendance_radius', 100);
-        $timezoneLabel = Setting::get('school_timezone_label', 'WITA');
-
-        // Pengaturan Jam Sesi Presensi Mandiri
-        $sessionSettings = [
-            'morning_open' => Setting::get('attendance_morning_open', '06:00'),
-            'morning_late' => Setting::get('attendance_morning_late', '07:30'),
-            'morning_close' => Setting::get('attendance_morning_close', '11:59'),
-            'afternoon_open' => Setting::get('attendance_afternoon_open', '12:30'),
-            'afternoon_close' => Setting::get('attendance_afternoon_close', '13:30'),
-            'evening_open' => Setting::get('attendance_evening_open', '16:00'),
-            'evening_close' => Setting::get('attendance_evening_close', '23:59'),
-            'manual_override' => (bool) Setting::get('attendance_manual_override', '0'),
-        ];
-
-        // Sesi Briefing Kepala Sekolah
-        $briefingSession = [
-            'active' => (bool) Setting::get('briefing_session_active', '0'),
-            'title' => Setting::get('briefing_title', 'Briefing Pagi Dewan Guru & Asatidzah'),
-            'content' => Setting::get('briefing_content', 'Penguatan kedisiplinan santri dan pembiasaan adab islami.'),
-            'opened_at' => Setting::get('briefing_opened_at', date('H:i')),
-        ];
-
-        // Cek apakah user adalah Kepala Sekolah / Admin
-        $isPrincipal = $user->hasRole('kepala-sekolah') || $user->hasRole('admin') || $user->hasRole('super-admin');
-
-        $hasAttendedBriefing = !empty($todayAttendance?->notes) && str_contains($todayAttendance->notes, 'Hadir Briefing:');
-        $hasAttendedAfternoon = !empty($todayAttendance?->notes) && str_contains($todayAttendance->notes, 'Hadir Sesi Siang');
-
-        // Announcements
-        $announcements = \App\Models\Announcement::query()
-            ->when(method_exists(\App\Models\Announcement::class, 'scopePublished'), fn($q) => $q->published())
-            ->latest()
-            ->take(5)
-            ->get();
-
-        // Daily Islamic Hadiths
-        $hadithList = [
-            [
-                'arabic' => 'الْمُؤْمِنُ الْقَوِيُّ خَيْرٌ وَأَحَبُّ إِلَى اللَّهِ مِنَ الْمُؤْمِنِ الضَّعِيفِ وَفِي كُلٍّ خَيْرٌ',
-                'translation' => 'Mukmin yang kuat lebih baik dan lebih dicintai oleh Allah daripada mukmin yang lemah, dan pada keduanya ada kebaikan.',
-                'narrator' => 'HR. Muslim no. 2664',
-                'category' => 'HADITS'
-            ],
-            [
-                'arabic' => 'خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ',
-                'translation' => 'Sebaik-baik kalian adalah orang yang belajar Al-Qur\'an dan mengajarkannya.',
-                'narrator' => 'HR. Bukhari no. 5027',
-                'category' => 'MUTIARA SUNNAH'
-            ],
-            [
-                'arabic' => 'إِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ وَإِنَّمَا لِكُلِّ امْرِئٍ مَا نَوَى',
-                'translation' => 'Sesungguhnya setiap amalan tergantung pada niatnya, dan setiap orang akan mendapatkan apa yang ia niatkan.',
-                'narrator' => 'HR. Bukhari & Muslim',
-                'category' => 'HADITS ARBAIN'
-            ],
-            [
-                'arabic' => 'مَنْ سَلَكَ طَرِيقًا يَلْتَمِسُ فِيهِ عِلْمًا سَهَّلَ اللَّهُ لَهُ بِهِ طَرِيقًا إِلَى الْجَنَّةِ',
-                'translation' => 'Barangsiapa menempuh jalan untuk mencari ilmu, maka Allah akan memudahkan baginya jalan menuju surga.',
-                'narrator' => 'HR. Muslim no. 2699',
-                'category' => 'MUTIARA ILMU'
-            ],
-            [
-                'arabic' => 'اتَّقِ اللَّهَ حَيْثُمَا كُنْتَ وَأَتْبِعِ السَّيِّئَةَ الْحَسَنَةَ تَمْحُهَا وَخَالِقِ النَّاسَ بِخُلُقٍ حَسَنٍ',
-                'translation' => 'Bertakwalah kepada Allah di mana pun engkau berada, iringilah keburukan dengan kebaikan niscaya akan menghapuskannya, dan pergaulilah manusia dengan akhlak terpuji.',
-                'narrator' => 'HR. Tirmidzi no. 1987',
-                'category' => 'HADITS'
-            ]
-        ];
-        $hadithToday = $hadithList[date('z') % count($hadithList)];
-
-        // Activities / Agenda for calendar
-        $agendas = [
-            [
-                'id' => 1,
-                'title' => 'Rapat Koordinasi Bulanan Guru & Karyawan',
-                'description' => 'Evaluasi kurikulum terpadu dan pembinaan kedisiplinan santri.',
-                'date' => date('Y-m-') . '05',
-                'time' => '13:30 - 15:30',
-                'location' => 'Lantai 2 - Aula Utama',
-                'audience' => 'GURU',
-                'is_gps_lock' => true,
-                'status' => 'SELESAI',
-                'attended_count' => 18,
-            ],
-            [
-                'id' => 2,
-                'title' => 'Penerimaan Raport & Tasmi Quran Semester',
-                'description' => 'Pembagian lembar hasil belajar Tahsin dan Tahfidz di kelas masing-masing.',
-                'date' => date('Y-m-') . '15',
-                'time' => '08:00 - 12:00',
-                'location' => 'Gedung Asatidzah & Selasar',
-                'audience' => 'UMUM',
-                'is_gps_lock' => false,
-                'status' => 'SELESAI',
-                'attended_count' => 24,
-            ],
-            [
-                'id' => 3,
-                'title' => 'Kajian Rutin Selasar Guru & Asatidzah',
-                'description' => 'Bedah Kitab Ta\'limul Muta\'allim bersama Pembina Yayasan.',
-                'date' => date('Y-m-') . (date('d') > 19 ? date('d') : '25'),
-                'time' => '16:00 - 17:30',
-                'location' => 'Masjid Sekolah / Selasar',
-                'audience' => 'GURU',
-                'is_gps_lock' => true,
-                'status' => 'AKTIF',
-                'attended_count' => 14,
-            ],
-        ];
-
-        return view('admin.teacher-attendances.mobile', compact(
-            'todayAttendance',
-            'schoolName',
-            'schoolMotto',
-            'schoolLat',
-            'schoolLong',
-            'schoolRadius',
-            'timezoneLabel',
-            'user',
-            'onTimeCount',
-            'lateCount',
-            'permitCount',
-            'totalDays',
-            'attendancePercentage',
-            'recentLogs',
-            'latestSchoolAttendances',
-            'announcements',
-            'hadithToday',
-            'agendas',
-            'sessionSettings',
-            'briefingSession',
-            'isPrincipal',
-            'hasAttendedBriefing',
-            'hasAttendedAfternoon'
-        ));
+        return redirect()->route('admin.dashboard');
     }
 
     /**

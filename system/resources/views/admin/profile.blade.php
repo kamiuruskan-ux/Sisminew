@@ -27,9 +27,9 @@
                 </p>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('admin.teacher-attendances.mobile') }}" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition flex items-center gap-1.5 border border-slate-200 dark:border-slate-700">
-                    <span>📱</span>
-                    <span>Portal Mobile</span>
+                <a href="{{ route('admin.dashboard') }}" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition flex items-center gap-1.5 border border-slate-200 dark:border-slate-700">
+                    <span>🏠</span>
+                    <span>Dashboard Utama</span>
                 </a>
             </div>
         </div>

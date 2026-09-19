@@ -17,6 +17,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(
+            \App\Repositories\Contracts\AttendanceRepositoryInterface::class,
+            \App\Repositories\TeacherAttendanceRepository::class
+        );
+
         $parentDir = dirname($this->app->basePath());
         if (file_exists($parentDir . '/img') && file_exists($parentDir . '/index.php')) {
             $this->app->usePublicPath($parentDir);

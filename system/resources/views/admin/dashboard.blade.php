@@ -4,36 +4,10 @@
 @section('page_title', 'Dashboard Overview')
 
 @section('content')
-<div class="space-y-6" x-data="{ createPermitModal: false }">
+<div class="space-y-6" x-data="{ createPermitModal: false, openPresensiModal: false }">
 
-    <!-- TailAdmin Welcome Banner (Clean Light & Adaptive Dark Theme) -->
-    <div class="tailadmin-card bg-white dark:bg-[#1C2434] p-6 sm:p-8 relative overflow-hidden border border-slate-200 dark:border-[#2E3A47] shadow-xs rounded-3xl">
-        <div class="absolute -right-12 -bottom-12 w-64 h-64 bg-indigo-500/10 dark:bg-[#3C50E0]/20 rounded-full blur-3xl pointer-events-none"></div>
-        <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 relative z-10">
-            <div class="space-y-2">
-                <div class="inline-flex items-center space-x-2 px-3 py-1 bg-indigo-50 dark:bg-indigo-950/60 rounded-lg text-xs font-bold text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800">
-                    <svg class="w-3.5 h-3.5 text-indigo-600 dark:text-[#3C50E0]" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-                    </svg>
-                    <span>Dashboard Sistem &bull; {{ ucfirst($defaultTab ?? 'Admin') }} View</span>
-                </div>
-                <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-                    Selamat Datang kembali, {{ auth()->user()->name }}
-                </h1>
-                <p class="text-xs sm:text-sm text-slate-500 dark:text-[#8A99AD] max-w-2xl leading-relaxed font-medium">
-                    @if(auth()->user()->hasRole('guru'))
-                        Pantau jadwal mengajar, materi ajar, tugas siswa, dan pengumuman sekolah yang relevan dengan aktivitas Anda.
-                    @elseif(auth()->user()->hasRole('bendahara') || auth()->user()->hasRole('operator'))
-                        Pantau ringkasan keuangan, rekap administrasi sekolah, dan status pembayaran SPP yang relevan dengan peran Anda.
-                    @elseif(auth()->user()->hasRole('bk') || auth()->user()->hasRole('guru-bk'))
-                        Pantau layanan konseling siswa, catatan poin pelanggaran kedisiplinan, dan permohonan izin siswa.
-                    @else
-                        Pantau ringkasan operasional akademik, status pendaftaran SPMB, rekapitulasi presensi, dan aktivitas publikasi sekolah secara realtime.
-                    @endif
-                </p>
-            </div>
-        </div>
-    </div>
+    <!-- TailAdmin Unified Global Adaptive Hero Banner -->
+    @include('components.dashboard.hero-banner')
 
     <!-- ═════════════════════════════════════════════════════════════════════ -->
     <!-- DASHBOARD VIEW AUTO INCLUSION BASED ON ASSIGNED ROLE -->
@@ -118,6 +92,9 @@
             </form>
         </div>
     </div>
+
+    <!-- Universal Presensi Mandiri GPS Modal -->
+    @include('components.dashboard.presensi-modal')
 </div>
 @endsection
 

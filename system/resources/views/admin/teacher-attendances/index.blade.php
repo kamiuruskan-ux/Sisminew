@@ -357,11 +357,11 @@
                 <span>Scanner Sidik Jari USB ↗</span>
             </a>
 
-            <!-- Presensi Mandiri Mobile HP (Lock GPS) Link Button -->
-            <a href="{{ route('admin.teacher-attendances.mobile') }}" target="_blank" rel="noopener"
-               class="inline-flex items-center space-x-2 px-3.5 py-2.5 bg-cyan-50 dark:bg-cyan-950/40 hover:bg-cyan-600 hover:text-white text-cyan-700 dark:text-cyan-300 text-xs font-bold rounded-xl transition-all border border-cyan-200 dark:border-cyan-800 cursor-pointer">
+            <!-- Presensi Mandiri Dashboard (Lock GPS) Link Button -->
+            <a href="{{ route('admin.dashboard') }}"
+               class="inline-flex items-center space-x-2 px-3.5 py-2.5 bg-primary/10 hover:bg-primary hover:text-white text-primary text-xs font-bold rounded-xl transition-all border border-primary/20 cursor-pointer">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-                <span>Portal HP (Lock GPS) ↗</span>
+                <span>Presensi GPS Mandiri (Dashboard) ↗</span>
             </a>
 
             <!-- Kontrol Sesi Presensi & Live Briefing Modal Trigger -->

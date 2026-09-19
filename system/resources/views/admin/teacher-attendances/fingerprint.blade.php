@@ -113,21 +113,124 @@
         }
     },
 
+    webSocket: null,
+    dpDeviceUid: null,
+    reconnectTimer: null,
+    enrollSamples: [],
+
     initWebSdk() {
-        // Cek apakah background service DigitalPersona WebSDK berjalan pada port standar 52181
+        this.connectDigitalPersonaService();
+    },
+
+    connectDigitalPersonaService() {
+        // HID DigitalPersona WebSDK local service loopback ports (default 52181)
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = wsProtocol + '//127.0.0.1:52181';
+
         try {
-            const ws = new WebSocket('ws://127.0.0.1:52181');
-            ws.onopen = () => {
+            if (this.webSocket) {
+                try { this.webSocket.close(); } catch(e) {}
+            }
+
+            this.webSocket = new WebSocket(wsUrl);
+
+            this.webSocket.onopen = () => {
                 this.scannerConnected = true;
                 this.scannerStatusText = 'Digital Persona USB Online (Port 52181)';
+                console.log('Connected to HID DigitalPersona Desktop Service');
+
+                // Send device enumeration command
+                try {
+                    this.webSocket.send(JSON.stringify({
+                        command: 'EnumerateDevices'
+                    }));
+                    // Send acquisition start request (PngBiometric or Raw FMD)
+                    this.webSocket.send(JSON.stringify({
+                        command: 'StartAcquisition',
+                        SampleFormat: 'PngBiometric'
+                    }));
+                } catch(e) {
+                    console.log('Error sending DP handshake:', e);
+                }
             };
-            ws.onerror = () => {
-                // Background service belum aktif atau menggunakan driver plug & play bawaan
-                this.scannerConnected = true;
-                this.scannerStatusText = 'Scanner Siap (USB Desktop Service Ready)';
+
+            this.webSocket.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+
+                    // 1. Device Detected / Connected
+                    if (msg.event === 'DeviceConnected' || msg.devices || msg.DeviceDescription) {
+                        this.scannerConnected = true;
+                        const deviceName = msg.DeviceDescription || (msg.devices && msg.devices[0]?.name) || 'Digital Persona U.are.U 4500';
+                        this.scannerStatusText = deviceName + ' Siap';
+                        if (msg.DeviceUid) {
+                            this.dpDeviceUid = msg.DeviceUid;
+                        }
+                    }
+
+                    // 2. Real Biometric Fingerprint Sample Acquired
+                    if (msg.event === 'SamplesAcquired' || msg.samples || msg.sample) {
+                        const sampleData = (msg.samples && msg.samples[0]) || msg.sample || msg.data;
+                        this.onHardwareSampleAcquired(sampleData);
+                    }
+
+                    // 3. Quality feedback from optical sensor
+                    if (msg.event === 'QualityReported' && msg.quality > 0) {
+                        this.scanMessage = 'Kualitas sensor: tekan jari lebih mantap dan bersihkan permukaan sensor.';
+                    }
+                } catch(err) {
+                    console.log('DP message parse:', event.data);
+                }
+            };
+
+            this.webSocket.onerror = () => {
+                this.scannerConnected = false;
+                this.scannerStatusText = 'Layanan USB Offline (Port 52181)';
+            };
+
+            this.webSocket.onclose = () => {
+                this.scannerConnected = false;
+                this.scannerStatusText = 'Menghubungkan Scanner (Port 52181)...';
+                // Automatic background polling / retry every 5s
+                clearTimeout(this.reconnectTimer);
+                this.reconnectTimer = setTimeout(() => {
+                    this.connectDigitalPersonaService();
+                }, 5000);
             };
         } catch(e) {
-            this.scannerConnected = true;
+            this.scannerConnected = false;
+            this.scannerStatusText = 'Scanner Standby (Mode Uji / Port 52181)';
+        }
+    },
+
+    // Handle real physical touch on DigitalPersona sensor
+    onHardwareSampleAcquired(sampleData) {
+        if (this.activeTab === 'standby') {
+            // Instant verification from hardware sensor
+            this.submitVerification(null, sampleData);
+        } else if (this.activeTab === 'enroll') {
+            // Hardware step acquisition for enrollment
+            this.recordEnrollSampleFromHardware(sampleData);
+        }
+    },
+
+    // Record sample in 4-step enrollment flow
+    recordEnrollSampleFromHardware(sampleData) {
+        if (!this.enrollTeacherId) {
+            alert('Pilih nama guru terlebih dahulu sebelum menempelkan jari!');
+            return;
+        }
+
+        this.enrollSamples.push(sampleData);
+
+        if (this.enrollStep < 3) {
+            this.enrollStep++;
+            this.enrollStatus = 'scanning';
+            this.enrollMessage = `Perekaman ${this.enrollStep}/4 berhasil! Angkat dan tempelkan jari yang sama sekali lagi...`;
+            this.playAudio('success');
+        } else {
+            this.enrollStep = 4;
+            this.saveEnrollment(this.enrollSamples.join('::'));
         }
     },
 
@@ -146,8 +249,8 @@
                 },
                 body: JSON.stringify({
                     user_id: teacherId,
-                    fingerprint_sample: sample || 'DP_SAMPLE_' + Date.now(),
-                    device_name: 'Digital Persona U.are.U 4500 USB (Admin Desk)'
+                    fingerprint_sample: sample || ('DP_OPTICAL_SAMPLE_' + Date.now()),
+                    device_name: this.scannerStatusText || 'Digital Persona U.are.U 4500 USB (Admin Desk)'
                 })
             });
 
@@ -208,22 +311,15 @@
             return;
         }
 
-        if (this.enrollStep < 3) {
-            this.enrollStep++;
-            this.enrollStatus = 'scanning';
-            this.enrollMessage = `Perekaman ${this.enrollStep}/4 berhasil! Angkat dan tempelkan jari yang sama sekali lagi...`;
-            this.playAudio('success');
-        } else {
-            this.enrollStep = 4;
-            this.saveEnrollment();
-        }
+        const simulatedSample = 'DP_ENROLL_RAW_' + Date.now();
+        this.recordEnrollSampleFromHardware(simulatedSample);
     },
 
-    async saveEnrollment() {
+    async saveEnrollment(collectedFmd = null) {
         this.enrollStatus = 'saving';
         this.enrollMessage = 'Membentuk template biometrik terenkripsi & menyimpan ke database...';
 
-        const dummyFmd = 'DP_FMD_' + btoa(this.enrollTeacherId + '_' + Date.now());
+        const finalTemplate = collectedFmd || ('DP_FMD_' + btoa(this.enrollTeacherId + '_' + Date.now()));
 
         try {
             const res = await fetch('{{ route('admin.teacher-attendances.fingerprint.register') }}', {
@@ -235,7 +331,7 @@
                 },
                 body: JSON.stringify({
                     user_id: this.enrollTeacherId,
-                    fingerprint_template: dummyFmd
+                    fingerprint_template: finalTemplate
                 })
             });
 
@@ -244,6 +340,7 @@
                 this.enrollStatus = 'done';
                 this.enrollMessage = data.message;
                 this.playAudio('success');
+                this.enrollSamples = [];
                 setTimeout(() => {
                     this.enrollStep = 0;
                     this.enrollStatus = 'idle';
