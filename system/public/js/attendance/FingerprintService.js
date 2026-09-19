@@ -21,9 +21,10 @@
             this.deviceConnected = false;
             this.activeDeviceUid = null;
             this.deviceName = 'HID DigitalPersona U.are.U 4500';
+            this.sslEndpoint = 'https://127.0.0.1:52181/get_connection';
             
             // Terminal Status State
-            // 'service_unavailable' | 'device_disconnected' | 'device_connected' | 'waiting_finger' | 'reading' | 'sample_acquired' | 'error'
+            // 'service_unavailable' | 'ssl_unauthorized' | 'device_disconnected' | 'device_connected' | 'waiting_finger' | 'reading' | 'sample_acquired' | 'error'
             this.status = 'device_disconnected';
             this.statusText = '🔴 Scanner tidak ditemukan';
             this.statusBadge = '🔴 Scanner tidak ditemukan';
@@ -33,6 +34,19 @@
                 sampleCaptured: [],
                 error: []
             };
+
+            // Auto-reconnect when user returns to this tab (after authorizing SSL in another tab)
+            if (typeof window !== 'undefined') {
+                window.addEventListener('focus', async () => {
+                    if (!this.deviceConnected && (this.status === 'ssl_unauthorized' || this.status === 'service_unavailable')) {
+                        global.AttendanceLogger?.fingerprint('Window focused: re-checking DigitalPersona connection...');
+                        const alive = await this.checkServiceAlive();
+                        if (alive) {
+                            await this.init();
+                        }
+                    }
+                });
+            }
         }
 
         on(event, fn) {
@@ -54,15 +68,15 @@
         }
 
         /**
-         * Check if DigitalPersona Local Device Access service is running on https://localhost:52181
+         * Check if DigitalPersona Local Device Access service is running on https://127.0.0.1:52181
          */
         async checkServiceAlive() {
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 3500);
+                const timeoutId = setTimeout(() => controller.abort(), 2500);
 
                 // Check standard endpoint get_connection
-                const res = await fetch('https://127.0.0.1:52181/get_connection', {
+                const res = await fetch(this.sslEndpoint, {
                     method: 'GET',
                     mode: 'cors',
                     signal: controller.signal
@@ -75,12 +89,21 @@
                     return true;
                 }
             } catch (err) {
-                // Often localhost certificate or service not running
-                global.AttendanceLogger?.warn('FINGERPRINT', 'Local Device Access service not responding at https://127.0.0.1:52181:', err.message);
+                // Network error / cert untrusted / PNA blocked
+                global.AttendanceLogger?.warn('FINGERPRINT', 'Local Device Access service not responding at ' + this.sslEndpoint + ':', err.message);
             }
 
             this.serviceActive = false;
             return false;
+        }
+
+        /**
+         * Open SSL certificate authorization page in a new window/tab
+         */
+        openSslAuthorization() {
+            if (typeof window !== 'undefined') {
+                window.open(this.sslEndpoint, '_blank');
+            }
         }
 
         /**
@@ -97,17 +120,24 @@
             this.isSdkLoaded = true;
 
             try {
-                // Instantiate official SDK FingerprintReader
-                this.reader = new global.dp.devices.FingerprintReader();
-                this._attachSdkEventListeners();
-
                 // 2. Pre-check local service
                 const isAlive = await this.checkServiceAlive();
                 if (!isAlive) {
-                    this._setStatus('service_unavailable', '🔴 Service DigitalPersona tidak berjalan');
+                    this.deviceConnected = false;
+                    this._setStatus('ssl_unauthorized', '⚠️ Izin browser pada port 127.0.0.1 belum aktif', {
+                        endpoint: this.sslEndpoint,
+                        needSslBypass: true
+                    });
+                    return false;
                 }
 
-                // 3. Enumerate connected devices using SDK method
+                // 3. Instantiate official SDK FingerprintReader
+                if (!this.reader) {
+                    this.reader = new global.dp.devices.FingerprintReader();
+                    this._attachSdkEventListeners();
+                }
+
+                // 4. Enumerate connected devices using SDK method
                 const devices = await this.reader.enumerateDevices();
                 global.AttendanceLogger?.fingerprint('EnumerateDevices result:', devices);
 
@@ -116,15 +146,25 @@
                     this.deviceConnected = true;
                     this._setStatus('device_connected', '🟢 Scanner terhubung');
                     await this.startCapture();
+                    return true;
                 } else {
                     this.deviceConnected = false;
                     this._setStatus('device_disconnected', '🔴 Scanner tidak ditemukan');
+                    return false;
                 }
-
-                return true;
             } catch (err) {
                 global.AttendanceLogger?.error('FINGERPRINT', 'Failed to initialize DigitalPersona FingerprintReader:', err);
-                this._setStatus('error', '🔴 Gagal menghubungkan scanner: ' + (err.message || 'Service offline'));
+                // If it fails with communication error, trigger SSL bypass prompt
+                if (err.message && (err.message.includes('Cannot load configuration') || err.message.includes('Failed to fetch') || err.message.includes('NetworkError'))) {
+                    this.deviceConnected = false;
+                    this._setStatus('ssl_unauthorized', '⚠️ Izin browser pada port 127.0.0.1 belum aktif', {
+                        endpoint: this.sslEndpoint,
+                        needSslBypass: true,
+                        rawError: err.message
+                    });
+                } else {
+                    this._setStatus('error', '🔴 Gagal menghubungkan scanner: ' + (err.message || 'Service offline'));
+                }
                 return false;
             }
         }

@@ -15,6 +15,11 @@
 
     <!-- DigitalPersona Web SDK Official Bundles -->
     <script src="{{ asset('vendor/digitalpersona/websdk.client.bundle.min.js') }}"></script>
+    <script>
+        if (typeof window !== 'undefined' && window.WebSdk && typeof window.WebSdkCore === 'undefined') {
+            window.WebSdkCore = window.WebSdk;
+        }
+    </script>
     <script src="{{ asset('vendor/digitalpersona/dp.core.umd.min.js') }}"></script>
     <script src="{{ asset('vendor/digitalpersona/dp.devices.umd.min.js') }}"></script>
 
@@ -57,7 +62,8 @@
     
     // Hardware State Indicator (HID DigitalPersona 4500)
     deviceConnected: false,
-    deviceName: 'HID DigitalPersona 4500',
+    sslUnauthorized: false,
+    deviceName: 'HID DigitalPersona U.are.U 4500',
     deviceStatus: 'Disconnected', // 'Ready', 'Busy', 'Capturing Fingerprint', 'Disconnected', 'Error', 'Timeout'
     dpDeviceUid: null,
     webSocket: null,
@@ -97,15 +103,18 @@
     async initDigitalPersonaSdk() {
         if (window.AttendanceFingerprintService) {
             window.AttendanceFingerprintService.on('statusChange', (state) => {
-                this.deviceConnected = (state.status !== 'device_disconnected' && state.status !== 'service_unavailable' && state.status !== 'error');
+                this.deviceConnected = (state.status !== 'device_disconnected' && state.status !== 'service_unavailable' && state.status !== 'ssl_unauthorized' && state.status !== 'error');
                 this.deviceStatus = state.badge;
+                this.sslUnauthorized = (state.status === 'ssl_unauthorized');
                 this.deviceName = window.AttendanceFingerprintService.deviceName || 'HID DigitalPersona U.are.U 4500';
 
                 if (state.status === 'device_connected') {
                     this.scanStage = 'idle';
+                    this.sslUnauthorized = false;
                     this.scanMessage = '🟢 Scanner terhubung. Siap digunakan.';
                 } else if (state.status === 'waiting_finger') {
                     this.scanStage = 'idle';
+                    this.sslUnauthorized = false;
                     this.scanMessage = '🟡 Menunggu sidik jari ditempelkan...';
                 } else if (state.status === 'reading') {
                     this.scanStage = 'finger_detected';
@@ -113,12 +122,18 @@
                 } else if (state.status === 'sample_acquired') {
                     this.scanStage = 'capturing';
                     this.scanMessage = '✅ Fingerprint berhasil dibaca! Memverifikasi...';
-                } else if (state.status === 'device_disconnected') {
-                    this.scanStage = 'idle';
-                    this.scanMessage = '🔴 Scanner tidak ditemukan. Silakan sambungkan kabel USB.';
+                } else if (state.status === 'ssl_unauthorized') {
+                    this.scanStage = 'error';
+                    this.sslUnauthorized = true;
+                    this.scanMessage = '⚠️ Izin browser diperlukan: Buka port 127.0.0.1 di tab baru (1 kali saja).';
                 } else if (state.status === 'service_unavailable') {
                     this.scanStage = 'error';
-                    this.scanMessage = '🔴 Service DigitalPersona tidak berjalan di https://localhost:52181.';
+                    this.sslUnauthorized = true;
+                    this.scanMessage = '🔴 Service DigitalPersona belum diizinkan atau tidak aktif pada https://127.0.0.1:52181.';
+                } else if (state.status === 'device_disconnected') {
+                    this.scanStage = 'idle';
+                    this.sslUnauthorized = false;
+                    this.scanMessage = '🔴 Scanner tidak ditemukan. Silakan sambungkan kabel USB scanner ke PC.';
                 } else if (state.status === 'error') {
                     this.scanStage = 'error';
                     this.scanMessage = state.text;
@@ -133,31 +148,24 @@
         }
     },
 
-    async pairUsbScanner() {
+    openBrowserSslApproval() {
         if (window.AttendanceFingerprintService) {
-            this.scanMessage = 'Memeriksa scanner DigitalPersona...';
+            window.AttendanceFingerprintService.openSslAuthorization();
+        } else {
+            window.open('https://127.0.0.1:52181/get_connection', '_blank');
+        }
+    },
+
+    async pairUsbScanner() {
+        this.scanMessage = 'Memeriksa scanner DigitalPersona pada 127.0.0.1:52181...';
+        if (window.AttendanceFingerprintService) {
             const ok = await window.AttendanceFingerprintService.refreshScanner();
             if (ok) {
+                this.sslUnauthorized = false;
                 this.playAudio('success');
                 return;
             }
         }
-
-        if (navigator.usb) {
-            try {
-                const device = await navigator.usb.requestDevice({ filters: [] });
-                if (device) {
-                    this.deviceName = device.productName || 'USB Fingerprint Scanner';
-                    if (window.AttendanceFingerprintService) {
-                        await window.AttendanceFingerprintService.refreshScanner();
-                    }
-                    this.playAudio('success');
-                    return;
-                }
-            } catch(e) {}
-        }
-
-        alert('Tidak ada scanner USB yang dipilih atau scanner belum terhubung.');
     },
 
     updateClock() {
@@ -453,16 +461,16 @@
                 <!-- Device Status Indicator Badge & Pair Button -->
                 <div class="flex items-center gap-2">
                     <div class="flex items-center space-x-2.5 px-3.5 py-1.5 rounded-xl border text-xs font-semibold transition-all"
-                         :class="deviceConnected ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300' : 'bg-rose-950/40 border-rose-500/30 text-rose-300'">
-                        <span class="w-2 h-2 rounded-full" :class="deviceConnected ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'"></span>
-                        <span x-text="deviceConnected ? '🟢 ' + deviceName + ' (' + deviceStatus + ')' : '🔴 Scanner Not Connected'"></span>
+                         :class="deviceConnected ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300' : (sslUnauthorized ? 'bg-amber-950/40 border-amber-500/30 text-amber-300' : 'bg-rose-950/40 border-rose-500/30 text-rose-300')">
+                        <span class="w-2 h-2 rounded-full" :class="deviceConnected ? 'bg-emerald-400 animate-pulse' : (sslUnauthorized ? 'bg-amber-400 animate-ping' : 'bg-rose-400')"></span>
+                        <span x-text="deviceConnected ? '🟢 ' + deviceName + ' (' + deviceStatus + ')' : (sslUnauthorized ? '⚠️ Perlu Izin Browser' : '🔴 Scanner Belum Terbaca')"></span>
                     </div>
 
-                    <button type="button" @click="pairUsbScanner()"
+                    <button type="button" @click="sslUnauthorized ? openBrowserSslApproval() : pairUsbScanner()"
                             class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 hover:text-white border border-slate-700 transition flex items-center gap-1.5 cursor-pointer"
-                            title="Hubungkan / Deteksi Scanner USB">
-                        <span>🔌</span>
-                        <span class="hidden md:inline">Deteksi USB</span>
+                            :title="sslUnauthorized ? 'Buka Izin Port 127.0.0.1' : 'Hubungkan / Deteksi Scanner USB'">
+                        <span x-text="sslUnauthorized ? '🚀' : '🔌'"></span>
+                        <span class="hidden md:inline" x-text="sslUnauthorized ? 'Buka Izin Browser' : 'Deteksi USB'"></span>
                     </button>
                 </div>
 
@@ -555,7 +563,7 @@
                     </div>
 
                     <!-- Step Progression Status Display Message -->
-                    <div class="mt-6 max-w-md">
+                    <div class="mt-6 max-w-md w-full">
                         <div class="text-xs uppercase tracking-widest font-mono font-bold mb-1"
                              :class="{
                                  'text-emerald-400': scanStage === 'success' || (deviceConnected && scanStage === 'idle'),
@@ -564,7 +572,7 @@
                                  'text-rose-400': !deviceConnected || scanStage === 'error'
                              }"
                              x-text="
-                                !deviceConnected ? '🔴 SCANNER NOT CONNECTED' :
+                                !deviceConnected ? (sslUnauthorized ? '⚠️ PERLU IZIN BROWSER' : '🔴 SCANNER BELUM TERHUBUNG') :
                                 scanStage === 'finger_detected' ? 'FINGER DETECTED' :
                                 scanStage === 'capturing' ? 'CAPTURING...' :
                                 scanStage === 'extracting' ? 'EXTRACTING TEMPLATE...' :
@@ -572,13 +580,56 @@
                                 scanStage === 'error' ? 'PEMINDAIAN GAGAL' :
                                 'WAITING FINGER...'
                              "></div>
-                        <p class="text-xs text-slate-400" x-text="deviceConnected ? scanMessage : 'Pastikan kabel scanner USB terpasang ke komputer piket.'"></p>
+                        <p class="text-xs text-slate-400" x-text="deviceConnected ? scanMessage : (sslUnauthorized ? 'Browser memerlukan otorisasi untuk berkomunikasi dengan driver scanner USB.' : 'Pastikan kabel scanner USB terpasang ke komputer piket.')"></p>
                         
-                        <div x-show="!deviceConnected" class="mt-3">
+                        <!-- SSL / Browser Bridge Authorization Assistant -->
+                        <div x-show="sslUnauthorized" class="mt-4 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-left space-y-3.5 shadow-xl">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2 text-amber-400 text-xs font-black uppercase tracking-wider">
+                                    <span class="text-base">🚀</span>
+                                    <span>Aktivasi Komunikasi Scanner USB di Browser</span>
+                                </div>
+                                <span class="text-[10px] bg-amber-500/20 text-amber-300 font-mono px-2 py-0.5 rounded-full border border-amber-500/30 font-bold">1 Kali Saja</span>
+                            </div>
+
+                            <p class="text-xs text-slate-300 leading-relaxed">
+                                Driver & scanner fisik <strong>HID DigitalPersona U.are.U 4500</strong> sudah aktif di Windows (Port 52181). Browser Google Chrome / Edge memblokir koneksi lokal secara default sampai Anda mengizinkannya:
+                            </p>
+
+                            <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-2 text-xs">
+                                <div class="flex items-start space-x-2 text-slate-300">
+                                    <span class="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-mono font-bold flex items-center justify-center text-[11px] flex-shrink-0 mt-0.5">1</span>
+                                    <div>Klik tombol <strong>"Buka Izin Scanner di Tab Baru"</strong> di bawah.</div>
+                                </div>
+                                <div class="flex items-start space-x-2 text-slate-300">
+                                    <span class="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-mono font-bold flex items-center justify-center text-[11px] flex-shrink-0 mt-0.5">2</span>
+                                    <div>Pada layar peringatan browser, klik <strong>Lanjutan (Advanced)</strong> lalu klik <strong>Lanjutkan ke 127.0.0.1 (tidak aman)</strong>.</div>
+                                </div>
+                                <div class="flex items-start space-x-2 text-slate-300">
+                                    <span class="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-mono font-bold flex items-center justify-center text-[11px] flex-shrink-0 mt-0.5">3</span>
+                                    <div>Kembali ke tab ini. Scanner akan <strong>otomatis terhubung (🟢 Hijau)</strong>!</div>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap gap-2 pt-1">
+                                <button type="button" @click="openBrowserSslApproval()"
+                                        class="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer">
+                                    <span>🚀</span>
+                                    <span>Buka Izin Scanner di Tab Baru</span>
+                                </button>
+                                <button type="button" @click="pairUsbScanner()"
+                                        class="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+                                    <span>🔄</span>
+                                    <span>Cek Koneksi Sekarang</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div x-show="!deviceConnected && !sslUnauthorized" class="mt-3">
                             <button type="button" @click="pairUsbScanner()"
                                     class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-2 mx-auto cursor-pointer">
                                 <span>🔌</span>
-                                <span>Hubungkan / Deteksi Scanner USB</span>
+                                <span>Deteksi Ulang Scanner USB</span>
                             </button>
                         </div>
                     </div>
@@ -614,12 +665,12 @@
                 <!-- Hardware Device Diagnostics Bar (No Fake Simulation) -->
                 <div class="mt-6 pt-5 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
                     <div class="flex items-center space-x-2 text-slate-400">
-                        <span class="w-2 h-2 rounded-full" :class="deviceConnected ? 'bg-emerald-400' : 'bg-rose-500'"></span>
+                        <span class="w-2 h-2 rounded-full" :class="deviceConnected ? 'bg-emerald-400' : (sslUnauthorized ? 'bg-amber-400' : 'bg-rose-500')"></span>
                         <span>Perangkat: <strong class="text-white" x-text="deviceName"></strong></span>
                     </div>
                     <div class="flex items-center space-x-4 text-slate-400 font-mono text-[11px]">
-                        <span>Status: <strong :class="deviceConnected ? 'text-emerald-400' : 'text-rose-400'" x-text="deviceStatus"></strong></span>
-                        <span>Port: <strong>52181</strong></span>
+                        <span>Status: <strong :class="deviceConnected ? 'text-emerald-400' : (sslUnauthorized ? 'text-amber-400' : 'text-rose-400')" x-text="deviceStatus"></strong></span>
+                        <span>Service: <strong>Port 52181</strong></span>
                         <span x-show="qualityScore">Quality: <strong class="text-cyan-400" x-text="qualityScore + '%'"></strong></span>
                     </div>
                 </div>
