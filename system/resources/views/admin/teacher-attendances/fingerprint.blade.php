@@ -583,44 +583,55 @@
                         <p class="text-xs text-slate-400" x-text="deviceConnected ? scanMessage : (sslUnauthorized ? 'Browser memerlukan otorisasi untuk berkomunikasi dengan driver scanner USB.' : 'Pastikan kabel scanner USB terpasang ke komputer piket.')"></p>
                         
                         <!-- SSL / Browser Bridge Authorization Assistant -->
-                        <div x-show="sslUnauthorized" class="mt-4 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-left space-y-3.5 shadow-xl">
+                        <div x-show="sslUnauthorized" class="mt-4 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-left space-y-4 shadow-xl">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center space-x-2 text-amber-400 text-xs font-black uppercase tracking-wider">
-                                    <span class="text-base">🚀</span>
-                                    <span>Aktivasi Komunikasi Scanner USB di Browser</span>
+                                    <span class="text-base">⚙️</span>
+                                    <span>Aktifkan Izin Scanner di Chrome / Edge (Langkah Terakhir)</span>
                                 </div>
-                                <span class="text-[10px] bg-amber-500/20 text-amber-300 font-mono px-2 py-0.5 rounded-full border border-amber-500/30 font-bold">1 Kali Saja</span>
+                                <span class="text-[10px] bg-emerald-500/20 text-emerald-300 font-mono px-2 py-0.5 rounded-full border border-emerald-500/30 font-bold">Port 52181 Terhubung</span>
                             </div>
 
                             <p class="text-xs text-slate-300 leading-relaxed">
-                                Driver & scanner fisik <strong>HID DigitalPersona U.are.U 4500</strong> sudah aktif di Windows (Port 52181). Browser Google Chrome / Edge memblokir koneksi lokal secara default sampai Anda mengizinkannya:
+                                Endpoint scanner lokal <strong>127.0.0.1:52181</strong> berhasil dibuka di tab Anda. Agar Chrome mengizinkan komunikasi WebSocket ke hardware scanner, aktifkan flag localhost:
                             </p>
 
-                            <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-2 text-xs">
-                                <div class="flex items-start space-x-2 text-slate-300">
-                                    <span class="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-mono font-bold flex items-center justify-center text-[11px] flex-shrink-0 mt-0.5">1</span>
-                                    <div>Klik tombol <strong>"Buka Izin Scanner di Tab Baru"</strong> di bawah.</div>
+                            <!-- Step Guide with Copy Button -->
+                            <div class="bg-slate-950/80 p-4 rounded-xl border border-slate-800 space-y-3 text-xs">
+                                <div class="space-y-1.5">
+                                    <div class="text-[11px] font-bold text-amber-400 uppercase tracking-wider">1. Salin alamat flag berikut & buka di tab baru:</div>
+                                    <div class="flex items-center gap-2">
+                                        <input type="text" readonly value="chrome://flags/#allow-insecure-localhost" id="chromeFlagInput"
+                                               class="flex-1 bg-slate-900 text-emerald-400 font-mono text-xs px-3 py-2 rounded-lg border border-slate-700 select-all cursor-text focus:outline-none">
+                                        <button type="button" @click="navigator.clipboard.writeText('chrome://flags/#allow-insecure-localhost'); alert('Alamat disalin! Tempelkan (Ctrl+V) pada tab baru Chrome lalu tekan Enter.');"
+                                                class="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg transition flex items-center gap-1.5 cursor-pointer flex-shrink-0">
+                                            <span>📋</span>
+                                            <span>Salin</span>
+                                        </button>
+                                    </div>
                                 </div>
-                                <div class="flex items-start space-x-2 text-slate-300">
-                                    <span class="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-mono font-bold flex items-center justify-center text-[11px] flex-shrink-0 mt-0.5">2</span>
-                                    <div>Pada layar peringatan browser, klik <strong>Lanjutan (Advanced)</strong> lalu klik <strong>Lanjutkan ke 127.0.0.1 (tidak aman)</strong>.</div>
+
+                                <div class="space-y-1.5 pt-1 border-t border-slate-800">
+                                    <div class="text-[11px] font-bold text-amber-400 uppercase tracking-wider">2. Ubah dari "Default" menjadi "Enabled"</div>
+                                    <p class="text-[11px] text-slate-400">Cari baris <em>"Allow invalid certificates for resources loaded from localhost"</em> lalu pilih <strong>Enabled</strong>.</p>
                                 </div>
-                                <div class="flex items-start space-x-2 text-slate-300">
-                                    <span class="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 font-mono font-bold flex items-center justify-center text-[11px] flex-shrink-0 mt-0.5">3</span>
-                                    <div>Kembali ke tab ini. Scanner akan <strong>otomatis terhubung (🟢 Hijau)</strong>!</div>
+
+                                <div class="space-y-1.5 pt-1 border-t border-slate-800">
+                                    <div class="text-[11px] font-bold text-amber-400 uppercase tracking-wider">3. Klik tombol "Relaunch" di pojok kanan bawah Chrome</div>
+                                    <p class="text-[11px] text-slate-400">Chrome akan restart sebentar dan scanner langsung 🟢 Terhubung otomatis!</p>
                                 </div>
                             </div>
 
                             <div class="flex flex-wrap gap-2 pt-1">
-                                <button type="button" @click="openBrowserSslApproval()"
-                                        class="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer">
-                                    <span>🚀</span>
-                                    <span>Buka Izin Scanner di Tab Baru</span>
-                                </button>
                                 <button type="button" @click="pairUsbScanner()"
-                                        class="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+                                        class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer">
                                     <span>🔄</span>
-                                    <span>Cek Koneksi Sekarang</span>
+                                    <span>Cek Koneksi Ulang</span>
+                                </button>
+                                <button type="button" @click="openBrowserSslApproval()"
+                                        class="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+                                    <span>🔗</span>
+                                    <span>Buka 127.0.0.1:52181</span>
                                 </button>
                             </div>
                         </div>
@@ -716,12 +727,26 @@
 
                     <!-- Sensor Instructions for Enrollment -->
                     <div class="p-6 rounded-2xl bg-slate-950 border text-center flex flex-col items-center justify-center transition"
-                         :class="deviceConnected ? 'border-indigo-500/40' : 'border-rose-500/40'">
-                        <div class="w-16 h-16 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mb-3">
+                         :class="deviceConnected ? 'border-indigo-500/40' : (sslUnauthorized ? 'border-amber-500/40' : 'border-rose-500/40')">
+                        <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-3"
+                             :class="deviceConnected ? 'bg-indigo-500/10 text-indigo-400' : (sslUnauthorized ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400')">
                             <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11a8.136 8.136 0 00.99 3.845"/></svg>
                         </div>
-                        <div class="font-bold text-white text-sm" x-text="deviceConnected ? (enrollStep === 0 ? 'Tempelkan Jari Guru ke Kaca Scanner USB' : 'Angkat & Tempelkan Jari Sekali Lagi') : 'Scanner Belum Terhubung'"></div>
-                        <p class="text-xs text-slate-400 mt-1 max-w-sm" x-text="enrollMessage"></p>
+                        <div class="font-bold text-white text-sm" x-text="deviceConnected ? (enrollStep === 0 ? 'Tempelkan Jari Guru ke Kaca Scanner USB' : 'Angkat & Tempelkan Jari Sekali Lagi') : (sslUnauthorized ? '⚠️ Perlu Izin Browser Chrome' : 'Scanner Belum Terhubung')"></div>
+                        <p class="text-xs text-slate-400 mt-1 max-w-sm" x-text="deviceConnected ? enrollMessage : (sslUnauthorized ? 'Aktifkan flag localhost di Chrome untuk mengizinkan komunikasi scanner.' : 'Pastikan kabel USB terpasang ke komputer.')"></p>
+
+                        <div x-show="!deviceConnected" class="mt-4 flex flex-wrap gap-2 justify-center">
+                            <button type="button" @click="activeTab = 'standby'"
+                                    class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-1.5 cursor-pointer">
+                                <span>⚙️</span>
+                                <span>Lihat Petunjuk Aktivasi Scanner</span>
+                            </button>
+                            <button type="button" @click="pairUsbScanner()"
+                                    class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+                                <span>🔄</span>
+                                <span>Deteksi Ulang</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

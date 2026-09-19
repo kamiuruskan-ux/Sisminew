@@ -131,11 +131,12 @@
                     return false;
                 }
 
-                // 3. Instantiate official SDK FingerprintReader
-                if (!this.reader) {
-                    this.reader = new global.dp.devices.FingerprintReader();
-                    this._attachSdkEventListeners();
+                // 3. Instantiate fresh official SDK FingerprintReader
+                if (this.reader) {
+                    try { this.reader.off(); } catch (e) {}
                 }
+                this.reader = new global.dp.devices.FingerprintReader();
+                this._attachSdkEventListeners();
 
                 // 4. Enumerate connected devices using SDK method
                 const devices = await this.reader.enumerateDevices();
@@ -154,16 +155,21 @@
                 }
             } catch (err) {
                 global.AttendanceLogger?.error('FINGERPRINT', 'Failed to initialize DigitalPersona FingerprintReader:', err);
-                // If it fails with communication error, trigger SSL bypass prompt
-                if (err.message && (err.message.includes('Cannot load configuration') || err.message.includes('Failed to fetch') || err.message.includes('NetworkError'))) {
+                const msg = err.message || '';
+                const isCertOrWsBlocked = msg.includes('Communication failed') ||
+                    msg.includes('Cannot load configuration') ||
+                    msg.includes('Failed to fetch') ||
+                    msg.includes('NetworkError');
+
+                if (isCertOrWsBlocked) {
                     this.deviceConnected = false;
-                    this._setStatus('ssl_unauthorized', '⚠️ Izin browser pada port 127.0.0.1 belum aktif', {
+                    this._setStatus('ssl_unauthorized', '⚠️ Izin WebSocket Chrome (#allow-insecure-localhost) Diperlukan', {
                         endpoint: this.sslEndpoint,
-                        needSslBypass: true,
-                        rawError: err.message
+                        needChromeFlag: true,
+                        rawError: msg
                     });
                 } else {
-                    this._setStatus('error', '🔴 Gagal menghubungkan scanner: ' + (err.message || 'Service offline'));
+                    this._setStatus('error', '🔴 Gagal menghubungkan scanner: ' + (msg || 'Service offline'));
                 }
                 return false;
             }
