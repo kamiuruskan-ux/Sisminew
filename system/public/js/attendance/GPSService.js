@@ -18,11 +18,17 @@
                 error: []
             };
 
-            // High-precision GPS options
-            this.gpsOptions = {
+            // High-precision GPS options with Tier 1 and Tier 2 definitions
+            this.highAccuracyOptions = {
                 enableHighAccuracy: true,
-                maximumAge: 0, // Never use cached coordinates
-                timeout: 15000 // 15 seconds timeout
+                maximumAge: 30000, // 30s cache
+                timeout: 6000     // 6 seconds fast timeout
+            };
+
+            this.standardOptions = {
+                enableHighAccuracy: false,
+                maximumAge: 300000, // 5 minutes cache
+                timeout: 8000      // 8 seconds timeout
             };
         }
 
@@ -62,40 +68,40 @@
          */
         async init() {
             const permService = global.AttendancePermissionService;
-            const permStatus = await permService.queryGeolocationPermission();
+            let permStatus = 'prompt';
+            try {
+                permStatus = await permService.queryGeolocationPermission();
+            } catch (e) {
+                permStatus = 'prompt';
+            }
 
             global.AttendanceLogger?.permission(`GPSService.init - Permission status: ${permStatus}`);
 
             // Listen for permission change in browser (e.g. user toggles Allow in address bar)
-            permService.onChange((newPerm) => {
-                global.AttendanceLogger?.permission(`GPSService detected permission change: ${newPerm}`);
-                if (newPerm === 'granted') {
-                    this.acquireLocation(true);
-                } else if (newPerm === 'denied') {
-                    this._setState('denied', { message: 'Izin akses lokasi ditolak oleh browser.' });
-                } else if (newPerm === 'prompt') {
-                    this._setState('prompt', { message: 'Izin akses lokasi diperlukan.' });
-                }
-            });
+            if (permService && typeof permService.onChange === 'function') {
+                permService.onChange((newPerm) => {
+                    global.AttendanceLogger?.permission(`GPSService detected permission change: ${newPerm}`);
+                    if (newPerm === 'granted') {
+                        this.acquireLocation(true);
+                    } else if (newPerm === 'denied') {
+                        this._setState('denied', { message: 'Izin akses lokasi ditolak oleh browser.' });
+                    } else if (newPerm === 'prompt') {
+                        this._setState('prompt', { message: 'Izin akses lokasi diperlukan.' });
+                    }
+                });
+            }
 
-            if (permStatus === 'granted') {
-                // Immediately acquire coordinates
-                return this.acquireLocation(false);
-            } else if (permStatus === 'prompt') {
-                this._setState('prompt', { message: 'Izin akses lokasi diperlukan.' });
-                // Attempt to prompt browser permission modal
-                return this.acquireLocation(false);
-            } else if (permStatus === 'denied') {
+            if (permStatus === 'denied') {
                 this._setState('denied', { message: 'Izin akses lokasi ditolak oleh browser.' });
                 return Promise.reject(new Error('Geolocation permission denied'));
-            } else {
-                this._setState('disabled', { message: 'Browser tidak mendukung geolokasi GPS.' });
-                return Promise.reject(new Error('Geolocation unsupported'));
             }
+
+            // Immediately acquire coordinates with multi-tier fallback
+            return this.acquireLocation(false);
         }
 
         /**
-         * Core method to acquire location from device GPS
+         * Core method to acquire location from device GPS with automatic Tier 1 -> Tier 2 fallback
          * @param {boolean} isExplicitUserRefresh 
          */
         acquireLocation(isExplicitUserRefresh = false) {
@@ -107,7 +113,6 @@
             }
 
             if (isExplicitUserRefresh) {
-                // Force purge cached coordinates
                 this.currentCoords = null;
                 this.retryCount = 0;
             }
@@ -117,9 +122,10 @@
                 maxRetries: this.maxRetries
             });
 
-            global.AttendanceLogger?.gps(`Mencari koordinat satelit GPS (Percobaan ${this.retryCount + 1}/${this.maxRetries + 1})...`);
+            global.AttendanceLogger?.gps(`Mencari koordinat satelit GPS (Tier 1 High-Accuracy)...`);
 
             return new Promise((resolve, reject) => {
+                // Tier 1: Try High Accuracy (Satelit / Assisted GPS)
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
                         const coords = {
@@ -128,15 +134,14 @@
                             accuracy: position.coords.accuracy,
                             timestamp: position.timestamp || Date.now()
                         };
-
-                        global.AttendanceLogger?.gps('Koordinat GPS berhasil diperoleh:', coords);
+                        global.AttendanceLogger?.gps('Koordinat GPS presisi satelit berhasil diperoleh:', coords);
                         this._notifyPosition(coords);
                         resolve(coords);
                     },
                     (positionError) => {
-                        global.AttendanceLogger?.warn('GPS', `Pencarian koordinat gagal (code: ${positionError.code}): ${positionError.message}`);
+                        global.AttendanceLogger?.warn('GPS', `Tier 1 gagal (code: ${positionError.code}): ${positionError.message}. Beralih ke Tier 2 (Network / WiFi Location)...`);
 
-                        // Code 1: PERMISSION_DENIED
+                        // If user explicitly denied permission, don't retry Tier 2
                         if (positionError.code === positionError.PERMISSION_DENIED) {
                             const err = new Error('Izin akses lokasi ditolak oleh pengguna atau pengaturan browser.');
                             err.code = 'PERMISSION_DENIED';
@@ -146,31 +151,42 @@
                             return;
                         }
 
-                        // Code 2: POSITION_UNAVAILABLE or Code 3: TIMEOUT
-                        if (this.retryCount < this.maxRetries) {
-                            this.retryCount++;
-                            global.AttendanceLogger?.gps(`Menjalankan retry otomatis ${this.retryCount}/${this.maxRetries} dalam 1 detik...`);
-                            this._setState('retrying', { retry: this.retryCount, maxRetries: this.maxRetries });
+                        // Tier 2: Immediate fallback to standard network/WiFi geolocation
+                        this._setState('searching', { note: 'Menggunakan sinyal jaringan/WiFi...' });
+                        navigator.geolocation.getCurrentPosition(
+                            (pos2) => {
+                                const coords2 = {
+                                    latitude: pos2.coords.latitude,
+                                    longitude: pos2.coords.longitude,
+                                    accuracy: pos2.coords.accuracy || 25,
+                                    timestamp: pos2.timestamp || Date.now()
+                                };
+                                global.AttendanceLogger?.gps('Koordinat lokasi jaringan/WiFi berhasil diperoleh:', coords2);
+                                this._notifyPosition(coords2);
+                                resolve(coords2);
+                            },
+                            (err2) => {
+                                global.AttendanceLogger?.warn('GPS', `Tier 2 juga gagal (code: ${err2.code}): ${err2.message}`);
+                                let msg = 'Gagal mendeteksi lokasi GPS atau jaringan. Pastikan GPS/Lokasi perangkat aktif.';
+                                if (err2.code === err2.PERMISSION_DENIED) {
+                                    msg = 'Izin akses lokasi ditolak oleh pengguna atau browser.';
+                                    this._setState('denied', { message: msg });
+                                } else if (err2.code === err2.TIMEOUT) {
+                                    msg = 'Waktu permintaan lokasi habis. Pastikan sinyal GPS atau koneksi internet aktif.';
+                                    this._setState('disabled', { message: msg });
+                                } else {
+                                    this._setState('disabled', { message: msg });
+                                }
 
-                            setTimeout(() => {
-                                this.acquireLocation(false).then(resolve).catch(reject);
-                            }, 1000);
-                        } else {
-                            let msg = 'Sinyal satelit GPS tidak dapat dijangkau atau waktu habis.';
-                            if (positionError.code === positionError.POSITION_UNAVAILABLE) {
-                                msg = 'Layanan lokasi/GPS pada perangkat dalam keadaan nonaktif atau berada di luar jangkauan satelit.';
-                            } else if (positionError.code === positionError.TIMEOUT) {
-                                msg = 'Waktu permintaan lokasi satelit habis (timeout 15 detik).';
-                            }
-
-                            const err = new Error(msg);
-                            err.code = positionError.code;
-                            this._setState('disabled', { message: msg });
-                            this._notifyError(err);
-                            reject(err);
-                        }
+                                const finalErr = new Error(msg);
+                                finalErr.code = err2.code;
+                                this._notifyError(finalErr);
+                                reject(finalErr);
+                            },
+                            this.standardOptions
+                        );
                     },
-                    this.gpsOptions
+                    this.highAccuracyOptions
                 );
             });
         }
@@ -180,7 +196,7 @@
          * Explicitly purges old coordinates cache, asks for fresh coords, recalculates radius, and notifies UI
          */
         async refreshLocation() {
-            global.AttendanceLogger?.gps('Tombol Refresh GPS ditekan. Membersihkan cache dan meminta koordinat satelit baru...');
+            global.AttendanceLogger?.gps('Tombol Refresh GPS ditekan. Membersihkan cache dan meminta koordinat baru...');
             this.currentCoords = null;
             this.retryCount = 0;
             return this.acquireLocation(true);

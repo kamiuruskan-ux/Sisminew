@@ -755,6 +755,15 @@
 @endsection
 
 @section('scripts')
+<script>
+    if (!window.WebSdkCore) {
+        window.WebSdkCore = {
+            log: function() {},
+            channelOptions: {},
+            channelClient: {}
+        };
+    }
+</script>
 <!-- DigitalPersona Web SDK Official Bundles -->
 <script src="{{ asset('vendor/digitalpersona/websdk.client.bundle.min.js') }}"></script>
 <script src="{{ asset('vendor/digitalpersona/dp.core.umd.min.js') }}"></script>
@@ -783,7 +792,7 @@ function teacherAttendanceApp() {
         csrfToken: '{{ csrf_token() }}',
 
         // Dynamic State
-        currentTime: '00:00:00',
+        currentTime: '{{ now()->setTimezone(config('app.timezone', 'Asia/Makassar'))->format('H:i:s') }}',
         activeSessionType: '{{ $activeSession['type'] ?? 'check_in' }}',
         activeSessionName: '{{ $activeSession['name'] ?? 'Presensi' }}',
         isAlreadyDone: {{ ($activeSession['is_already_done'] ?? false) ? 'true' : 'false' }},
@@ -857,11 +866,13 @@ function teacherAttendanceApp() {
             }
 
             // 2. Initialize ScheduleService (Server Clock & Sesi Aktif)
+            const initialServerTime = '{{ now()->setTimezone(config('app.timezone', 'Asia/Makassar'))->format('H:i:s') }}';
+            const initialServerDate = '{{ now()->setTimezone(config('app.timezone', 'Asia/Makassar'))->format('Y-m-d') }}';
             AttendanceScheduleService.init({
                 schedule: this.scheduleConfig,
                 timezoneLabel: this.timezoneLabel,
-                serverTime: '{{ date('H:i:s') }}',
-                serverDate: '{{ date('Y-m-d') }}',
+                serverTime: initialServerTime,
+                serverDate: initialServerDate,
                 activeSession: {
                     type: this.activeSessionType,
                     name: this.activeSessionName,
@@ -875,6 +886,16 @@ function teacherAttendanceApp() {
                 this.updateDinasSessionInfo();
                 this.updateStatusPanel();
             });
+
+            // Heartbeat ticker to guarantee clock always advances
+            setInterval(() => {
+                if (window.AttendanceScheduleService && typeof AttendanceScheduleService.getServerTimeString === 'function') {
+                    const t = AttendanceScheduleService.getServerTimeString();
+                    if (t && t !== '00:00:00') {
+                        this.currentTime = t;
+                    }
+                }
+            }, 1000);
 
             AttendanceScheduleService.on('sessionChange', (newSession) => {
                 AttendanceLogger.schedule('Active session updated by server:', newSession);

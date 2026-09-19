@@ -33,6 +33,11 @@
         on(event, fn) {
             if (this.listeners[event] && typeof fn === 'function') {
                 this.listeners[event].push(fn);
+                if (event === 'tick') {
+                    try {
+                        fn(this.getServerTimeString(), this.timezoneLabel);
+                    } catch (e) {}
+                }
             }
         }
 

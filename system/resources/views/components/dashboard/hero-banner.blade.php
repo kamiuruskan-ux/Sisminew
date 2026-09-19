@@ -20,6 +20,27 @@
     }
 
     $isTeacherOrStaff = auth()->user()->hasRole('guru') || auth()->user()->hasRole('staff') || auth()->user()->hasRole('kepala-sekolah');
+
+    // Calculate Hijri date dynamically with robust fallback
+    $hijriDate = '';
+    try {
+        if (class_exists('\IntlDateFormatter')) {
+            $hijriFmt = new \IntlDateFormatter(
+                'id_ID@calendar=islamic-umalqura',
+                \IntlDateFormatter::FULL,
+                \IntlDateFormatter::NONE,
+                'Asia/Makassar',
+                \IntlDateFormatter::TRADITIONAL,
+                'd MMMM y'
+            );
+            $hijriDate = $hijriFmt ? ($hijriFmt->format(time()) . ' H') : '';
+        }
+    } catch (\Throwable $e) {
+        $hijriDate = '';
+    }
+    if (empty($hijriDate)) {
+        $hijriDate = '8 Rabiul Awwal 1448 H';
+    }
 @endphp
 
 <!-- TailAdmin Unified Global Adaptive Hero Banner -->
@@ -69,37 +90,27 @@
                 </p>
             </div>
 
-            <!-- Date & Time Info Pills -->
-            <div class="flex flex-wrap items-center gap-2 pt-1">
-                <div class="inline-flex items-center gap-1.5 px-3 py-1 bg-white/15 backdrop-blur-md rounded-xl text-xs font-semibold text-white/95 border border-white/20">
+            <!-- Date & Time Info Pills: Kalender Masehi & Kalender Hijriyah di Bawahnya -->
+            <div class="flex flex-col gap-1.5 pt-1">
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 bg-white/15 backdrop-blur-md rounded-xl text-xs font-semibold text-white/95 border border-white/20 w-fit">
                     <span>📅</span>
                     <span>{{ \Carbon\Carbon::now()->translatedFormat('l, d F Y') }}</span>
+                </div>
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 backdrop-blur-md rounded-xl text-xs font-bold text-amber-200 border border-white/25 w-fit">
+                    <span>🌙</span>
+                    <span>{{ $hijriDate }}</span>
                 </div>
             </div>
         </div>
 
         <!-- Right: Action Badges & Buttons -->
         <div class="flex flex-col sm:flex-row xl:flex-col gap-3 shrink-0">
-            <!-- Button: Presensi Mandiri (GPS Satelit) Trigger -->
-            <a href="{{ route('admin.teacher-attendances.my-attendance') }}"
-               class="px-5 py-3.5 rounded-2xl bg-white text-slate-900 font-extrabold text-xs sm:text-sm shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer">
-                <span class="w-7 h-7 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black">📍</span>
+            <!-- Button: Presensi Mandiri (GPS Satelit) Popup Trigger -->
+            <button type="button" @click="openPresensiModal = true"
+               class="px-6 py-4 rounded-2xl bg-white text-slate-900 font-extrabold text-xs sm:text-sm shadow-xl hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer">
+                <span class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-base shadow-xs">📍</span>
                 <span>Absen Mandiri GPS</span>
-            </a>
-
-            <!-- Button: Input Izin Siswa -->
-            <button type="button" @click="createPermitModal = true"
-                    class="px-5 py-3.5 rounded-2xl bg-white/20 hover:bg-white/30 text-white font-extrabold text-xs sm:text-sm backdrop-blur-md border border-white/30 shadow-md transition-all flex items-center justify-center gap-2.5 cursor-pointer">
-                <span>📝</span>
-                <span>Input Izin Siswa</span>
             </button>
-
-            <!-- Button: Terminal Presensi Kiosk Scan (New Tab) -->
-            <a href="{{ route('admin.qr-attendance.scan') }}" target="_blank" rel="noopener"
-               class="px-5 py-3 rounded-2xl bg-black/20 hover:bg-black/30 text-white/90 hover:text-white font-bold text-xs backdrop-blur-md border border-white/15 transition-all flex items-center justify-center gap-2 text-center">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                <span>Terminal Kiosk Presensi ↗</span>
-            </a>
         </div>
 
     </div>
