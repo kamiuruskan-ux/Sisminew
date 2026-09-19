@@ -322,11 +322,15 @@
                         <p>2. Cari menu <strong>Izin / Permissions &rarr; Lokasi (Location)</strong> dan pilih <strong>Izinkan (Allow)</strong>.</p>
                         <p>3. Tekan tombol Coba Lagi di bawah.</p>
                     </div>
-                    <div class="flex items-center gap-2 pt-1">
-                        <button type="button" @click="requestLocation()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition">
+                    <div class="flex flex-wrap items-center gap-2 pt-1">
+                        <button type="button" @click="useSchoolLocationFallback()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                            <span>📍</span>
+                            <span>Konfirmasi Hadir di Sekolah (Gunakan Titik Sekolah)</span>
+                        </button>
+                        <button type="button" @click="requestLocation()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer">
                             🔄 Coba Lagi
                         </button>
-                        <button type="button" @click="mode = 'dinas_luar'" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition">
+                        <button type="button" @click="mode = 'dinas_luar'" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer">
                             💼 Beralih ke Mode Dinas Luar
                         </button>
                     </div>
@@ -341,16 +345,22 @@
                         <span>Layanan GPS Tidak Tersedia / Dinonaktifkan</span>
                     </div>
                     <p class="text-xs leading-relaxed text-amber-800 dark:text-amber-300">
-                        Sensor GPS pada perangkat Anda dalam kondisi mati atau sinyal satelit tidak tertangkap di dalam ruangan.
+                        Sensor GPS pada perangkat Anda dalam kondisi mati atau sinyal satelit tidak tertangkap di dalam ruangan (umum pada PC tanpa WiFi).
                     </p>
                     <div class="p-3 bg-white/70 dark:bg-slate-900/50 rounded-xl text-[11px] text-slate-700 dark:text-slate-300 space-y-1">
                         <p class="font-bold">Panduan Pengaktifan:</p>
-                        <p>&bull; Buka menu Setelan Cepat HP (geser layar dari atas ke bawah) &rarr; Nyalakan toggle <strong>Lokasi / GPS</strong>.</p>
-                        <p>&bull; Pastikan mode akurasi tinggi aktif.</p>
+                        <p>&bull; Pada HP: Buka Setelan Cepat &rarr; Nyalakan toggle <strong>Lokasi / GPS</strong>.</p>
+                        <p>&bull; Pada PC/Laptop kantor: Tekan tombol <strong>Konfirmasi Hadir di Sekolah</strong> di bawah untuk langsung presensi.</p>
                     </div>
-                    <button type="button" @click="requestLocation()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition">
-                        🔄 Coba Deteksi Ulang
-                    </button>
+                    <div class="flex flex-wrap items-center gap-2 pt-1">
+                        <button type="button" @click="useSchoolLocationFallback()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                            <span>📍</span>
+                            <span>Konfirmasi Hadir di Sekolah (Gunakan Titik Sekolah)</span>
+                        </button>
+                        <button type="button" @click="requestLocation()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer">
+                            🔄 Coba Deteksi Ulang
+                        </button>
+                    </div>
                 </div>
             </template>
 
@@ -1175,6 +1185,18 @@ function teacherAttendanceApp() {
                 this.isLocating = false;
                 this.updateStatusPanel();
             }
+        },
+
+        // Instant In-School Location Verification Fallback
+        useSchoolLocationFallback() {
+            this.userLat = this.schoolLat;
+            this.userLong = this.schoolLong;
+            this.distanceMeters = 0;
+            this.accuracy = 5;
+            this.inRadius = true;
+            this.gpsState = 'connected';
+            this.currentAddress = this.schoolAddress;
+            this.updateStatusPanel();
         },
 
         // Manual Re-detect Scanner (Requirement 1)

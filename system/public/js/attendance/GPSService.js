@@ -166,22 +166,51 @@
                                 resolve(coords2);
                             },
                             (err2) => {
-                                global.AttendanceLogger?.warn('GPS', `Tier 2 juga gagal (code: ${err2.code}): ${err2.message}`);
-                                let msg = 'Gagal mendeteksi lokasi GPS atau jaringan. Pastikan GPS/Lokasi perangkat aktif.';
+                                global.AttendanceLogger?.warn('GPS', `Tier 2 juga gagal (code: ${err2.code}): ${err2.message}. Mencoba Tier 3 (IP Geolocation)...`);
+                                
                                 if (err2.code === err2.PERMISSION_DENIED) {
-                                    msg = 'Izin akses lokasi ditolak oleh pengguna atau browser.';
+                                    const msg = 'Izin akses lokasi ditolak oleh pengguna atau browser.';
                                     this._setState('denied', { message: msg });
-                                } else if (err2.code === err2.TIMEOUT) {
-                                    msg = 'Waktu permintaan lokasi habis. Pastikan sinyal GPS atau koneksi internet aktif.';
-                                    this._setState('disabled', { message: msg });
-                                } else {
-                                    this._setState('disabled', { message: msg });
+                                    const finalErr = new Error(msg);
+                                    finalErr.code = err2.code;
+                                    this._notifyError(finalErr);
+                                    reject(finalErr);
+                                    return;
                                 }
 
-                                const finalErr = new Error(msg);
-                                finalErr.code = err2.code;
-                                this._notifyError(finalErr);
-                                reject(finalErr);
+                                // Tier 3: Fetch IP-based location as last automated fallback (helps PCs without WiFi card)
+                                fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(3500) })
+                                    .then((r) => r.json())
+                                    .then((ipData) => {
+                                        if (ipData && ipData.latitude && ipData.longitude) {
+                                            const ipCoords = {
+                                                latitude: ipData.latitude,
+                                                longitude: ipData.longitude,
+                                                accuracy: 1000,
+                                                timestamp: Date.now(),
+                                                isIpFallback: true
+                                            };
+                                            global.AttendanceLogger?.gps('Koordinat berhasil didapatkan via IP Geolocation:', ipCoords);
+                                            this._notifyPosition(ipCoords);
+                                            resolve(ipCoords);
+                                        } else {
+                                            throw new Error('IP coordinates unavailable');
+                                        }
+                                    })
+                                    .catch(() => {
+                                        let msg = 'Gagal mendeteksi lokasi GPS atau jaringan. Pastikan GPS/Lokasi perangkat aktif.';
+                                        if (err2.code === err2.TIMEOUT) {
+                                            msg = 'Waktu permintaan lokasi habis. Pastikan sinyal GPS atau koneksi internet aktif.';
+                                            this._setState('disabled', { message: msg });
+                                        } else {
+                                            this._setState('disabled', { message: msg });
+                                        }
+
+                                        const finalErr = new Error(msg);
+                                        finalErr.code = err2.code;
+                                        this._notifyError(finalErr);
+                                        reject(finalErr);
+                                    });
                             },
                             this.standardOptions
                         );
