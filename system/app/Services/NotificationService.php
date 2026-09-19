@@ -251,6 +251,37 @@ class NotificationService
             }
         }
 
+        // 7. Employee Leave & Permit Notifications (Izin Pegawai Menunggu Verifikasi Kepala Sekolah & Super Admin)
+        if ((!$category || $category === 'all' || $category === 'permit') && ($isConsole || !$user || $user->hasRole('kepala-sekolah') || $user->hasRole('super-admin') || $user->hasRole('admin'))) {
+            try {
+                if (\Illuminate\Support\Facades\Schema::hasTable('employee_permits')) {
+                    $permitItems = \App\Models\EmployeePermit::with('user')
+                        ->where('status', 'pending')
+                        ->latest()
+                        ->take(15)
+                        ->get()
+                        ->map(function ($item) {
+                            $userName = $item->user->name ?? 'Pegawai';
+                            return [
+                                'id' => 'permit-' . $item->id,
+                                'category' => 'permit',
+                                'badge' => 'Izin Pegawai',
+                                'badge_class' => 'bg-rose-50 text-rose-700 border-rose-200',
+                                'icon_bg' => 'bg-rose-100 text-rose-600',
+                                'title' => 'Pengajuan Izin: ' . $userName,
+                                'message' => $item->type_label . ' (' . $item->duration_days . ' hari) menunggu verifikasi Kepala Sekolah.',
+                                'url' => route('admin.employee-permits.index'),
+                                'created_at' => $item->created_at,
+                                'is_urgent' => true,
+                            ];
+                        });
+                    $notifications = $notifications->concat($permitItems);
+                }
+            } catch (\Exception $e) {
+                // Ignore if table/query fails
+            }
+        }
+
         // Sort all by created_at descending
         $sorted = $notifications->sortByDesc('created_at')->values();
 
@@ -275,6 +306,7 @@ class NotificationService
             'announcement' => $all->where('category', 'announcement')->count(),
             'canteen' => $all->where('category', 'canteen')->count(),
             'cbt' => $all->where('category', 'cbt')->count(),
+            'permit' => $all->where('category', 'permit')->count(),
             'urgent' => $all->where('is_urgent', true)->count(),
         ];
     }

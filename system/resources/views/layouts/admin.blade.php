@@ -867,6 +867,18 @@
                         @if(auth()->user()->hasRole('admin|super-admin|operator|kepala-sekolah') || auth()->user()->hasPermission('manage-attendance'))
                         @php
                             $isAttendanceActive = request()->routeIs('admin.attendances.*') || request()->routeIs('admin.student-permits.*') || request()->routeIs('admin.employee-permits.*') || request()->routeIs('admin.teacher-attendances.*') || request()->routeIs('admin.qr-attendance.*');
+                            
+                            $isPermitApprover = auth()->user()->hasRole('kepala-sekolah') || auth()->user()->hasRole('super-admin') || auth()->user()->hasRole('admin');
+                            $pendingEmployeePermitsCount = 0;
+                            if ($isPermitApprover) {
+                                try {
+                                    if (\Illuminate\Support\Facades\Schema::hasTable('employee_permits')) {
+                                        $pendingEmployeePermitsCount = \App\Models\EmployeePermit::where('status', 'pending')->count();
+                                    }
+                                } catch (\Throwable $e) {
+                                    $pendingEmployeePermitsCount = 0;
+                                }
+                            }
                         @endphp
                         <div x-data="{ open: {{ $isAttendanceActive ? 'true' : 'false' }} }">
                             <button type="button" @click="open = !open" 
@@ -878,27 +890,49 @@
                                         <line x1="8" y1="2" x2="8" y2="6"></line>
                                         <line x1="3" y1="10" x2="21" y2="10"></line>
                                     </svg>
-                                    <span>Presensi & Kehadiran</span>
+                                    <span class="flex items-center gap-1.5">
+                                        <span>Presensi &amp; Kehadiran</span>
+                                        @if($isPermitApprover && $pendingEmployeePermitsCount > 0)
+                                            <span class="relative flex h-2 w-2" title="{{ $pendingEmployeePermitsCount }} Izin Baru Menunggu Verifikasi">
+                                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                                <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                                            </span>
+                                        @endif
+                                    </span>
                                 </div>
-                                <svg class="w-4 h-4 transition-transform duration-200 shrink-0 text-slate-400" :class="{ 'rotate-90': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                <div class="flex items-center space-x-1.5">
+                                    @if($isPermitApprover && $pendingEmployeePermitsCount > 0)
+                                        <span class="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-xs animate-pulse" title="{{ $pendingEmployeePermitsCount }} Permohonan Izin Menunggu">
+                                            {{ $pendingEmployeePermitsCount > 99 ? '99+' : $pendingEmployeePermitsCount }}
+                                        </span>
+                                    @endif
+                                    <svg class="w-4 h-4 transition-transform duration-200 shrink-0 text-slate-400" :class="{ 'rotate-90': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                </div>
                             </button>
 
                             <div x-show="open" x-collapse class="pl-4 space-y-1 mt-1 border-l-2 border-slate-200 dark:border-slate-800 ml-4">
-                                <a href="{{ route('admin.teacher-attendances.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.teacher-attendances.index') ? 'nav-link-active' : '' }}">Manajemen Presensi Guru</a>
+                                <a href="{{ route('admin.teacher-attendances.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.teacher-attendances.index') ? 'nav-link-active' : '' }}">
+                                    <span>Manajemen Presensi Guru</span>
+                                    @if($isPermitApprover && $pendingEmployeePermitsCount > 0)
+                                        <span class="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-extrabold text-[9px] rounded-full">
+                                            {{ $pendingEmployeePermitsCount }} Izin
+                                        </span>
+                                    @endif
+                                </a>
                                 <a href="{{ route('admin.employee-permits.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.employee-permits.*') ? 'nav-link-active font-bold text-[#3C50E0]' : '' }}">
-                                    <span>Izin &amp; Cuti Pegawai</span>
-                                    @php
-                                        $pendingEmployeePermitsCount = 0;
-                                        try {
-                                            if (\Illuminate\Support\Facades\Schema::hasTable('employee_permits')) {
-                                                $pendingEmployeePermitsCount = \App\Models\EmployeePermit::where('status', 'pending')->count();
-                                            }
-                                        } catch (\Throwable $e) {
-                                            $pendingEmployeePermitsCount = 0;
-                                        }
-                                    @endphp
-                                    @if($pendingEmployeePermitsCount > 0)
-                                        <span class="px-1.5 py-0.5 bg-amber-500 text-white font-extrabold text-[10px] rounded-full animate-pulse">{{ $pendingEmployeePermitsCount }}</span>
+                                    <span class="flex items-center gap-1.5">
+                                        <span>Izin &amp; Cuti Pegawai</span>
+                                        @if($isPermitApprover && $pendingEmployeePermitsCount > 0)
+                                            <span class="relative flex h-2 w-2">
+                                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                                <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                                            </span>
+                                        @endif
+                                    </span>
+                                    @if($isPermitApprover && $pendingEmployeePermitsCount > 0)
+                                        <span class="px-2 py-0.5 bg-rose-500 text-white font-black text-[10px] rounded-full shadow-xs animate-pulse">
+                                            {{ $pendingEmployeePermitsCount }} Baru
+                                        </span>
                                     @endif
                                 </a>
                                 <a href="{{ route('admin.teacher-attendances.fingerprint') }}" class="nav-link text-xs {{ request()->routeIs('admin.teacher-attendances.fingerprint') ? 'nav-link-active' : '' }}">Scanner Sidik Jari USB</a>
@@ -1431,6 +1465,10 @@
                                             @elseif($notif['category'] === 'cbt')
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                </svg>
+                                            @elseif($notif['category'] === 'permit')
+                                                <svg class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 01-2-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                                 </svg>
                                             @else
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">

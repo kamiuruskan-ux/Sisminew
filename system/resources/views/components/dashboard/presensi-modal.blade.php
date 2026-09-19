@@ -20,17 +20,32 @@
 <!-- UNIVERSAL PRESENSI MANDIRI GPS MODAL (RESPONSIVE POPUP) -->
 <!-- ============================================================ -->
 <div x-show="openPresensiModal" x-cloak 
-     class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto"
-     x-transition:enter="transition ease-out duration-200"
-     x-transition:enter-start="opacity-0 transform scale-95"
-     x-transition:enter-end="opacity-100 transform scale-100"
-     x-transition:leave="transition ease-in duration-150"
-     x-transition:leave-start="opacity-100 transform scale-100"
-     x-transition:leave-end="opacity-0 transform scale-95">
+     class="fixed inset-0 z-50 overflow-y-auto"
+     aria-labelledby="presensi-modal-title" role="dialog" aria-modal="true">
 
-    <div class="bg-white dark:bg-[#1A222C] rounded-3xl max-w-lg w-full p-5 sm:p-7 shadow-2xl border border-slate-200 dark:border-[#2E3A47] space-y-4 my-auto max-h-[92vh] overflow-y-auto" 
-         @click.outside="openPresensiModal = false"
-         x-data="presensiGpsModalApp()">
+    <!-- Fixed Backdrop Overlay (Hanya klik di luar popup/area gelap yang menutup popup) -->
+    <div x-show="openPresensiModal"
+         x-transition:enter="ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
+         @click="openPresensiModal = false"></div>
+
+    <!-- Centering Wrapper -->
+    <div class="flex min-h-full items-center justify-center p-3 sm:p-4 text-center">
+        <div x-show="openPresensiModal"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 transform scale-95"
+             x-transition:enter-end="opacity-100 transform scale-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100 transform scale-100"
+             x-transition:leave-end="opacity-0 transform scale-95"
+             class="relative transform overflow-hidden rounded-3xl bg-white dark:bg-[#1A222C] text-left shadow-2xl transition-all w-full max-w-lg p-5 sm:p-7 border border-slate-200 dark:border-[#2E3A47] space-y-4 my-8" 
+             @click.stop
+             x-data="presensiGpsModalApp()">
         
         <!-- Modal Header -->
         <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-[#2E3A47]">
@@ -216,6 +231,7 @@
             <p x-text="feedbackMsg"></p>
         </div>
 
+        </div>
     </div>
 </div>
 

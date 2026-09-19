@@ -29,8 +29,26 @@
     <!-- ═════════════════════════════════════════════════════════════════════ -->
     <!-- QUICK INPUT STUDENT PERMIT MODAL -->
     <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <div x-show="createPermitModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-        <div class="bg-white dark:bg-[#1A222C] rounded-3xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl border border-slate-200 dark:border-[#2E3A47] space-y-5 my-8" @click.outside="createPermitModal = false">
+    <div x-show="createPermitModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+        <div x-show="createPermitModal"
+             x-transition:enter="ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="ease-in duration-150"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
+             @click="createPermitModal = false"></div>
+        <div class="flex min-h-full items-center justify-center p-4 text-center">
+            <div x-show="createPermitModal"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 transform scale-95"
+                 x-transition:enter-end="opacity-100 transform scale-100"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100 transform scale-100"
+                 x-transition:leave-end="opacity-0 transform scale-95"
+                 class="relative transform overflow-hidden bg-white dark:bg-[#1A222C] rounded-3xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl border border-slate-200 dark:border-[#2E3A47] space-y-5 my-8 text-left"
+                 @click.stop>
             <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-[#2E3A47]">
                 <div class="flex items-center space-x-3">
                     <div class="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-[#3C50E0] dark:text-indigo-400 flex items-center justify-center font-bold text-lg">
@@ -90,6 +108,7 @@
                     </button>
                 </div>
             </form>
+            </div>
         </div>
     </div>
 
