@@ -18,17 +18,17 @@
                 error: []
             };
 
-            // High-precision GPS options with Tier 1 and Tier 2 definitions
+            // High-precision GPS options with realistic mobile & desktop timeouts
             this.highAccuracyOptions = {
                 enableHighAccuracy: true,
-                maximumAge: 30000, // 30s cache
-                timeout: 6000     // 6 seconds fast timeout
+                maximumAge: 0,
+                timeout: 15000
             };
 
             this.standardOptions = {
                 enableHighAccuracy: false,
-                maximumAge: 300000, // 5 minutes cache
-                timeout: 8000      // 8 seconds timeout
+                maximumAge: 0,
+                timeout: 15000
             };
         }
 
@@ -166,51 +166,23 @@
                                 resolve(coords2);
                             },
                             (err2) => {
-                                global.AttendanceLogger?.warn('GPS', `Tier 2 juga gagal (code: ${err2.code}): ${err2.message}. Mencoba Tier 3 (IP Geolocation)...`);
+                                global.AttendanceLogger?.warn('GPS', `Tier 2 juga gagal (code: ${err2.code}): ${err2.message}`);
                                 
+                                let msg = 'Gagal mendeteksi lokasi GPS. Pastikan GPS/Layanan Lokasi perangkat aktif.';
                                 if (err2.code === err2.PERMISSION_DENIED) {
-                                    const msg = 'Izin akses lokasi ditolak oleh pengguna atau browser.';
+                                    msg = 'Izin akses lokasi ditolak oleh pengguna atau pengaturan browser.';
                                     this._setState('denied', { message: msg });
-                                    const finalErr = new Error(msg);
-                                    finalErr.code = err2.code;
-                                    this._notifyError(finalErr);
-                                    reject(finalErr);
-                                    return;
+                                } else if (err2.code === err2.TIMEOUT) {
+                                    msg = 'Waktu permintaan lokasi habis. Pastikan sinyal GPS aktif.';
+                                    this._setState('disabled', { message: msg });
+                                } else {
+                                    this._setState('disabled', { message: msg });
                                 }
 
-                                // Tier 3: Fetch IP-based location as last automated fallback (helps PCs without WiFi card)
-                                fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(3500) })
-                                    .then((r) => r.json())
-                                    .then((ipData) => {
-                                        if (ipData && ipData.latitude && ipData.longitude) {
-                                            const ipCoords = {
-                                                latitude: ipData.latitude,
-                                                longitude: ipData.longitude,
-                                                accuracy: 1000,
-                                                timestamp: Date.now(),
-                                                isIpFallback: true
-                                            };
-                                            global.AttendanceLogger?.gps('Koordinat berhasil didapatkan via IP Geolocation:', ipCoords);
-                                            this._notifyPosition(ipCoords);
-                                            resolve(ipCoords);
-                                        } else {
-                                            throw new Error('IP coordinates unavailable');
-                                        }
-                                    })
-                                    .catch(() => {
-                                        let msg = 'Gagal mendeteksi lokasi GPS atau jaringan. Pastikan GPS/Lokasi perangkat aktif.';
-                                        if (err2.code === err2.TIMEOUT) {
-                                            msg = 'Waktu permintaan lokasi habis. Pastikan sinyal GPS atau koneksi internet aktif.';
-                                            this._setState('disabled', { message: msg });
-                                        } else {
-                                            this._setState('disabled', { message: msg });
-                                        }
-
-                                        const finalErr = new Error(msg);
-                                        finalErr.code = err2.code;
-                                        this._notifyError(finalErr);
-                                        reject(finalErr);
-                                    });
+                                const finalErr = new Error(msg);
+                                finalErr.code = err2.code;
+                                this._notifyError(finalErr);
+                                reject(finalErr);
                             },
                             this.standardOptions
                         );

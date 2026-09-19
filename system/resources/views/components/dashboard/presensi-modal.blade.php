@@ -118,70 +118,38 @@
                 <button type="button" @click="refreshGps()" class="text-[#3C50E0] dark:text-indigo-400 font-bold text-xs hover:underline flex items-center gap-1 cursor-pointer">
                     <span :class="gpsLoading ? 'animate-spin' : ''">🔄</span> Refresh GPS
                 </button>
-            </div>
-
             <!-- Loading State -->
             <template x-if="gpsLoading">
-                <div class="space-y-2">
-                    <div class="flex items-center space-x-2 text-xs text-indigo-600 dark:text-indigo-400">
-                        <span class="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
-                        <span class="font-medium animate-pulse">Menghubungkan sensor lokasi perangkat...</span>
-                    </div>
-                    <div class="text-[11px] text-slate-500 dark:text-slate-400">
-                        Menggunakan PC kantor/lab atau GPS lambat? 
-                        <button type="button" @click="useSchoolLocationFallback()" class="text-[#3C50E0] dark:text-indigo-400 font-bold hover:underline cursor-pointer">
-                            Klik di sini untuk Konfirmasi Hadir di Sekolah &rarr;
-                        </button>
-                    </div>
+                <div class="flex items-center space-x-2 text-xs text-indigo-600 dark:text-indigo-400">
+                    <span class="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
+                    <span class="font-medium animate-pulse">Menghubungkan sensor GPS perangkat...</span>
                 </div>
             </template>
 
-            <!-- Error State with Instant Fallback -->
+            <!-- Error State -->
             <template x-if="gpsError && !gpsLoading">
-                <div class="p-3.5 bg-rose-50 dark:bg-rose-950/40 rounded-2xl border border-rose-200 dark:border-rose-800 space-y-2.5">
+                <div class="p-3.5 bg-rose-50 dark:bg-rose-950/40 rounded-2xl border border-rose-200 dark:border-rose-800 space-y-2">
                     <div class="flex items-start gap-2">
                         <span class="text-rose-600 text-sm mt-0.5">⚠️</span>
                         <p class="text-xs text-rose-700 dark:text-rose-300 font-semibold leading-relaxed" x-text="gpsError"></p>
                     </div>
-
-                    <!-- Action Buttons -->
-                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
-                        <button type="button" @click="useSchoolLocationFallback()"
-                                class="py-2 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer">
-                            <span>📍</span>
-                            <span>Konfirmasi Hadir di Sekolah (Gunakan Titik Sekolah)</span>
+                    <div class="flex flex-wrap items-center gap-1.5 pt-1">
+                        <button type="button" @click="refreshGps()"
+                                class="py-2 px-3.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-1 cursor-pointer">
+                            <span>🔄</span>
+                            <span>Coba Deteksi Ulang GPS</span>
                         </button>
-                        <div class="flex items-center gap-1.5">
-                            <button type="button" @click="refreshGps()"
-                                    class="py-2 px-3 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-300 transition flex items-center justify-center gap-1 cursor-pointer">
-                                <span>🔄</span>
-                                <span>Coba Lagi</span>
-                            </button>
-                            <button type="button" @click="attendanceMode = 'dinas_luar'"
-                                    class="py-2 px-3 rounded-xl bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-bold text-xs hover:bg-purple-200 transition flex items-center justify-center gap-1 cursor-pointer">
-                                <span>💼</span>
-                                <span>Dinas Luar</span>
-                            </button>
-                        </div>
+                        <button type="button" @click="attendanceMode = 'dinas_luar'"
+                                class="py-2 px-3 rounded-xl bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-bold text-xs hover:bg-purple-200 transition flex items-center justify-center gap-1 cursor-pointer">
+                            <span>💼</span>
+                            <span>Mode Dinas Luar</span>
+                        </button>
                     </div>
                 </div>
             </template>
 
-            <!-- Fallback Used Indicator Banner -->
-            <template x-if="gpsFallbackUsed && !gpsError">
-                <div class="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-300 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-200 flex items-center justify-between">
-                    <span class="flex items-center gap-1.5 font-bold">
-                        <span>✓</span>
-                        <span>Lokasi Sekolah Terverifikasi (Siap Presensi)</span>
-                    </span>
-                    <button type="button" @click="detectGps()" class="text-xs text-emerald-700 dark:text-emerald-300 underline font-semibold cursor-pointer">
-                        Deteksi Ulang Sensor
-                    </button>
-                </div>
-            </template>
-
             <!-- Success / Coords Connected State -->
-            <template x-if="!gpsLoading && !gpsError && !gpsFallbackUsed">
+            <template x-if="!gpsLoading && !gpsError">
                 <div class="space-y-1.5 text-xs">
                     <div class="flex items-center justify-between">
                         <span class="text-slate-500 dark:text-slate-400">Jarak ke Sekolah:</span>
@@ -195,7 +163,11 @@
                     </div>
                     <div class="flex items-center justify-between text-[11px] text-slate-400">
                         <span>Koordinat Perangkat:</span>
-                        <span class="font-mono" x-text="userLat ? userLat.toFixed(5) + ', ' + userLong.toFixed(5) : '-'"></span>
+                        <span class="font-mono" x-text="userLat ? userLat.toFixed(6) + ', ' + userLong.toFixed(6) : '-'"></span>
+                    </div>
+                    <div class="flex items-center justify-between text-[11px] text-slate-400" x-show="accuracy">
+                        <span>Akurasi Sensor:</span>
+                        <span class="font-mono" x-text="accuracy ? '± ' + accuracy + ' meter' : '-'"></span>
                     </div>
                 </div>
             </template>
@@ -226,7 +198,7 @@
             </div>
         </div>
 
-        <!-- Action Submit Button -->
+        <!-- Submit Button -->
         <div class="pt-2">
             <button type="button" @click="submitAttendance()"
                     :disabled="isSubmitDisabled()"
@@ -260,11 +232,11 @@ function presensiGpsModalApp() {
         schoolName: '{{ $schoolName }}',
         userLat: null,
         userLong: null,
+        accuracy: null,
         distanceMeters: null,
         inRadius: false,
         gpsLoading: false,
         gpsError: null,
-        gpsFallbackUsed: false,
         attendanceMode: 'reguler', // 'reguler' | 'dinas_luar'
         dinasNotes: '',
         selectedSessionType: 'check_in',
@@ -339,20 +311,9 @@ function presensiGpsModalApp() {
             }
         },
 
-        useSchoolLocationFallback() {
-            this.userLat = this.schoolLat;
-            this.userLong = this.schoolLong;
-            this.distanceMeters = 0;
-            this.inRadius = true;
-            this.gpsError = null;
-            this.gpsLoading = false;
-            this.gpsFallbackUsed = true;
-        },
-
         async detectGps() {
             this.gpsLoading = true;
             this.gpsError = null;
-            this.gpsFallbackUsed = false;
 
             if (typeof navigator === 'undefined' || !navigator.geolocation) {
                 this.gpsLoading = false;
@@ -360,76 +321,43 @@ function presensiGpsModalApp() {
                 return;
             }
 
-            // Helper promise for getCurrentPosition with customizable options
-            const tryGetPosition = (opts) => {
+            const getPos = (enableHigh) => {
                 return new Promise((resolve, reject) => {
-                    navigator.geolocation.getCurrentPosition(resolve, reject, opts);
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        enableHighAccuracy: enableHigh,
+                        timeout: 15000,
+                        maximumAge: 0
+                    });
                 });
             };
 
             try {
-                // Tier 1: Fast attempt with network/WiFi or recent cached position (high success on mobile & PC)
-                let pos = await tryGetPosition({
-                    enableHighAccuracy: false,
-                    timeout: 6000,
-                    maximumAge: 300000
-                }).catch(() => null);
-
-                // Tier 2: If Tier 1 didn't resolve, try high-accuracy GPS
-                if (!pos) {
-                    pos = await tryGetPosition({
-                        enableHighAccuracy: true,
-                        timeout: 8000,
-                        maximumAge: 0
-                    }).catch(() => null);
-                }
-
-                // Tier 3: If still unresolved, try any available cached position
-                if (!pos) {
-                    pos = await tryGetPosition({
-                        enableHighAccuracy: false,
-                        timeout: 4000,
-                        maximumAge: Infinity
-                    }).catch(() => null);
-                }
+                // Try High Accuracy GPS, with graceful fallback to network if timeout
+                let pos = await getPos(true).catch(async (err) => {
+                    if (err && (err.code === 2 || err.code === 3)) {
+                        return await getPos(false);
+                    }
+                    throw err;
+                });
 
                 if (pos && pos.coords) {
                     this.userLat = pos.coords.latitude;
                     this.userLong = pos.coords.longitude;
+                    this.accuracy = Math.round(pos.coords.accuracy || 0);
                     this.calculateDistance();
                     this.gpsLoading = false;
-                    return;
                 }
-
-                // Tier 4: Public IP Geolocation fallback (useful if desktop PC has no GPS/WiFi)
-                try {
-                    const ipRes = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(3500) });
-                    if (ipRes.ok) {
-                        const ipData = await ipRes.json();
-                        if (ipData && ipData.latitude && ipData.longitude) {
-                            this.userLat = ipData.latitude;
-                            this.userLong = ipData.longitude;
-                            this.calculateDistance();
-                            this.gpsLoading = false;
-                            return;
-                        }
-                    }
-                } catch (ipErr) {}
-
-                // If all automated attempts returned empty, display clear explanation and fallback
-                this.gpsLoading = false;
-                this.gpsError = 'Sensor GPS tidak terdeteksi (umum pada PC tanpa WiFi atau sinyal GPS lemah di dalam ruangan). Jika Anda sudah berada di sekolah, silakan tekan tombol "Konfirmasi Hadir di Sekolah" di bawah.';
             } catch (err) {
                 this.gpsLoading = false;
-                let errMsg = 'Gagal membaca sensor lokasi perangkat.';
                 if (err && err.code === 1) {
-                    errMsg = 'Izin lokasi diblokir oleh browser. Harap pilih "Izinkan" / "Allow" pada setelan izin browser dan muat ulang halaman.';
+                    this.gpsError = 'Izin lokasi belum diizinkan. Silakan klik ikon gembok/setelan di samping URL browser, pilih "Izinkan" (Allow) untuk Lokasi, lalu coba lagi.';
                 } else if (err && err.code === 2) {
-                    errMsg = 'Informasi lokasi tidak tersedia pada perangkat ini (umum pada PC kabel LAN). Silakan gunakan tombol "Konfirmasi Hadir di Sekolah" di bawah.';
+                    this.gpsError = 'Sensor lokasi tidak dapat menentukan posisi. Pastikan GPS/Layanan Lokasi perangkat aktif.';
                 } else if (err && err.code === 3) {
-                    errMsg = 'Waktu pencarian satelit GPS habis (timeout). Silakan gunakan tombol "Konfirmasi Hadir di Sekolah" di bawah.';
+                    this.gpsError = 'Waktu pencarian sinyal GPS habis. Silakan coba deteksi ulang atau pastikan perangkat berada di tempat dengan sinyal baik.';
+                } else {
+                    this.gpsError = err.message || 'Gagal membaca sensor lokasi perangkat.';
                 }
-                this.gpsError = errMsg;
             }
         },
 
@@ -457,8 +385,8 @@ function presensiGpsModalApp() {
 
         isSubmitDisabled() {
             if (this.submitting) return true;
-            if (this.attendanceMode === 'reguler' && !this.inRadius) return true;
-            if (this.attendanceMode === 'dinas_luar' && !this.dinasNotes.trim()) return true;
+            if (this.attendanceMode === 'reguler' && (!this.userLat || !this.inRadius)) return true;
+            if (this.attendanceMode === 'dinas_luar' && (!this.userLat || !this.dinasNotes.trim())) return true;
             return false;
         },
 
@@ -503,10 +431,10 @@ function presensiGpsModalApp() {
                 type: this.selectedSessionType,
                 attendance_mode: this.attendanceMode,
                 work_location: this.attendanceMode === 'dinas_luar' ? 'outstation' : 'school',
-                latitude: this.userLat || this.schoolLat,
-                longitude: this.userLong || this.schoolLong,
+                latitude: this.userLat,
+                longitude: this.userLong,
                 distance: this.distanceMeters || 0,
-                notes: this.attendanceMode === 'dinas_luar' ? this.dinasNotes : (this.gpsFallbackUsed ? '[Verifikasi Hadir di Sekolah]' : null),
+                notes: this.attendanceMode === 'dinas_luar' ? this.dinasNotes : null,
                 dinas_notes: this.dinasNotes
             };
 
