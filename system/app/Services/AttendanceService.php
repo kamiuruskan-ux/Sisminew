@@ -270,7 +270,9 @@ class AttendanceService
                 if ($photoName) {
                     $attendance->check_in_photo = $photoName;
                 }
-                $attendance->status = $this->sessionService->calculateLateStatus($now);
+                $lateDetails = $this->sessionService->calculateLateDetails($now);
+                $attendance->status = $lateDetails['status'];
+                $attendance->delay_minutes = $lateDetails['delay_minutes'];
             }
 
             $briefingTag = "[Hadir Briefing: {$briefingTitle} @ {$nowTime}]";
@@ -300,7 +302,9 @@ class AttendanceService
             if ($photoName) {
                 $attendance->check_in_photo = $photoName;
             }
-            $attendance->status = $this->sessionService->calculateLateStatus($now);
+            $lateDetails = $this->sessionService->calculateLateDetails($now);
+            $attendance->status = $lateDetails['status'];
+            $attendance->delay_minutes = $lateDetails['delay_minutes'];
             $actionMessage = ($workLoc === 'dinas_luar' ? 'Presensi MASUK (Dinas Luar)' : 'Presensi MASUK') . " berhasil dicatat ({$nowTime})";
         }
 
@@ -323,6 +327,7 @@ class AttendanceService
             'distance_meters' => $distance,
             'confidence' => $params['confidence'] ?? null,
             'status' => $attendance->status,
+            'delay_minutes' => $attendance->delay_minutes,
         ]);
 
         // 11. BROADCAST LIVE ACTIVITY FOR INSTANT REAL-TIME DASHBOARD (SSE Cache Pool)
@@ -339,6 +344,7 @@ class AttendanceService
             'method_label' => $attendance->method_label,
             'status' => $attendance->status,
             'status_label' => $attendance->status_label,
+            'delay_minutes' => $attendance->delay_minutes ?? 0,
             'timestamp' => $now->timestamp,
         ]);
 

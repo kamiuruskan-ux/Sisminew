@@ -165,10 +165,13 @@ class TeacherAttendanceController extends Controller
         $totalRecorded = max(1, $monthAttendances->count());
         $attendanceRate = round((($presentCount + $lateCount) / $totalRecorded) * 100);
 
+        $attendanceSettings = app(\App\Services\AttendanceSessionService::class)->getScheduleSettings();
+
         return view('admin.teacher-attendances.my-attendance', compact(
             'user',
             'todayAttendance',
             'activeSession',
+            'attendanceSettings',
             'schoolLat',
             'schoolLong',
             'schoolRadius',
@@ -720,6 +723,80 @@ class TeacherAttendanceController extends Controller
             'Connection' => 'keep-alive',
             'X-Accel-Buffering' => 'no',
         ]);
+    }
+
+    /**
+     * Dedicated Attendance Configuration Module for Administrators
+     */
+    public function settings(Request $request)
+    {
+        $sessionService = app(\App\Services\AttendanceSessionService::class);
+        $settings = $sessionService->getScheduleSettings();
+
+        // Additional setting keys
+        $settings['school_latitude'] = Setting::get('school_latitude', -0.8917);
+        $settings['school_longitude'] = Setting::get('school_longitude', 119.8707);
+        $settings['school_name'] = Setting::get('school_name', config('app.name', 'SDIT AL-FAHMI PALU'));
+        $settings['school_address'] = Setting::get('school_address', 'Jl. Gelatik No. 12, Kel. Birobuli Utara, Kec. Palu Selatan, Kota Palu');
+        $settings['timezone_label'] = Setting::get('school_timezone_label', 'WITA');
+        $settings['weekend_days'] = explode(',', Setting::get('attendance_weekend_days', '0'));
+        $settings['holidays'] = Setting::get('attendance_holidays', '');
+
+        return view('admin.teacher-attendances.settings', compact('settings'));
+    }
+
+    /**
+     * Update Attendance Configuration
+     */
+    public function updateSettings(Request $request)
+    {
+        $validated = $request->validate([
+            'attendance_morning_open' => 'required|string',
+            'attendance_morning_close' => 'required|string',
+            'attendance_morning_late' => 'required|string',
+            'attendance_late_tolerance' => 'required|integer|min:0|max:180',
+            'attendance_dzuhur_open' => 'required|string',
+            'attendance_dzuhur_close' => 'required|string',
+            'attendance_afternoon_open' => 'required|string',
+            'attendance_afternoon_close' => 'required|string',
+            'school_attendance_radius' => 'required|integer|min:5|max:50000',
+            'school_latitude' => 'nullable|numeric',
+            'school_longitude' => 'nullable|numeric',
+            'attendance_weekend_days' => 'nullable|array',
+            'attendance_holidays' => 'nullable|string',
+        ]);
+
+        Setting::set('attendance_morning_open', $validated['attendance_morning_open']);
+        Setting::set('attendance_morning_close', $validated['attendance_morning_close']);
+        Setting::set('attendance_morning_late', $validated['attendance_morning_late']);
+        Setting::set('attendance_late_tolerance', (string)$validated['attendance_late_tolerance']);
+
+        Setting::set('attendance_dzuhur_open', $validated['attendance_dzuhur_open']);
+        Setting::set('attendance_dzuhur_close', $validated['attendance_dzuhur_close']);
+        Setting::set('attendance_afternoon_open', $validated['attendance_afternoon_open']);
+        Setting::set('attendance_afternoon_close', $validated['attendance_afternoon_close']);
+
+        Setting::set('school_attendance_radius', (string)$validated['school_attendance_radius']);
+        if ($request->filled('school_latitude')) {
+            Setting::set('school_latitude', (string)$request->school_latitude);
+        }
+        if ($request->filled('school_longitude')) {
+            Setting::set('school_longitude', (string)$request->school_longitude);
+        }
+
+        // Toggles (checkboxes)
+        Setting::set('attendance_gps_enabled', $request->has('attendance_gps_enabled') ? '1' : '0');
+        Setting::set('attendance_fingerprint_enabled', $request->has('attendance_fingerprint_enabled') ? '1' : '0');
+        Setting::set('attendance_face_enabled', $request->has('attendance_face_enabled') ? '1' : '0');
+        Setting::set('attendance_manual_enabled', $request->has('attendance_manual_enabled') ? '1' : '0');
+
+        // Weekends & Holidays
+        $weekendDays = $request->input('attendance_weekend_days', [0]);
+        Setting::set('attendance_weekend_days', implode(',', $weekendDays));
+        Setting::set('attendance_holidays', trim($request->input('attendance_holidays', '')));
+
+        return redirect()->route('admin.teacher-attendances.settings')
+            ->with('success', 'Konfigurasi Pengaturan Presensi Guru & Pegawai berhasil disimpan!');
     }
 
     /**

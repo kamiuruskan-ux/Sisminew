@@ -894,6 +894,10 @@
                                 <a href="{{ route('admin.attendances.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.attendances.index') ? 'nav-link-active' : '' }}">Rekap Presensi Siswa</a>
                                 <a href="{{ route('admin.student-permits.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.student-permits.*') ? 'nav-link-active' : '' }}">Permohonan Izin Siswa</a>
                                 <a href="{{ route('admin.attendances.settings') }}" class="nav-link text-xs {{ request()->routeIs('admin.attendances.settings') ? 'nav-link-active' : '' }}">Pengaturan Presensi Siswa</a>
+                                <a href="{{ route('admin.teacher-attendances.settings') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.teacher-attendances.settings') ? 'nav-link-active font-bold text-[#3C50E0]' : '' }}">
+                                    <span>Pengaturan Presensi Guru</span>
+                                    <span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-extrabold text-[9px] rounded">Config</span>
+                                </a>
                                 <a href="{{ route('admin.employee-tasks.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.employee-tasks.*') ? 'nav-link-active' : '' }}">Tugas &amp; Checklist Pegawai</a>
                                 <a href="{{ route('admin.teacher-attendances.my-attendance') }}" class="nav-link text-xs {{ request()->routeIs('admin.teacher-attendances.my-attendance') ? 'nav-link-active' : '' }}">Presensi Mandiri Saya</a>
                                 <a href="{{ route('admin.qr-attendance.scan') }}" target="_blank" rel="noopener" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.qr-attendance.*') ? 'nav-link-active' : '' }}">
@@ -1677,6 +1681,7 @@
         </div>
     </nav>
 
+    @yield('scripts')
     @stack('scripts')
 
     <!-- TomSelect JS -->

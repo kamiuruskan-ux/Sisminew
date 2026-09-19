@@ -80,8 +80,88 @@
     init() {
         this.updateClock();
         setInterval(() => this.updateClock(), 1000);
+        this.initUsbHardwareDetection();
         this.connectDigitalPersonaService();
         this.initLiveAttendanceStream();
+    },
+
+    // 0. Native WebUSB & WebHID Real Hardware Detection
+    async initUsbHardwareDetection() {
+        if (navigator.usb) {
+            try {
+                const devices = await navigator.usb.getDevices();
+                if (devices && devices.length > 0) {
+                    const dev = devices[0];
+                    this.deviceConnected = true;
+                    this.deviceName = dev.productName || (dev.manufacturerName ? `${dev.manufacturerName} Optical Reader` : 'USB Optical Scanner');
+                    this.deviceStatus = 'Ready';
+                    this.scanMessage = `Scanner USB (${this.deviceName}) Terdeteksi. Menunggu jari ditempelkan...`;
+                }
+            } catch(e) {}
+
+            navigator.usb.addEventListener('connect', (event) => {
+                this.deviceConnected = true;
+                this.deviceName = event.device.productName || 'USB Fingerprint Scanner';
+                this.deviceStatus = 'Ready';
+                this.scanMessage = `Scanner USB (${this.deviceName}) Terhubung. Siap digunakan.`;
+                this.playAudio('success');
+                this.logHardwareEvent('device_connected', { device: this.deviceName });
+            });
+
+            navigator.usb.addEventListener('disconnect', (event) => {
+                this.deviceConnected = false;
+                this.deviceStatus = 'Disconnected';
+                this.scanMessage = 'Scanner USB terputus. Silakan hubungkan kembali kabel scanner.';
+                this.playAudio('error');
+                this.logHardwareEvent('device_removed');
+            });
+        }
+
+        if (navigator.hid && !this.deviceConnected) {
+            try {
+                const hidDevices = await navigator.hid.getDevices();
+                if (hidDevices && hidDevices.length > 0) {
+                    const hdev = hidDevices[0];
+                    this.deviceConnected = true;
+                    this.deviceName = hdev.productName || 'HID Biometric Device';
+                    this.deviceStatus = 'Ready';
+                    this.scanMessage = `Scanner HID (${this.deviceName}) Terdeteksi.`;
+                }
+            } catch(e) {}
+        }
+    },
+
+    async pairUsbScanner() {
+        if (navigator.usb) {
+            try {
+                const device = await navigator.usb.requestDevice({ filters: [] });
+                if (device) {
+                    this.deviceConnected = true;
+                    this.deviceName = device.productName || (device.manufacturerName ? `${device.manufacturerName} Scanner` : 'USB Fingerprint Scanner');
+                    this.deviceStatus = 'Ready';
+                    this.scanMessage = `Scanner (${this.deviceName}) berhasil dipasangkan. Silakan tempelkan jari.`;
+                    this.playAudio('success');
+                    this.logHardwareEvent('device_paired', { device: this.deviceName });
+                    return;
+                }
+            } catch(e) {}
+        }
+
+        if (navigator.hid) {
+            try {
+                const hidDevices = await navigator.hid.requestDevice({ filters: [] });
+                if (hidDevices && hidDevices.length > 0) {
+                    this.deviceConnected = true;
+                    this.deviceName = hidDevices[0].productName || 'HID Fingerprint Reader';
+                    this.deviceStatus = 'Ready';
+                    this.scanMessage = `Scanner (${this.deviceName}) terhubung.`;
+                    this.playAudio('success');
+                    return;
+                }
+            } catch(e) {}
+        }
+
+        alert('Tidak ada scanner USB yang dipilih atau browser tidak mengizinkan akses USB.');
     },
 
     updateClock() {
@@ -390,7 +470,7 @@
     initLiveAttendanceStream() {
         try {
             if (window.EventSource) {
-                this.sseSource = new EventSource('{{ route('teacher-attendances.stream') }}');
+                this.sseSource = new EventSource('{{ route('admin.teacher-attendances.stream') }}');
 
                 this.sseSource.addEventListener('attendance_recorded', (e) => {
                     const eventData = JSON.parse(e.data);
@@ -414,7 +494,7 @@
     // Log hardware telemetry event to server
     async logHardwareEvent(event, details = {}) {
         try {
-            await fetch('{{ route('teacher-attendances.fingerprint.device-event') }}', {
+            await fetch('{{ route('admin.teacher-attendances.fingerprint.device-event') }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -475,11 +555,20 @@
 
             <!-- Device Connection Indicator & Live Clock -->
             <div class="flex items-center space-x-4">
-                <!-- Device Status Indicator Badge -->
-                <div class="flex items-center space-x-2.5 px-3.5 py-1.5 rounded-xl border text-xs font-semibold transition-all"
-                     :class="deviceConnected ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300' : 'bg-rose-950/40 border-rose-500/30 text-rose-300'">
-                    <span class="w-2 h-2 rounded-full" :class="deviceConnected ? 'bg-emerald-400' : 'bg-rose-400'"></span>
-                    <span x-text="deviceConnected ? '🟢 Scanner Connected (' + deviceStatus + ')' : '🔴 Scanner Not Connected'"></span>
+                <!-- Device Status Indicator Badge & Pair Button -->
+                <div class="flex items-center gap-2">
+                    <div class="flex items-center space-x-2.5 px-3.5 py-1.5 rounded-xl border text-xs font-semibold transition-all"
+                         :class="deviceConnected ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300' : 'bg-rose-950/40 border-rose-500/30 text-rose-300'">
+                        <span class="w-2 h-2 rounded-full" :class="deviceConnected ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'"></span>
+                        <span x-text="deviceConnected ? '🟢 ' + deviceName + ' (' + deviceStatus + ')' : '🔴 Scanner Not Connected'"></span>
+                    </div>
+
+                    <button type="button" @click="pairUsbScanner()"
+                            class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 hover:text-white border border-slate-700 transition flex items-center gap-1.5 cursor-pointer"
+                            title="Hubungkan / Deteksi Scanner USB">
+                        <span>🔌</span>
+                        <span class="hidden md:inline">Deteksi USB</span>
+                    </button>
                 </div>
 
                 <!-- Clock -->
@@ -566,7 +655,7 @@
                         <div class="absolute bottom-4 inset-x-0 text-center">
                             <span class="text-[9px] font-mono tracking-widest uppercase font-bold"
                                   :class="deviceConnected ? 'text-slate-500' : 'text-rose-500/80'"
-                                  x-text="deviceConnected ? 'HID DIGITALPERSONA OPTICAL' : 'SCANNER DISCONNECTED'"></span>
+                                  x-text="deviceConnected ? deviceName : 'SCANNER DISCONNECTED'"></span>
                         </div>
                     </div>
 
@@ -588,7 +677,15 @@
                                 scanStage === 'error' ? 'PEMINDAIAN GAGAL' :
                                 'WAITING FINGER...'
                              "></div>
-                        <p class="text-xs text-slate-400" x-text="deviceConnected ? scanMessage : 'Pastikan kabel scanner USB terpasang ke laptop dan driver DigitalPersona berjalan.'"></p>
+                        <p class="text-xs text-slate-400" x-text="deviceConnected ? scanMessage : 'Pastikan kabel scanner USB terpasang ke komputer piket.'"></p>
+                        
+                        <div x-show="!deviceConnected" class="mt-3">
+                            <button type="button" @click="pairUsbScanner()"
+                                    class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-2 mx-auto cursor-pointer">
+                                <span>🔌</span>
+                                <span>Hubungkan / Deteksi Scanner USB</span>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Result Notification Banner (When Success / Already) -->

@@ -44,11 +44,18 @@
     <!-- Sesi Presensi & Status Hari Ini Grid -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
         <!-- 1. Pagi (Masuk) -->
-        <div class="tailadmin-card p-5 border rounded-2xl shadow-xs transition-all {{ ($todayAttendance && $todayAttendance->check_in) ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/40' : 'bg-white dark:bg-[#1A222C] border-slate-200 dark:border-slate-800' }}">
+        <div class="tailadmin-card p-5 border rounded-2xl shadow-xs transition-all {{ ($todayAttendance && $todayAttendance->check_in) ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/40' : (($activeSession['type'] === 'check_in') ? 'bg-indigo-50/30 dark:bg-indigo-950/30 border-indigo-300 dark:border-indigo-700 ring-2 ring-indigo-500/20' : 'bg-white dark:bg-[#1A222C] border-slate-200 dark:border-slate-800') }}">
             <div class="flex items-center justify-between">
-                <span class="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">1. Sesi Pagi (Masuk)</span>
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">1. Sesi Pagi (Masuk)</span>
+                    @if($activeSession['type'] === 'check_in')
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    @endif
+                </div>
                 @if($todayAttendance && $todayAttendance->check_in)
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">✓ Sudah Hadir</span>
+                @elseif($activeSession['type'] === 'check_in')
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 animate-pulse">Sesi Aktif</span>
                 @else
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 dark:bg-slate-800 text-slate-500">Belum Absen</span>
                 @endif
@@ -58,7 +65,9 @@
                     <p class="text-2xl font-black font-mono {{ ($todayAttendance && $todayAttendance->check_in) ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400' }}">
                         {{ $todayAttendance && $todayAttendance->check_in ? substr($todayAttendance->check_in, 0, 5) : '--:--' }}
                     </p>
-                    <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Batas: 07:30 WITA</span>
+                    <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                        Batas: {{ $attendanceSettings['morning_late'] ?? '07:30' }} {{ $timezoneLabel }} (Buka: {{ $attendanceSettings['morning_open'] ?? '06:00' }} - {{ $attendanceSettings['morning_close'] ?? '11:59' }})
+                    </span>
                 </div>
                 <div class="w-10 h-10 rounded-xl {{ ($todayAttendance && $todayAttendance->check_in) ? 'bg-emerald-500/10 text-emerald-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-400' }} flex items-center justify-center font-bold">
                     🌅
@@ -67,11 +76,18 @@
         </div>
 
         <!-- 2. Siang (Dzuhur) -->
-        <div class="tailadmin-card p-5 border rounded-2xl shadow-xs transition-all {{ ($todayAttendance && $todayAttendance->midday_at) ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/40' : 'bg-white dark:bg-[#1A222C] border-slate-200 dark:border-slate-800' }}">
+        <div class="tailadmin-card p-5 border rounded-2xl shadow-xs transition-all {{ ($todayAttendance && $todayAttendance->midday_at) ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/40' : (($activeSession['type'] === 'midday') ? 'bg-amber-50/30 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700 ring-2 ring-amber-500/20' : 'bg-white dark:bg-[#1A222C] border-slate-200 dark:border-slate-800') }}">
             <div class="flex items-center justify-between">
-                <span class="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">2. Sesi Siang (Dzuhur)</span>
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">2. Sesi Siang (Dzuhur)</span>
+                    @if($activeSession['type'] === 'midday')
+                        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                    @endif
+                </div>
                 @if($todayAttendance && $todayAttendance->midday_at)
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300">✓ Sudah Hadir</span>
+                @elseif($activeSession['type'] === 'midday')
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 animate-pulse">Sesi Aktif</span>
                 @else
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 dark:bg-slate-800 text-slate-500">Belum Absen</span>
                 @endif
@@ -81,7 +97,9 @@
                     <p class="text-2xl font-black font-mono {{ ($todayAttendance && $todayAttendance->midday_at) ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400' }}">
                         {{ $todayAttendance && $todayAttendance->midday_at ? substr($todayAttendance->midday_at, 0, 5) : '--:--' }}
                     </p>
-                    <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Jadwal: 12:00 - 13:30 WITA</span>
+                    <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                        Jadwal: {{ $attendanceSettings['dzuhur_open'] ?? '12:00' }} - {{ $attendanceSettings['dzuhur_close'] ?? '13:30' }} {{ $timezoneLabel }}
+                    </span>
                 </div>
                 <div class="w-10 h-10 rounded-xl {{ ($todayAttendance && $todayAttendance->midday_at) ? 'bg-amber-500/10 text-amber-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-400' }} flex items-center justify-center font-bold">
                     ☀️
@@ -90,11 +108,18 @@
         </div>
 
         <!-- 3. Sore (Pulang) -->
-        <div class="tailadmin-card p-5 border rounded-2xl shadow-xs transition-all {{ ($todayAttendance && $todayAttendance->check_out) ? 'bg-indigo-50/40 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-800/40' : 'bg-white dark:bg-[#1A222C] border-slate-200 dark:border-slate-800' }}">
+        <div class="tailadmin-card p-5 border rounded-2xl shadow-xs transition-all {{ ($todayAttendance && $todayAttendance->check_out) ? 'bg-indigo-50/40 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-800/40' : (($activeSession['type'] === 'check_out') ? 'bg-indigo-50/30 dark:bg-indigo-950/30 border-indigo-300 dark:border-indigo-700 ring-2 ring-indigo-500/20' : 'bg-white dark:bg-[#1A222C] border-slate-200 dark:border-slate-800') }}">
             <div class="flex items-center justify-between">
-                <span class="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">3. Sesi Sore (Pulang)</span>
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">3. Sesi Sore (Pulang)</span>
+                    @if($activeSession['type'] === 'check_out')
+                        <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                    @endif
+                </div>
                 @if($todayAttendance && $todayAttendance->check_out)
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">✓ Sudah Pulang</span>
+                @elseif($activeSession['type'] === 'check_out')
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 animate-pulse">Sesi Aktif</span>
                 @else
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 dark:bg-slate-800 text-slate-500">Belum Pulang</span>
                 @endif
@@ -104,7 +129,9 @@
                     <p class="text-2xl font-black font-mono {{ ($todayAttendance && $todayAttendance->check_out) ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400' }}">
                         {{ $todayAttendance && $todayAttendance->check_out ? substr($todayAttendance->check_out, 0, 5) : '--:--' }}
                     </p>
-                    <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">KBM Selesai: 14:00 - 18:00 WITA</span>
+                    <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                        KBM Selesai: {{ $attendanceSettings['afternoon_open'] ?? '14:00' }} - {{ $attendanceSettings['afternoon_close'] ?? '18:00' }} {{ $timezoneLabel }}
+                    </span>
                 </div>
                 <div class="w-10 h-10 rounded-xl {{ ($todayAttendance && $todayAttendance->check_out) ? 'bg-indigo-500/10 text-indigo-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-400' }} flex items-center justify-center font-bold">
                     🌇
@@ -114,24 +141,48 @@
     </div>
 
     <!-- Active Session Banner -->
-    <div class="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 flex items-center justify-between">
-        <div class="flex items-center space-x-3">
-            <span class="text-2xl">⏱️</span>
-            <div>
-                <p class="text-xs font-bold text-indigo-900 dark:text-indigo-200">
-                    Sesi Presensi Aktif: <strong class="text-indigo-700 dark:text-indigo-300">{{ $activeSession['name'] ?? 'Sesi Presensi' }}</strong>
-                </p>
-                <p class="text-[11px] text-indigo-600 dark:text-indigo-400">
-                    Sistem mendeteksi sesi kehadiran secara otomatis berdasarkan jam server terkini.
-                </p>
+    @if(!empty($activeSession['holiday']['is_holiday']))
+        <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <span class="text-2xl">🏖️</span>
+                <div>
+                    <p class="text-xs font-bold text-amber-900 dark:text-amber-200">
+                        Hari Libur: <strong>{{ $activeSession['holiday']['reason'] }}</strong>
+                    </p>
+                    <p class="text-[11px] text-amber-700 dark:text-amber-400">
+                        Tidak ada kewajiban presensi pada hari libur yang telah dikonfigurasi.
+                    </p>
+                </div>
             </div>
-        </div>
-        @if($todayAttendance && $todayAttendance->verification_status === 'verified')
-            <span class="px-3 py-1 bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 rounded-xl text-xs font-extrabold flex items-center gap-1">
-                ✓ Biometrik / Geofence Terverifikasi
+            <span class="px-3 py-1 bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 rounded-xl text-xs font-black">
+                Libur Sekolah
             </span>
-        @endif
-    </div>
+        </div>
+    @else
+        <div class="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <span class="text-2xl">⏱️</span>
+                <div>
+                    <p class="text-xs font-bold text-indigo-900 dark:text-indigo-200">
+                        Sesi Presensi Aktif: <strong class="text-indigo-700 dark:text-indigo-300">{{ $activeSession['name'] ?? 'Sesi Presensi' }}</strong>
+                        @if(($activeSession['delay_minutes'] ?? 0) > 0)
+                            <span class="ml-2 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 dark:bg-amber-900/80 text-amber-800 dark:text-amber-200">
+                                ⚠️ Terlambat {{ $activeSession['delay_minutes'] }} Menit
+                            </span>
+                        @endif
+                    </p>
+                    <p class="text-[11px] text-indigo-600 dark:text-indigo-400">
+                        {{ $activeSession['message'] ?? 'Sistem mendeteksi sesi kehadiran secara otomatis berdasarkan jam server terkini.' }}
+                    </p>
+                </div>
+            </div>
+            @if($todayAttendance && $todayAttendance->verification_status)
+                <span class="px-3 py-1 bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 rounded-xl text-xs font-extrabold flex items-center gap-1">
+                    ✓ Biometrik / Geofence Terverifikasi
+                </span>
+            @endif
+        </div>
+    @endif
 
     <!-- MAIN TWO COLUMN SECTION: GPS RADAR & ATTENDANCE ACTIONS -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -323,18 +374,108 @@
                        class="w-full text-xs px-4 py-2.5 rounded-xl border border-purple-200 dark:border-purple-800 dark:bg-[#24303F] dark:text-white focus:ring-2 focus:ring-purple-500 outline-none">
             </div>
 
-            <!-- ACTION SUBMIT ATTENDANCE BUTTON -->
+            <!-- ACTION ATTENDANCE SESSION CONTROLLER (PART 1 & PART 5 COMPLIANT) -->
             <div class="pt-2">
-                <button type="button" @click="submitAttendance()"
-                        :disabled="isSubmitting || (mode === 'reguler' && !inRadius) || (gpsState !== 'connected')"
-                        class="w-full py-4 px-5 rounded-2xl font-black text-sm text-white shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none hover:scale-[1.01] active:scale-[0.99]"
-                        :class="inRadius || mode === 'dinas_luar' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 shadow-emerald-600/30' : 'bg-slate-400'">
-                    <span x-show="!isSubmitting">📍</span>
-                    <span x-show="isSubmitting" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                    <span x-text="getSubmitButtonLabel()"></span>
-                </button>
+                @if(!empty($activeSession['holiday']['is_holiday']))
+                    <!-- STATE: HOLIDAY -->
+                    <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-center space-y-2">
+                        <span class="text-3xl">🏖️</span>
+                        <h4 class="text-xs font-black uppercase tracking-wider text-amber-900 dark:text-amber-200">Presensi Ditutup (Hari Libur)</h4>
+                        <p class="text-xs text-amber-700 dark:text-amber-400">
+                            Hari ini adalah <strong>{{ $activeSession['holiday']['reason'] }}</strong>. Tidak ada kewajiban presensi.
+                        </p>
+                    </div>
+
+                @elseif($activeSession['type'] === 'outside_window')
+                    <!-- STATE: OUTSIDE ATTENDANCE WINDOW -->
+                    <div class="p-5 rounded-2xl bg-slate-50 dark:bg-[#24303F] border border-slate-200 dark:border-slate-700 text-center space-y-2">
+                        <div class="w-12 h-12 mx-auto rounded-2xl bg-slate-200/70 dark:bg-slate-700 flex items-center justify-center text-xl">
+                            ⏱️
+                        </div>
+                        <h4 class="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">Di Luar Jadwal Presensi</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                            {{ $activeSession['next_window'] ?? 'Saat ini tidak ada sesi presensi yang sedang berlangsung.' }}
+                        </p>
+                        <div class="pt-1">
+                            <span class="inline-block px-3 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-[11px] font-bold">
+                                Tombol Presensi Terkunci Otomatis
+                            </span>
+                        </div>
+                    </div>
+
+                @elseif($activeSession['is_already_done'])
+                    <!-- STATE: SESSION COMPLETED (NO DUPLICATE ACTION) -->
+                    <div class="p-5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-center space-y-2">
+                        <div class="w-12 h-12 mx-auto rounded-2xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-2xl font-black shadow-xs">
+                            ✓
+                        </div>
+                        <h4 class="text-xs font-black uppercase tracking-wider text-emerald-900 dark:text-emerald-200">
+                            {{ $activeSession['name'] }} Selesai
+                        </h4>
+                        <p class="text-xs text-emerald-700 dark:text-emerald-400">
+                            @if($activeSession['type'] === 'check_in')
+                                Anda telah berhasil melakukan presensi Masuk pada pukul <strong>{{ substr($todayAttendance->check_in, 0, 5) }} {{ $timezoneLabel }}</strong>.
+                            @elseif($activeSession['type'] === 'midday')
+                                Konfirmasi presensi Dzuhur telah tercatat pada pukul <strong>{{ substr($todayAttendance->midday_at ?? '12:00', 0, 5) }} {{ $timezoneLabel }}</strong>.
+                            @elseif($activeSession['type'] === 'check_out')
+                                Presensi kepulangan telah tercatat pada pukul <strong>{{ substr($todayAttendance->check_out, 0, 5) }} {{ $timezoneLabel }}</strong>. Seluruh presensi hari ini lengkap!
+                            @else
+                                Kehadiran sesi ini telah terverifikasi dalam sistem.
+                            @endif
+                        </p>
+                        <p class="text-[11px] text-slate-400 dark:text-slate-500 pt-1 font-medium">
+                            Menunggu jadwal sesi berikutnya sesuai jam server.
+                        </p>
+                    </div>
+
+                @else
+                    <!-- STATE: ACTIVE SESSION READY (EXACTLY ONE ACTION BUTTON) -->
+                    <div class="space-y-3">
+                        <!-- GPS Status Helper when GPS is enabled in settings -->
+                        @if(!empty($attendanceSettings['gps_enabled']))
+                            <div x-show="mode === 'reguler' && gpsState !== 'connected'" class="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800/60 flex items-center justify-between text-xs text-amber-800 dark:text-amber-300">
+                                <span class="flex items-center gap-1.5 font-bold">
+                                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+                                    <span x-text="gpsState === 'searching' ? 'Menghubungkan sinyal GPS satelit...' : (gpsState === 'prompt' ? 'Izin akses lokasi diperlukan' : 'GPS tidak aktif / terblokir')"></span>
+                                </span>
+                                <button type="button" @click="requestLocation()" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-bold cursor-pointer transition">
+                                    Aktifkan GPS
+                                </button>
+                            </div>
+                            <div x-show="mode === 'reguler' && gpsState === 'connected' && !inRadius" class="p-3 bg-rose-50 dark:bg-rose-950/30 rounded-xl border border-rose-200 dark:border-rose-800/60 flex items-center justify-between text-xs text-rose-800 dark:text-rose-300">
+                                <span class="font-bold flex items-center gap-1.5">
+                                    <span>📍</span>
+                                    <span>Di luar radius sekolah (<span x-text="distanceMeters + 'm'"></span> / Maks {{ $schoolRadius }}m)</span>
+                                </span>
+                                <span class="text-[10px] font-medium text-rose-600 dark:text-rose-400">Dekati area sekolah</span>
+                            </div>
+                        @endif
+
+                        <!-- The Single Valid Action Button -->
+                        <button type="button" @click="submitAttendance()"
+                                :disabled="isActionDisabled()"
+                                class="w-full py-4 px-5 rounded-2xl font-black text-sm text-white shadow-lg transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none hover:scale-[1.01] active:scale-[0.99]"
+                                :class="getButtonGradientClass()">
+                            <span x-show="!isSubmitting">
+                                @if($activeSession['type'] === 'check_in') 🌅
+                                @elseif($activeSession['type'] === 'midday') ☀️
+                                @elseif($activeSession['type'] === 'check_out') 🌇
+                                @else 📍 @endif
+                            </span>
+                            <span x-show="isSubmitting" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                            <span x-text="getSubmitButtonLabel()">{{ $activeSession['action_label'] ?? 'Simpan Presensi' }}</span>
+                        </button>
+
+                        @if(($activeSession['delay_minutes'] ?? 0) > 0 && $activeSession['type'] === 'check_in')
+                            <p class="text-[11px] text-center font-bold text-amber-600 dark:text-amber-400">
+                                ⚠️ Anda melewati batas jam masuk ({{ $attendanceSettings['morning_late'] ?? '07:30' }}). Keterlambatan: {{ $activeSession['delay_minutes'] }} menit.
+                            </p>
+                        @endif
+                    </div>
+                @endif
+
                 <p class="text-[11px] text-center text-slate-400 dark:text-slate-500 mt-2">
-                    Presensi direkam dengan geofence satelit terenkripsi &bull; {{ $schoolName }}
+                    Presensi otomatis tervalidasi jam server &bull; {{ $schoolName }}
                 </p>
             </div>
 
@@ -525,6 +666,10 @@ function teacherAttendanceApp() {
         schoolRadius: {{ $schoolRadius }},
         activeSessionType: '{{ $activeSession['type'] ?? 'check_in' }}',
         activeSessionName: '{{ $activeSession['name'] ?? 'Presensi' }}',
+        isAlreadyDone: {{ ($activeSession['is_already_done'] ?? false) ? 'true' : 'false' }},
+        isHoliday: {{ (!empty($activeSession['holiday']['is_holiday'])) ? 'true' : 'false' }},
+        gpsRequired: {{ !empty($attendanceSettings['gps_enabled']) ? 'true' : 'false' }},
+        schedule: @json($attendanceSettings),
 
         // GPS States: 'prompt', 'searching', 'connected', 'denied', 'disabled'
         gpsState: 'searching',
@@ -550,7 +695,12 @@ function teacherAttendanceApp() {
         init() {
             this.startClock();
             this.checkProtocol();
-            this.detectPermissionAndLocate();
+            if (this.gpsRequired) {
+                this.detectPermissionAndLocate();
+            } else {
+                this.gpsState = 'connected';
+                this.inRadius = true;
+            }
         },
 
         startClock() {
@@ -574,7 +724,6 @@ function teacherAttendanceApp() {
                 return;
             }
 
-            // Check permissions API if available
             if (navigator.permissions && navigator.permissions.query) {
                 try {
                     const status = await navigator.permissions.query({ name: 'geolocation' });
@@ -613,11 +762,9 @@ function teacherAttendanceApp() {
             this.gpsState = 'searching';
             this.searchingMessage = 'Menghubungkan ke satelit GPS presisi tinggi...';
 
-            // First attempt: High Accuracy GPS (8s timeout)
             navigator.geolocation.getCurrentPosition(
                 (pos) => this.onPositionSuccess(pos),
                 (err) => {
-                    // If high accuracy fails or times out, retry with cellular/wifi triangulation
                     this.searchingMessage = 'Mengoptimalkan koordinat via jaringan seluler / Wi-Fi...';
                     navigator.geolocation.getCurrentPosition(
                         (fallbackPos) => this.onPositionSuccess(fallbackPos),
@@ -675,16 +822,44 @@ function teacherAttendanceApp() {
             this.inRadius = this.distanceMeters <= this.schoolRadius;
         },
 
+        isActionDisabled() {
+            if (this.isSubmitting) return true;
+            if (this.isHoliday) return true;
+            if (this.activeSessionType === 'outside_window') return true;
+            if (this.isAlreadyDone) return true;
+            if (this.mode === 'reguler' && this.gpsRequired) {
+                if (this.gpsState !== 'connected' || !this.inRadius) return true;
+            }
+            if (this.mode === 'dinas_luar' && !this.dinasNotes.trim()) return true;
+            return false;
+        },
+
+        getButtonGradientClass() {
+            if (this.isActionDisabled()) return 'bg-slate-400 opacity-70 cursor-not-allowed';
+            if (this.activeSessionType === 'check_in') {
+                return 'bg-gradient-to-r from-emerald-600 to-teal-600 shadow-emerald-600/30';
+            }
+            if (this.activeSessionType === 'midday') {
+                return 'bg-gradient-to-r from-amber-500 to-orange-500 shadow-amber-500/30';
+            }
+            if (this.activeSessionType === 'check_out') {
+                return 'bg-gradient-to-r from-indigo-600 to-violet-600 shadow-indigo-600/30';
+            }
+            return 'bg-gradient-to-r from-indigo-600 to-teal-600 shadow-indigo-600/30';
+        },
+
         getSubmitButtonLabel() {
             if (this.isSubmitting) return 'Memverifikasi Presensi ke Server...';
-            if (this.activeSessionType === 'check_in') return 'Simpan Presensi Masuk (Check-In)';
-            if (this.activeSessionType === 'midday' || this.activeSessionType === 'session_afternoon') return 'Konfirmasi Hadir Sesi Siang (Dzuhur)';
-            if (this.activeSessionType === 'check_out') return 'Simpan Presensi Pulang (Check-Out)';
-            return 'Simpan Presensi Mandiri (' + this.activeSessionName + ')';
+            if (this.activeSessionType === 'check_in') return 'Presensi Masuk (Check-In)';
+            if (this.activeSessionType === 'midday') return 'Konfirmasi Presensi Dzuhur';
+            if (this.activeSessionType === 'check_out') return 'Presensi Pulang (Check-Out)';
+            return 'Simpan Presensi (' + this.activeSessionName + ')';
         },
 
         async submitAttendance() {
-            if (this.mode === 'reguler' && !this.inRadius) {
+            if (this.isActionDisabled()) return;
+
+            if (this.mode === 'reguler' && this.gpsRequired && !this.inRadius) {
                 alert('Anda berada di luar radius sekolah (' + this.distanceMeters + 'm). Presensi reguler wajib berada dalam radius ' + this.schoolRadius + 'm.');
                 return;
             }
@@ -717,7 +892,7 @@ function teacherAttendanceApp() {
                 const data = await res.json();
                 if (data.success) {
                     this.confirmTitle = 'Presensi Berhasil Disimpan!';
-                    this.confirmMessage = data.message || 'Presensi Anda telah tercatat dengan verifikasi GPS satelit.';
+                    this.confirmMessage = data.message || 'Presensi Anda telah tercatat dan tersinkronisasi ke sistem.';
                     this.showConfirmModal = true;
                 } else {
                     alert(data.message || 'Gagal menyimpan presensi.');
@@ -732,3 +907,9 @@ function teacherAttendanceApp() {
 }
 </script>
 @endsection
+
+@push('scripts')
+<script>
+// Redundant push ensuring execution in all layout setups
+</script>
+@endpush

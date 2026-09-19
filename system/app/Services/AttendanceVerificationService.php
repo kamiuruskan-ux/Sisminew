@@ -93,10 +93,10 @@ class AttendanceVerificationService
         $schoolLat = (float) Setting::get('school_latitude', -0.8917);
         $schoolLong = (float) Setting::get('school_longitude', 119.8707);
         $maxRadius = (int) Setting::get('school_attendance_radius', 100);
-        $manualOverride = Setting::get('attendance_manual_override', '0') == '1';
+        $gpsEnabled = Setting::get('attendance_gps_enabled', '1') == '1';
 
-        // Dinas luar or manual override bypasses radius check
-        if ($workLocation === 'dinas_luar' || $manualOverride) {
+        // GPS disabled in admin settings, dinas luar, or manual override bypasses radius check
+        if (!$gpsEnabled || $workLocation === 'dinas_luar' || $manualOverride) {
             return [
                 'valid' => true,
                 'distance' => 0,

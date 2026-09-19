@@ -606,11 +606,18 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|bendahara|operator|kanti
         Route::post('teacher-attendances/register-face', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'registerFace'])->name('teacher-attendances.register-face');
         Route::post('teacher-attendances/verify-face', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'verifyFace'])->name('teacher-attendances.verify-face');
 
+        // Teacher Attendance Settings Module
+        Route::get('teacher-attendances/settings', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'settings'])->name('teacher-attendances.settings');
+        Route::put('teacher-attendances/settings', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'updateSettings'])->name('teacher-attendances.update-settings');
+
         Route::get('teacher-attendances/stream', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'streamEvents'])->name('teacher-attendances.stream');
         Route::post('teacher-attendances/fingerprint/device-event', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'logDeviceEvent'])->name('teacher-attendances.fingerprint.device-event');
 
         Route::delete('teacher-attendances/{id}', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'destroy'])->name('teacher-attendances.destroy');
     });
+
+    // Fallback non-prefixed alias routes for stream and events
+    Route::get('admin-stream-fallback', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'streamEvents'])->name('teacher-attendances.stream.fallback');
 
     // Teacher Self-Service Attendance (Accessible to All Authenticated Teachers & Staff)
     Route::get('teacher-attendances/my-attendance', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'myAttendance'])->name('teacher-attendances.my-attendance');
