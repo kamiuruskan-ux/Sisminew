@@ -65,6 +65,8 @@
     sslUnauthorized: false,
     deviceName: 'HID DigitalPersona U.are.U 4500',
     deviceStatus: 'Disconnected', // 'Ready', 'Busy', 'Capturing Fingerprint', 'Disconnected', 'Error', 'Timeout'
+    sensorArmed: false,
+    activeFormatName: 'Auto',
     dpDeviceUid: null,
     webSocket: null,
     reconnectTimer: null,
@@ -107,15 +109,19 @@
                 this.deviceStatus = state.badge;
                 this.sslUnauthorized = (state.status === 'ssl_unauthorized');
                 this.deviceName = window.AttendanceFingerprintService.deviceName || 'HID DigitalPersona U.are.U 4500';
+                this.sensorArmed = window.AttendanceFingerprintService.isAcquiring || (state.status === 'waiting_finger' || state.status === 'reading');
+                
+                const fmt = window.AttendanceFingerprintService.workingFormat;
+                this.activeFormatName = fmt === 5 ? 'PNG Image' : (fmt === 1 ? 'Raw Sensor' : (fmt === 2 ? 'Intermediate' : 'Auto'));
 
                 if (state.status === 'device_connected') {
                     this.scanStage = 'idle';
                     this.sslUnauthorized = false;
-                    this.scanMessage = '🟢 Scanner terhubung. Siap digunakan.';
+                    this.scanMessage = '🟢 Scanner terhubung. Mengaktifkan sensor optik...';
                 } else if (state.status === 'waiting_finger') {
                     this.scanStage = 'idle';
                     this.sslUnauthorized = false;
-                    this.scanMessage = '🟡 Menunggu sidik jari ditempelkan...';
+                    this.scanMessage = '🟡 Sensor optik aktif. Tempelkan jari pada kaca scanner...';
                 } else if (state.status === 'reading') {
                     this.scanStage = 'finger_detected';
                     this.scanMessage = '🔵 Sedang membaca sidik jari...';
@@ -148,6 +154,21 @@
         }
     },
 
+    async rearmSensor() {
+        if (window.AttendanceFingerprintService) {
+            this.scanMessage = '🔄 Mengaktifkan sensor scanner...';
+            const ok = await window.AttendanceFingerprintService.startCapture();
+            if (ok) {
+                this.sensorArmed = true;
+                this.playAudio('success');
+            } else {
+                this.sensorArmed = false;
+            }
+            return ok;
+        }
+        return false;
+    },
+
     openBrowserSslApproval() {
         if (window.AttendanceFingerprintService) {
             window.AttendanceFingerprintService.openSslAuthorization();
@@ -162,6 +183,7 @@
             const ok = await window.AttendanceFingerprintService.refreshScanner();
             if (ok) {
                 this.sslUnauthorized = false;
+                this.sensorArmed = true;
                 this.playAudio('success');
                 return;
             }
@@ -303,10 +325,31 @@
         }
     },
 
+    switchTab(tab) {
+        this.activeTab = tab;
+        setTimeout(() => {
+            this.rearmSensor();
+        }, 100);
+    },
+
+    onTeacherSelected() {
+        if (this.enrollTeacherId) {
+            this.enrollStep = 0;
+            this.enrollSamples = [];
+            this.enrollStatus = 'idle';
+            this.enrollMessage = 'Guru dipilih! Silakan tempelkan jari pada scanner untuk Scan 1/3.';
+            this.rearmSensor();
+        } else {
+            this.enrollMessage = 'Pilih guru dan tempelkan jari 3 kali pada scanner untuk merekam template.';
+        }
+    },
+
     // 4. Production Enrollment: 3 Real Physical Scans
     recordEnrollmentSample(sampleData) {
         if (!this.enrollTeacherId) {
-            alert('Pilih nama guru terlebih dahulu sebelum menempelkan jari!');
+            this.enrollStatus = 'error';
+            this.enrollMessage = '⚠️ Pilih nama guru terlebih dahulu di dropdown sebelum menempelkan jari!';
+            this.playAudio('error');
             return;
         }
 
@@ -497,13 +540,13 @@
             
             <!-- Navigation Tab: Standby vs Enroll -->
             <div class="flex items-center p-1.5 bg-slate-900/90 rounded-2xl border border-slate-800">
-                <button type="button" @click="activeTab = 'standby'" 
+                <button type="button" @click="switchTab('standby')" 
                         :class="activeTab === 'standby' ? 'bg-emerald-600 text-white shadow-lg font-bold' : 'text-slate-400 hover:text-white font-semibold'"
                         class="flex-1 py-2.5 rounded-xl text-xs flex items-center justify-center space-x-2 transition">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11a8.136 8.136 0 00.99 3.845"/></svg>
                     <span>Mode Presensi Aktif</span>
                 </button>
-                <button type="button" @click="activeTab = 'enroll'" 
+                <button type="button" @click="switchTab('enroll')" 
                         :class="activeTab === 'enroll' ? 'bg-indigo-600 text-white shadow-lg font-bold' : 'text-slate-400 hover:text-white font-semibold'"
                         class="flex-1 py-2.5 rounded-xl text-xs flex items-center justify-center space-x-2 transition">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
@@ -521,29 +564,42 @@
                 <!-- Animated Sensor Pad -->
                 <div class="flex flex-col items-center justify-center py-6 text-center">
                     
-                    <!-- Hardware Optical Sensor Glass Pad -->
-                    <div class="relative w-52 h-64 rounded-3xl bg-slate-950 border-2 transition-all duration-500 flex flex-col items-center justify-center select-none shadow-2xl"
+                    <!-- Hardware Optical Sensor Glass Pad (Clickable to Re-arm) -->
+                    <div @click="rearmSensor()"
+                         title="Klik untuk mengaktifkan / memicu ulang sensor scanner"
+                         class="relative w-56 h-68 rounded-3xl bg-slate-950 border-2 transition-all duration-500 flex flex-col items-center justify-center select-none shadow-2xl cursor-pointer group"
                          :class="{
-                             'border-emerald-500/40 shadow-emerald-500/20': deviceConnected && scanStage === 'idle',
-                             'border-amber-400 shadow-amber-500/30': scanStage === 'finger_detected',
+                             'border-emerald-500/60 shadow-emerald-500/30 ring-2 ring-emerald-500/20': deviceConnected && sensorArmed && scanStage === 'idle',
+                             'border-amber-400/80 shadow-amber-500/30': deviceConnected && !sensorArmed,
+                             'border-amber-400 shadow-amber-500/40': scanStage === 'finger_detected',
                              'border-cyan-400 shadow-cyan-500/50 animate-pulse': scanStage === 'capturing' || scanStage === 'extracting',
                              'border-emerald-400 bg-emerald-950/40 shadow-emerald-500/50': scanStage === 'success',
                              'border-rose-500 bg-rose-950/40 shadow-rose-500/50': !deviceConnected || scanStage === 'error'
                          }">
                         
+                        <!-- Realtime Sensor Arm Status Pill -->
+                        <div class="absolute top-3 inset-x-0 text-center pointer-events-none">
+                            <span class="text-[9px] font-mono font-black uppercase px-2.5 py-0.5 rounded-full border transition-all inline-flex items-center gap-1 shadow-sm"
+                                  :class="sensorArmed ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 animate-pulse' : 'bg-amber-500/20 text-amber-300 border-amber-500/40'">
+                                <span class="w-1.5 h-1.5 rounded-full" :class="sensorArmed ? 'bg-emerald-400' : 'bg-amber-400'"></span>
+                                <span x-text="sensorArmed ? 'SENSOR OPTIK AKTIF' : 'KLIK UNTUK AKTIFKAN'"></span>
+                            </span>
+                        </div>
+
                         <!-- Scanning Laser Beam -->
                         <div x-show="scanStage === 'capturing' || scanStage === 'extracting'" class="absolute inset-x-2 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent rounded-full animate-scan-beam z-10 shadow-[0_0_15px_#22d3ee]"></div>
 
                         <!-- Fingerprint Vector Graphic with Concentric Rings -->
-                        <div class="relative flex items-center justify-center">
+                        <div class="relative flex items-center justify-center my-auto">
                             <div class="absolute w-36 h-36 rounded-full border"
-                                 :class="deviceConnected ? 'border-emerald-500/20 animate-finger-pulse' : 'border-rose-500/20'"></div>
+                                 :class="sensorArmed ? 'border-emerald-500/30 animate-finger-pulse' : 'border-slate-800'"></div>
                             <div class="absolute w-28 h-28 rounded-full border"
-                                 :class="deviceConnected ? 'border-emerald-500/40' : 'border-rose-500/30'"></div>
+                                 :class="sensorArmed ? 'border-emerald-500/50' : 'border-slate-800'"></div>
 
-                            <svg class="w-24 h-24 transition-colors duration-300"
+                            <svg class="w-24 h-24 transition-colors duration-300 group-hover:scale-105 transform"
                                  :class="{
-                                     'text-emerald-400/80': deviceConnected && scanStage === 'idle',
+                                     'text-emerald-400/90': deviceConnected && sensorArmed && scanStage === 'idle',
+                                     'text-amber-400/70': deviceConnected && !sensorArmed,
                                      'text-amber-400 animate-pulse': scanStage === 'finger_detected',
                                      'text-cyan-400 animate-pulse': scanStage === 'capturing' || scanStage === 'extracting',
                                      'text-emerald-400': scanStage === 'success',
@@ -554,11 +610,12 @@
                             </svg>
                         </div>
 
-                        <!-- Hardware Logo Caption -->
-                        <div class="absolute bottom-4 inset-x-0 text-center">
-                            <span class="text-[9px] font-mono tracking-widest uppercase font-bold"
-                                  :class="deviceConnected ? 'text-slate-500' : 'text-rose-500/80'"
+                        <!-- Hardware Logo Caption & Format -->
+                        <div class="absolute bottom-3 inset-x-0 text-center">
+                            <span class="text-[9px] font-mono tracking-widest uppercase font-bold block"
+                                  :class="deviceConnected ? 'text-slate-400' : 'text-rose-500/80'"
                                   x-text="deviceConnected ? deviceName : 'SCANNER DISCONNECTED'"></span>
+                            <span class="text-[8px] text-slate-500 font-mono mt-0.5" x-show="deviceConnected" x-text="'Mode Format: ' + activeFormatName"></span>
                         </div>
                     </div>
 
@@ -566,8 +623,8 @@
                     <div class="mt-6 max-w-md w-full">
                         <div class="text-xs uppercase tracking-widest font-mono font-bold mb-1"
                              :class="{
-                                 'text-emerald-400': scanStage === 'success' || (deviceConnected && scanStage === 'idle'),
-                                 'text-amber-400': scanStage === 'finger_detected',
+                                 'text-emerald-400': scanStage === 'success' || (deviceConnected && sensorArmed && scanStage === 'idle'),
+                                 'text-amber-400': scanStage === 'finger_detected' || (deviceConnected && !sensorArmed),
                                  'text-cyan-400': scanStage === 'capturing' || scanStage === 'extracting',
                                  'text-rose-400': !deviceConnected || scanStage === 'error'
                              }"
@@ -578,7 +635,7 @@
                                 scanStage === 'extracting' ? 'EXTRACTING TEMPLATE...' :
                                 scanStage === 'success' ? 'FINGERPRINT CAPTURED SUCCESSFULLY' :
                                 scanStage === 'error' ? 'PEMINDAIAN GAGAL' :
-                                'WAITING FINGER...'
+                                (sensorArmed ? 'READY • TEMPELKAN JARI DI KACA SCANNER' : 'SENSOR BELUM AKTIF • KLIK UNTUK AKTIFKAN')
                              "></div>
                         <p class="text-xs text-slate-400" x-text="deviceConnected ? scanMessage : (sslUnauthorized ? 'Browser memerlukan otorisasi untuk berkomunikasi dengan driver scanner USB.' : 'Pastikan kabel scanner USB terpasang ke komputer piket.')"></p>
                         
@@ -612,12 +669,12 @@
                                 </div>
 
                                 <div class="space-y-1.5 pt-1 border-t border-slate-800">
-                                    <div class="text-[11px] font-bold text-amber-400 uppercase tracking-wider">2. Ubah dari "Default" menjadi "Enabled"</div>
-                                    <p class="text-[11px] text-slate-400">Cari baris <em>"Allow invalid certificates for resources loaded from localhost"</em> lalu pilih <strong>Enabled</strong>.</p>
+                                    <div class="text-[11px] font-bold text-amber-400 uppercase tracking-wider">2. Ubah dari \"Default\" menjadi \"Enabled\"</div>
+                                    <p class="text-[11px] text-slate-400">Cari baris <em>\"Allow invalid certificates for resources loaded from localhost\"</em> lalu pilih <strong>Enabled</strong>.</p>
                                 </div>
 
                                 <div class="space-y-1.5 pt-1 border-t border-slate-800">
-                                    <div class="text-[11px] font-bold text-amber-400 uppercase tracking-wider">3. Klik tombol "Relaunch" di pojok kanan bawah Chrome</div>
+                                    <div class="text-[11px] font-bold text-amber-400 uppercase tracking-wider">3. Klik tombol \"Relaunch\" di pojok kanan bawah Chrome</div>
                                     <p class="text-[11px] text-slate-400">Chrome akan restart sebentar dan scanner langsung 🟢 Terhubung otomatis!</p>
                                 </div>
                             </div>
@@ -676,13 +733,16 @@
                 <!-- Hardware Device Diagnostics Bar (No Fake Simulation) -->
                 <div class="mt-6 pt-5 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
                     <div class="flex items-center space-x-2 text-slate-400">
-                        <span class="w-2 h-2 rounded-full" :class="deviceConnected ? 'bg-emerald-400' : (sslUnauthorized ? 'bg-amber-400' : 'bg-rose-500')"></span>
+                        <span class="w-2 h-2 rounded-full" :class="deviceConnected ? (sensorArmed ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400') : (sslUnauthorized ? 'bg-amber-400' : 'bg-rose-500')"></span>
                         <span>Perangkat: <strong class="text-white" x-text="deviceName"></strong></span>
                     </div>
-                    <div class="flex items-center space-x-4 text-slate-400 font-mono text-[11px]">
-                        <span>Status: <strong :class="deviceConnected ? 'text-emerald-400' : (sslUnauthorized ? 'text-amber-400' : 'text-rose-400')" x-text="deviceStatus"></strong></span>
-                        <span>Service: <strong>Port 52181</strong></span>
-                        <span x-show="qualityScore">Quality: <strong class="text-cyan-400" x-text="qualityScore + '%'"></strong></span>
+                    <div class="flex items-center space-x-3 text-slate-400 font-mono text-[11px]">
+                        <span>Status: <strong :class="sensorArmed ? 'text-emerald-400' : 'text-amber-400'" x-text="deviceStatus"></strong></span>
+                        <span>Format: <strong class="text-indigo-400" x-text="activeFormatName"></strong></span>
+                        <button type="button" @click="rearmSensor()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer" title="Picukan ulang sensor">
+                            <span>⚡</span>
+                            <span>Tes Sensor</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -698,10 +758,18 @@
                 </div>
 
                 <div class="mt-6 space-y-5">
+                    <!-- Warning Notice If Teacher Not Selected -->
+                    <div x-show="!enrollTeacherId" class="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs flex items-center gap-3">
+                        <span class="text-lg flex-shrink-0">⚠️</span>
+                        <div class="leading-relaxed">
+                            <strong class="font-black">Langkah 1:</strong> Silakan pilih <strong>Nama Guru</strong> di dropdown bawah ini terlebih dahulu sebelum menempelkan jari ke scanner agar template dapat tersimpan.
+                        </div>
+                    </div>
+
                     <!-- Guru Selector -->
                     <div>
                         <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Pilih Guru / Tenaga Kependidikan</label>
-                        <select x-model="enrollTeacherId" class="w-full bg-slate-800 text-white text-sm rounded-2xl px-4 py-3 border border-slate-700 focus:outline-none focus:border-indigo-500">
+                        <select x-model="enrollTeacherId" @change="onTeacherSelected()" class="w-full bg-slate-800 text-white text-sm rounded-2xl px-4 py-3 border border-slate-700 focus:outline-none focus:border-indigo-500">
                             <option value="">-- Pilih Nama Guru --</option>
                             @foreach($teachers as $t)
                                 <option value="{{ $t->id }}">
@@ -725,10 +793,22 @@
                         </div>
                     </div>
 
-                    <!-- Sensor Instructions for Enrollment -->
-                    <div class="p-6 rounded-2xl bg-slate-950 border text-center flex flex-col items-center justify-center transition"
-                         :class="deviceConnected ? 'border-indigo-500/40' : (sslUnauthorized ? 'border-amber-500/40' : 'border-rose-500/40')">
-                        <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-3"
+                    <!-- Sensor Instructions for Enrollment (Clickable to Re-arm) -->
+                    <div @click="rearmSensor()"
+                         title="Klik untuk mengaktifkan / memicu ulang sensor scanner"
+                         class="p-6 rounded-2xl bg-slate-950 border text-center flex flex-col items-center justify-center transition cursor-pointer select-none group"
+                         :class="deviceConnected ? (sensorArmed ? 'border-indigo-500/50 ring-2 ring-indigo-500/20' : 'border-amber-500/40') : (sslUnauthorized ? 'border-amber-500/40' : 'border-rose-500/40')">
+                        
+                        <!-- Status Pill in Enrollment -->
+                        <div class="mb-3">
+                            <span class="text-[9px] font-mono font-black uppercase px-2.5 py-0.5 rounded-full border transition-all inline-flex items-center gap-1 shadow-sm"
+                                  :class="sensorArmed ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40 animate-pulse' : 'bg-amber-500/20 text-amber-300 border-amber-500/40'">
+                                <span class="w-1.5 h-1.5 rounded-full" :class="sensorArmed ? 'bg-indigo-400' : 'bg-amber-400'"></span>
+                                <span x-text="sensorArmed ? 'SENSOR OPTIK AKTIF' : 'KLIK UNTUK AKTIFKAN'"></span>
+                            </span>
+                        </div>
+
+                        <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-3 group-hover:scale-105 transition transform"
                              :class="deviceConnected ? 'bg-indigo-500/10 text-indigo-400' : (sslUnauthorized ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400')">
                             <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11a8.136 8.136 0 00.99 3.845"/></svg>
                         </div>
@@ -736,12 +816,12 @@
                         <p class="text-xs text-slate-400 mt-1 max-w-sm" x-text="deviceConnected ? enrollMessage : (sslUnauthorized ? 'Aktifkan flag localhost di Chrome untuk mengizinkan komunikasi scanner.' : 'Pastikan kabel USB terpasang ke komputer.')"></p>
 
                         <div x-show="!deviceConnected" class="mt-4 flex flex-wrap gap-2 justify-center">
-                            <button type="button" @click="activeTab = 'standby'"
+                            <button type="button" @click.stop="switchTab('standby')"
                                     class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-1.5 cursor-pointer">
                                 <span>⚙️</span>
                                 <span>Lihat Petunjuk Aktivasi Scanner</span>
                             </button>
-                            <button type="button" @click="pairUsbScanner()"
+                            <button type="button" @click.stop="pairUsbScanner()"
                                     class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
                                 <span>🔄</span>
                                 <span>Deteksi Ulang</span>
