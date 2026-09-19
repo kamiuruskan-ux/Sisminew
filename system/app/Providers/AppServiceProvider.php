@@ -72,6 +72,18 @@ class AppServiceProvider extends ServiceProvider
             date_default_timezone_set(config('app.timezone', 'Asia/Jakarta'));
         }
 
+        // Auto-migrate employee_permits table if not yet present in database
+        try {
+            if (!Schema::hasTable('employee_permits')) {
+                \Illuminate\Support\Facades\Artisan::call('migrate', [
+                    '--path' => 'database/migrations/2026_09_19_000005_create_employee_permits_table.php',
+                    '--force' => true,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            // Failsafe: avoid breaking if DB has connection delays
+        }
+
         // Set Carbon & System locale to Indonesian
         \Carbon\Carbon::setLocale('id');
         setlocale(LC_TIME, 'id_ID.utf8', 'id_ID', 'id', 'indonesian');

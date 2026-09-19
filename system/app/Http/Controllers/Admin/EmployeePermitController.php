@@ -7,6 +7,8 @@ use App\Models\EmployeePermit;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Str;
 
 class EmployeePermitController extends Controller
@@ -20,10 +22,29 @@ class EmployeePermitController extends Controller
     }
 
     /**
+     * Ensure database table exists before querying.
+     */
+    protected function ensureTableExists(): void
+    {
+        if (!Schema::hasTable('employee_permits')) {
+            try {
+                Artisan::call('migrate', [
+                    '--path' => 'database/migrations/2026_09_19_000005_create_employee_permits_table.php',
+                    '--force' => true,
+                ]);
+            } catch (\Throwable $e) {
+                // Ignore failsafe
+            }
+        }
+    }
+
+    /**
      * Display a listing of employee leave & permit submissions.
      */
     public function index(Request $request)
     {
+        $this->ensureTableExists();
+
         $currentUser = auth()->user();
         $isPrincipal = $this->isPrincipalOrAdmin($currentUser);
 
@@ -88,6 +109,8 @@ class EmployeePermitController extends Controller
      */
     public function create()
     {
+        $this->ensureTableExists();
+
         $currentUser = auth()->user();
         $isPrincipal = $this->isPrincipalOrAdmin($currentUser);
 
@@ -106,6 +129,8 @@ class EmployeePermitController extends Controller
      */
     public function store(Request $request)
     {
+        $this->ensureTableExists();
+
         $currentUser = auth()->user();
         $isPrincipal = $this->isPrincipalOrAdmin($currentUser);
 

@@ -104,12 +104,19 @@
         </div>
 
         <!-- Right: Action Badges & Buttons -->
-        <div class="flex flex-col sm:flex-row xl:flex-col gap-3 shrink-0">
+        <div class="flex flex-col gap-2.5 shrink-0 w-full sm:w-auto">
             <!-- Button: Presensi Mandiri (GPS Satelit) Popup Trigger -->
             <button type="button" @click="openPresensiModal = true"
-               class="px-6 py-4 rounded-2xl bg-white text-slate-900 font-extrabold text-xs sm:text-sm shadow-xl hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer">
+               class="px-5 py-3.5 rounded-2xl bg-white text-slate-900 font-extrabold text-xs sm:text-sm shadow-xl hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer">
                 <span class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-base shadow-xs">📍</span>
                 <span>Absen Mandiri GPS</span>
+            </button>
+
+            <!-- Button: Pengajuan Izin Pegawai Popup Trigger (Tepat di bawah tombol absensi mandiri) -->
+            <button type="button" @click="openEmployeePermitModal = true"
+               class="px-5 py-3 rounded-2xl bg-white/20 hover:bg-white/30 text-white font-extrabold text-xs sm:text-sm shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] backdrop-blur-md border border-white/30 hover:border-white/50 transition-all flex items-center justify-center gap-2.5 cursor-pointer">
+                <span class="w-8 h-8 rounded-xl bg-white/25 text-white flex items-center justify-center font-bold text-base shadow-xs">📝</span>
+                <span>Pengajuan Izin Pegawai</span>
             </button>
         </div>
 

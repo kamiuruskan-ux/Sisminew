@@ -4,7 +4,7 @@
 @section('page_title', 'Dashboard Overview')
 
 @section('content')
-<div class="space-y-6" x-data="{ createPermitModal: false, openPresensiModal: false }">
+<div class="space-y-6" x-data="{ createPermitModal: false, openPresensiModal: false, openEmployeePermitModal: false }">
 
     <!-- TailAdmin Unified Global Adaptive Hero Banner -->
     @include('components.dashboard.hero-banner')
@@ -95,6 +95,9 @@
 
     <!-- Universal Presensi Mandiri GPS Modal -->
     @include('components.dashboard.presensi-modal')
+
+    <!-- Universal Pengajuan Izin Pegawai Modal -->
+    @include('components.dashboard.employee-permit-modal')
 </div>
 @endsection
 

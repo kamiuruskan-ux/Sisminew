@@ -169,10 +169,12 @@ class TeacherAttendanceController extends Controller
 
         $myPermits = collect();
         try {
-            $myPermits = \App\Models\EmployeePermit::where('user_id', $user->id)
-                ->latest()
-                ->take(5)
-                ->get();
+            if (\Illuminate\Support\Facades\Schema::hasTable('employee_permits')) {
+                $myPermits = \App\Models\EmployeePermit::where('user_id', $user->id)
+                    ->latest()
+                    ->take(5)
+                    ->get();
+            }
         } catch (\Throwable $e) {}
 
         return view('admin.teacher-attendances.my-attendance', compact(

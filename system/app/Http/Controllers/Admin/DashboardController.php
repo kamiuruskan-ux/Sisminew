@@ -439,8 +439,10 @@ class DashboardController extends Controller
         $pendingEmployeePermitsCount = 0;
         $recentEmployeePermits = collect();
         try {
-            $pendingEmployeePermitsCount = EmployeePermit::where('status', 'pending')->count();
-            $recentEmployeePermits = EmployeePermit::with('user')->latest()->take(5)->get();
+            if (\Illuminate\Support\Facades\Schema::hasTable('employee_permits')) {
+                $pendingEmployeePermitsCount = EmployeePermit::where('status', 'pending')->count();
+                $recentEmployeePermits = EmployeePermit::with('user')->latest()->take(5)->get();
+            }
         } catch (\Throwable $e) {
             // Ignore if table not yet migrated
         }

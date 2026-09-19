@@ -888,7 +888,14 @@
                                 <a href="{{ route('admin.employee-permits.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.employee-permits.*') ? 'nav-link-active font-bold text-[#3C50E0]' : '' }}">
                                     <span>Izin &amp; Cuti Pegawai</span>
                                     @php
-                                        $pendingEmployeePermitsCount = \App\Models\EmployeePermit::where('status', 'pending')->count();
+                                        $pendingEmployeePermitsCount = 0;
+                                        try {
+                                            if (\Illuminate\Support\Facades\Schema::hasTable('employee_permits')) {
+                                                $pendingEmployeePermitsCount = \App\Models\EmployeePermit::where('status', 'pending')->count();
+                                            }
+                                        } catch (\Throwable $e) {
+                                            $pendingEmployeePermitsCount = 0;
+                                        }
                                     @endphp
                                     @if($pendingEmployeePermitsCount > 0)
                                         <span class="px-1.5 py-0.5 bg-amber-500 text-white font-extrabold text-[10px] rounded-full animate-pulse">{{ $pendingEmployeePermitsCount }}</span>
