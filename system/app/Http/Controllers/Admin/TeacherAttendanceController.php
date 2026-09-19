@@ -158,11 +158,12 @@ class TeacherAttendanceController extends Controller
     public function selfCheckIn(Request $request)
     {
         $request->validate([
-            'type' => 'required|in:check_in,check_out',
+            'type' => 'required|in:check_in,check_out,afternoon,briefing',
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
             'photo' => 'nullable|string',
             'work_location' => 'nullable|string',
+            'notes' => 'nullable|string',
         ]);
 
         $user = auth()->user();
@@ -189,7 +190,7 @@ class TeacherAttendanceController extends Controller
                 }
                 return back()->with('error', $errMsg);
             }
-        } else {
+        } elseif ($request->type === 'check_out') {
             // Check out validation
             if (empty($attendance->check_in)) {
                 $errMsg = "Anda belum melakukan presensi MASUK hari ini. Harap presensi masuk terlebih dahulu.";
@@ -212,39 +213,40 @@ class TeacherAttendanceController extends Controller
             }
         }
 
-        // 2. GPS GEOFENCING VALIDATION
+        // 2. GPS & GEOFENCING VALIDATION
         $workLoc = $request->work_location ?? 'school';
-        if ($workLoc === 'school') {
-            $schoolLat = (float) Setting::get('school_latitude', -0.8917);
-            $schoolLong = (float) Setting::get('school_longitude', 119.8707);
-            $maxRadius = (int) Setting::get('school_attendance_radius', 100); // meters default 100m
+        $schoolLat = (float) Setting::get('school_latitude', -0.8917);
+        $schoolLong = (float) Setting::get('school_longitude', 119.8707);
+        $maxRadius = (int) Setting::get('school_attendance_radius', 100); // meters default 100m
+        $manualOverride = Setting::get('attendance_manual_override', '0') == '1';
 
-            if ($request->filled('latitude') && $request->filled('longitude')) {
-                $userLat = (float) $request->latitude;
-                $userLong = (float) $request->longitude;
+        // Safe fallback coordinate if GPS is blocked/unavailable
+        $userLat = $request->filled('latitude') ? (float) $request->latitude : $schoolLat;
+        $userLong = $request->filled('longitude') ? (float) $request->longitude : $schoolLong;
 
-                $earthRadius = 6371000; // in meters
-                $dLat = deg2rad($userLat - $schoolLat);
-                $dLon = deg2rad($userLong - $schoolLong);
-                $a = sin($dLat / 2) * sin($dLat / 2) +
-                     cos(deg2rad($schoolLat)) * cos(deg2rad($userLat)) *
-                     sin($dLon / 2) * sin($dLon / 2);
-                $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
-                $distance = round($earthRadius * $c);
+        // Geofence check ONLY applies when work_location is 'school' and not in manual override
+        if ($workLoc === 'school' && !$manualOverride && $request->filled('latitude') && $request->filled('longitude')) {
+            $earthRadius = 6371000; // in meters
+            $dLat = deg2rad($userLat - $schoolLat);
+            $dLon = deg2rad($userLong - $schoolLong);
+            $a = sin($dLat / 2) * sin($dLat / 2) +
+                 cos(deg2rad($schoolLat)) * cos(deg2rad($userLat)) *
+                 sin($dLon / 2) * sin($dLon / 2);
+            $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+            $distance = round($earthRadius * $c);
 
-                if ($distance > $maxRadius) {
-                    $errMsg = "Presensi Gagal: Posisi Anda ({$distance} meter) berada di luar batas radius sekolah (Maksimal: {$maxRadius} meter). Dekati area sekolah atau gunakan moda Dinas Luar.";
-                    if ($request->wantsJson() || $request->ajax()) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => $errMsg,
-                            'distance' => $distance,
-                            'max_radius' => $maxRadius,
-                            'out_of_radius' => true,
-                        ], 422);
-                    }
-                    return back()->with('error', $errMsg);
+            if ($distance > $maxRadius) {
+                $errMsg = "Presensi Gagal: Posisi Anda ({$distance} meter) berada di luar batas radius sekolah (Maksimal: {$maxRadius} meter). Dekati area sekolah atau gunakan moda Dinas Luar.";
+                if ($request->wantsJson() || $request->ajax()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $errMsg,
+                        'distance' => $distance,
+                        'max_radius' => $maxRadius,
+                        'out_of_radius' => true,
+                    ], 422);
                 }
+                return back()->with('error', $errMsg);
             }
         }
 
@@ -270,6 +272,7 @@ class TeacherAttendanceController extends Controller
 
         $attendance->method = 'mobile_gps';
         $attendance->device_info = $request->header('User-Agent', 'Mobile Phone');
+        $attendance->work_location = $workLoc;
 
         // Check batas jam keterlambatan dari pengaturan (default 07:30)
         $lateThreshold = Setting::get('attendance_morning_late', '07:30');
@@ -293,12 +296,11 @@ class TeacherAttendanceController extends Controller
             // Jika belum check_in pagi, jadikan sekaligus check_in
             if (empty($attendance->check_in)) {
                 $attendance->check_in = $nowTime;
-                $attendance->check_in_lat = $request->latitude;
-                $attendance->check_in_long = $request->longitude;
+                $attendance->check_in_lat = $userLat;
+                $attendance->check_in_long = $userLong;
                 if ($photoName) {
                     $attendance->check_in_photo = $photoName;
                 }
-                $attendance->work_location = $workLoc;
                 $attendance->status = (strtotime($nowTime) > $lateTimestamp) ? 'late' : 'present';
             }
 
@@ -322,12 +324,11 @@ class TeacherAttendanceController extends Controller
             $msg = "Presensi SESI SIANG berhasil dicatat pada {$nowTime}";
         } elseif ($request->type === 'check_in') {
             $attendance->check_in = $nowTime;
-            $attendance->check_in_lat = $request->latitude;
-            $attendance->check_in_long = $request->longitude;
+            $attendance->check_in_lat = $userLat;
+            $attendance->check_in_long = $userLong;
             if ($photoName) {
                 $attendance->check_in_photo = $photoName;
             }
-            $attendance->work_location = $workLoc;
 
             // Auto determine late status
             if (strtotime($nowTime) > $lateTimestamp) {
@@ -335,20 +336,25 @@ class TeacherAttendanceController extends Controller
             } else {
                 $attendance->status = 'present';
             }
-            $msg = 'Presensi MASUK via Mobile GPS berhasil dicatat pada ' . $nowTime;
+            $msg = ($workLoc === 'dinas_luar' ? 'Presensi MASUK (Dinas Luar)' : 'Presensi MASUK via Mobile GPS') . ' berhasil dicatat pada ' . $nowTime;
         } else {
-
             $attendance->check_out = $nowTime;
-            $attendance->check_out_lat = $request->latitude;
-            $attendance->check_out_long = $request->longitude;
+            $attendance->check_out_lat = $userLat;
+            $attendance->check_out_long = $userLong;
             if ($photoName) {
                 $attendance->check_out_photo = $photoName;
             }
-            $msg = 'Presensi PULANG via Mobile GPS berhasil dicatat pada ' . $nowTime;
+            $msg = ($workLoc === 'dinas_luar' ? 'Presensi PULANG (Dinas Luar)' : 'Presensi PULANG via Mobile GPS') . ' berhasil dicatat pada ' . $nowTime;
         }
 
+        // Merge extra notes if provided by user (e.g. dinas luar reason)
         if ($request->filled('notes')) {
-            $attendance->notes = $request->notes;
+            $customNote = trim($request->notes);
+            if (empty($attendance->notes)) {
+                $attendance->notes = $customNote;
+            } elseif (!str_contains($attendance->notes, $customNote)) {
+                $attendance->notes = trim($attendance->notes) . ' | ' . $customNote;
+            }
         }
 
         $attendance->save();

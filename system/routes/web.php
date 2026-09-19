@@ -609,6 +609,13 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|bendahara|operator|kanti
         Route::delete('teacher-attendances/{id}', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'destroy'])->name('teacher-attendances.destroy');
     });
 
+    // Employee Tasks & Daily Checklist
+    Route::get('employee-tasks', [\App\Http\Controllers\Admin\EmployeeTaskController::class, 'index'])->name('employee-tasks.index');
+    Route::post('employee-tasks', [\App\Http\Controllers\Admin\EmployeeTaskController::class, 'store'])->name('employee-tasks.store');
+    Route::put('employee-tasks/{id}', [\App\Http\Controllers\Admin\EmployeeTaskController::class, 'update'])->name('employee-tasks.update');
+    Route::delete('employee-tasks/{id}', [\App\Http\Controllers\Admin\EmployeeTaskController::class, 'destroy'])->name('employee-tasks.destroy');
+    Route::post('employee-tasks/{id}/toggle', [\App\Http\Controllers\Admin\EmployeeTaskController::class, 'toggleChecklist'])->name('employee-tasks.toggle');
+
     // Bimbingan & Konseling (BK)
     Route::middleware('permission:view-bk|manage-bk')->group(function () {
         Route::get('bk', [\App\Http\Controllers\Admin\BkCounselingController::class, 'index'])->name('bk.index');

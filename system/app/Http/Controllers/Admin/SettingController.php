@@ -474,6 +474,7 @@ class SettingController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $user->id,
+            'nip' => 'nullable|string|max:100',
             'phone' => 'nullable|string',
             'avatar' => 'nullable|image|max:2048',
             'current_password' => 'nullable|required_with:new_password',
@@ -482,6 +483,7 @@ class SettingController extends Controller
 
         $user->name = $validated['name'];
         $user->email = $validated['email'];
+        $user->nip = $request->filled('nip') ? $request->nip : $user->nip;
         $user->phone = $validated['phone'] ?? $user->phone;
 
         if ($request->hasFile('avatar')) {

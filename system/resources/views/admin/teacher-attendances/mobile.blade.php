@@ -551,7 +551,20 @@
                         <p class="text-[11px] text-amber-600 animate-pulse">📡 Mendeteksi koordinat lintang & bujur perangkat Anda...</p>
                     </template>
                     <template x-if="gpsError">
-                        <p class="text-[11px] text-rose-600 font-semibold" x-text="gpsError"></p>
+                        <div class="p-3 bg-rose-50 rounded-xl border border-rose-200 space-y-2">
+                            <p class="text-[11px] text-rose-700 font-semibold" x-text="gpsError"></p>
+                            <div class="flex flex-wrap items-center gap-1.5 pt-1">
+                                <button type="button" @click="detectGps()" class="px-3 py-1 rounded-lg bg-rose-600 text-white font-bold text-[10px] hover:bg-rose-700 flex items-center gap-1">
+                                    <span>🔄</span> Minta Ulang Izin
+                                </button>
+                                <button type="button" @click="attendanceMode = 'dinas_luar'" class="px-3 py-1 rounded-lg bg-indigo-600 text-white font-bold text-[10px] hover:bg-indigo-700 flex items-center gap-1">
+                                    <span>✈️</span> Mode Dinas Luar
+                                </button>
+                                <button type="button" @click="enableGpsFallback()" class="px-3 py-1 rounded-lg bg-slate-200 text-slate-800 font-bold text-[10px] hover:bg-slate-300">
+                                    Bypass Darurat (Lokasi Sekolah)
+                                </button>
+                            </div>
+                        </div>
                     </template>
                     <template x-if="!gpsLoading && !gpsError">
                         <div class="flex items-center justify-between text-xs">
@@ -1112,7 +1125,7 @@
                 
                 <!-- Tab Beranda -->
                 <button @click="activeTab = 'beranda'"
-                        :class="activeTab === 'beranda' ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600 font-semibold'"
+                        :class="activeTab === 'beranda' ? 'text-primary font-extrabold' : 'text-slate-400 hover:text-slate-600 font-semibold'"
                         class="flex-1 flex flex-col items-center gap-1 transition-all py-1">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
@@ -1120,48 +1133,45 @@
                     <span class="text-[10px]">Beranda</span>
                 </button>
 
-                <!-- Tab Jadwal -->
-                <button @click="activeTab = 'jadwal'"
-                        :class="activeTab === 'jadwal' ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600 font-semibold'"
-                        class="flex-1 flex flex-col items-center gap-1 transition-all py-1">
+                <!-- Menu Tugas & Checklist -->
+                <a href="{{ route('admin.employee-tasks.index') }}"
+                   class="flex-1 flex flex-col items-center gap-1 transition-all py-1 text-slate-400 hover:text-primary font-semibold">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
                     </svg>
-                    <span class="text-[10px]">Jadwal</span>
-                </button>
+                    <span class="text-[10px]">Tugas</span>
+                </a>
 
                 <!-- Prominent Center Floating FAB Button: ABSEN -->
                 <div class="relative -top-5 flex flex-col items-center">
                     <button @click="activeTab = 'absen'"
-                            :class="activeTab === 'absen' ? 'ring-4 ring-blue-200 scale-105' : ''"
-                            class="w-14 h-14 rounded-full bg-gradient-to-tr from-blue-700 via-blue-600 to-cyan-500 text-white flex items-center justify-center glow-fab active:scale-95 transition-all shadow-lg border-2 border-white">
+                            :class="activeTab === 'absen' ? 'ring-4 ring-primary/30 scale-105' : ''"
+                            class="w-14 h-14 rounded-full bg-gradient-to-tr from-[#3C50E0] via-primary to-indigo-600 text-white flex items-center justify-center glow-fab active:scale-95 transition-all shadow-lg border-2 border-white">
                         <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
                     </button>
-                    <span class="text-[10px] font-black mt-1" :class="activeTab === 'absen' ? 'text-blue-600' : 'text-slate-500'">Absen</span>
+                    <span class="text-[10px] font-black mt-1" :class="activeTab === 'absen' ? 'text-primary' : 'text-slate-500'">Absen</span>
                 </div>
 
-                <!-- Tab Laporan / Akses -->
-                <button @click="activeTab = 'laporan'"
-                        :class="activeTab === 'laporan' ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600 font-semibold'"
-                        class="flex-1 flex flex-col items-center gap-1 transition-all py-1">
+                <!-- Menu Halaqah Qur'an -->
+                <a href="{{ route('admin.halaqah.index') }}"
+                   class="flex-1 flex flex-col items-center gap-1 transition-all py-1 text-slate-400 hover:text-primary font-semibold">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
                     </svg>
-                    <span class="text-[10px]">Laporan</span>
-                </button>
+                    <span class="text-[10px]">Halaqah</span>
+                </a>
 
-                <!-- Tab Profil -->
-                <button @click="activeTab = 'profil'"
-                        :class="activeTab === 'profil' ? 'text-blue-600 font-extrabold' : 'text-slate-400 hover:text-slate-600 font-semibold'"
-                        class="flex-1 flex flex-col items-center gap-1 transition-all py-1">
+                <!-- Menu Profil Akun -->
+                <a href="{{ route('admin.profile') }}"
+                   class="flex-1 flex flex-col items-center gap-1 transition-all py-1 text-slate-400 hover:text-primary font-semibold">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                     </svg>
                     <span class="text-[10px]">Profil</span>
-                </button>
+                </a>
 
             </nav>
         </div>
@@ -1465,6 +1475,7 @@
                 inRadius: false,
                 gpsLoading: true,
                 gpsError: '',
+                gpsBypass: false,
 
                 // Attendance Mode: 'reguler' vs 'dinas_luar'
                 attendanceMode: 'reguler',
@@ -1618,6 +1629,16 @@
                     );
                 },
 
+                enableGpsFallback() {
+                    this.userLat = this.schoolLat;
+                    this.userLong = this.schoolLong;
+                    this.distanceMeters = 0;
+                    this.inRadius = true;
+                    this.gpsBypass = true;
+                    this.gpsError = '';
+                    this.showAlert('success', 'Lokasi acuan sekolah terpasang sebagai fallback darurat.');
+                },
+
                 calculateDistance() {
                     if (!this.userLat || !this.userLong) return;
 
@@ -1688,7 +1709,8 @@
                         return;
                     }
 
-                    if (this.attendanceMode === 'reguler' && !this.inRadius) {
+                    // Check radius only for regular attendance if not bypassed or overridden
+                    if (this.attendanceMode === 'reguler' && !this.inRadius && !this.gpsBypass && !this.sessionSettings?.manual_override) {
                         this.showAlert('error', `Lokasi di luar radius! Anda berjarak ${this.distanceMeters}m (Batas resmi: ${this.schoolRadius}m). Dekati gerbang sekolah atau pilih moda dinas luar.`);
                         return;
                     }
@@ -1698,8 +1720,8 @@
 
                     const payload = {
                         type: type,
-                        latitude: this.userLat,
-                        longitude: this.userLong,
+                        latitude: this.userLat || this.schoolLat,
+                        longitude: this.userLong || this.schoolLong,
                         work_location: this.attendanceMode === 'dinas_luar' ? 'dinas_luar' : 'school',
                         notes: this.attendanceMode === 'dinas_luar' ? (this.dinasNotes || 'Dinas / Tugas Luar') : null
                     };

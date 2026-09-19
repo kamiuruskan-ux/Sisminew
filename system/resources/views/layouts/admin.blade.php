@@ -888,6 +888,7 @@
                                 <a href="{{ route('admin.student-permits.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.student-permits.*') ? 'nav-link-active' : '' }}">Permohonan Izin Siswa</a>
                                 <a href="{{ route('admin.attendances.settings') }}" class="nav-link text-xs {{ request()->routeIs('admin.attendances.settings') ? 'nav-link-active' : '' }}">Pengaturan Presensi Siswa</a>
                                 <a href="{{ route('admin.teacher-attendances.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.teacher-attendances.index') ? 'nav-link-active' : '' }}">Presensi Guru &amp; Staff</a>
+                                <a href="{{ route('admin.employee-tasks.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.employee-tasks.*') ? 'nav-link-active' : '' }}">Tugas &amp; Checklist Pegawai</a>
                                 <a href="{{ route('admin.teacher-attendances.scan') }}" target="_blank" rel="noopener" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.teacher-attendances.scan') ? 'nav-link-active' : '' }}">
                                     <span>Scanner Face ID Guru</span>
                                     <svg class="w-3 h-3 text-indigo-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
@@ -1551,7 +1552,7 @@
                     </div>
                 </main>
             @else
-                <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-[#F1F5F9] dark:bg-[#1A222C] flex flex-col justify-between">
+                <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8 bg-[#F1F5F9] dark:bg-[#1A222C] flex flex-col justify-between">
                     <div>
                         @if(session('success'))
                             <div x-data="{ show: true }" x-show="show" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 -translate-y-2" class="mb-6 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 px-5 py-4 rounded-2xl flex items-center justify-between shadow-xs">
@@ -1620,6 +1621,47 @@
             @endif
         </div>
     </div>
+
+    <!-- ============================================================ -->
+    <!-- UNIVERSAL MOBILE BOTTOM NAVIGATION BAR (lg:hidden) -->
+    <!-- ============================================================ -->
+    <nav class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#1A222C]/95 backdrop-blur-md border-t border-slate-200 dark:border-[#2E3A47] px-2 py-1.5 shadow-lg shadow-black/5">
+        <div class="grid grid-cols-5 gap-1 items-center max-w-md mx-auto">
+            
+            <!-- Beranda -->
+            <a href="{{ route('admin.dashboard') }}" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all {{ request()->routeIs('admin.dashboard') ? 'text-[#3C50E0] dark:text-indigo-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800' }}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="{{ request()->routeIs('admin.dashboard') ? '2.5' : '2' }}"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                <span class="text-[10px] tracking-tight mt-0.5">Beranda</span>
+            </a>
+
+            <!-- Tugas & Checklist -->
+            <a href="{{ route('admin.employee-tasks.index') }}" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all {{ request()->routeIs('admin.employee-tasks.*') ? 'text-[#3C50E0] dark:text-indigo-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800' }}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="{{ request()->routeIs('admin.employee-tasks.*') ? '2.5' : '2' }}"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                <span class="text-[10px] tracking-tight mt-0.5">Tugas</span>
+            </a>
+
+            <!-- Presensi Mobile (Pusat Aksi) -->
+            <a href="{{ route('admin.teacher-attendances.mobile') }}" class="flex flex-col items-center justify-center py-1 px-1 transition-all group">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#3C50E0] to-indigo-600 text-white flex items-center justify-center shadow-md shadow-[#3C50E0]/30 transform -translate-y-2 group-hover:scale-105 transition-transform">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <span class="text-[10px] font-extrabold tracking-tight -mt-1.5 {{ request()->routeIs('admin.teacher-attendances.mobile') ? 'text-[#3C50E0] dark:text-indigo-400' : 'text-slate-600 dark:text-slate-300' }}">Presensi</span>
+            </a>
+
+            <!-- Halaqah -->
+            <a href="{{ route('admin.halaqah.index') }}" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all {{ request()->routeIs('admin.halaqah.*') ? 'text-[#3C50E0] dark:text-indigo-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800' }}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="{{ request()->routeIs('admin.halaqah.*') ? '2.5' : '2' }}"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                <span class="text-[10px] tracking-tight mt-0.5">Halaqah</span>
+            </a>
+
+            <!-- Profil Akun -->
+            <a href="{{ route('admin.profile') }}" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all {{ request()->routeIs('admin.profile') ? 'text-[#3C50E0] dark:text-indigo-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800' }}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="{{ request()->routeIs('admin.profile') ? '2.5' : '2' }}"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                <span class="text-[10px] tracking-tight mt-0.5">Profil</span>
+            </a>
+
+        </div>
+    </nav>
 
     @stack('scripts')
 
