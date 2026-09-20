@@ -26,6 +26,40 @@
         </div>
     </div>
 
+    <!-- Informasi Profil Kepegawaian & Masa Kerja (TMT) -->
+    @php
+        $teacherUser = auth()->user();
+    @endphp
+    <div class="p-4 rounded-3xl bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-800/80 dark:via-indigo-950/30 dark:to-purple-950/20 border border-blue-100 dark:border-slate-700 shadow-xs flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-2xl bg-white dark:bg-[#1A222C] text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold shadow-xs border border-blue-100 dark:border-slate-700 shrink-0">
+                👔
+            </div>
+            <div>
+                <p class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Status Kepegawaian &amp; Masa Bakti</p>
+                <p class="text-[11px] text-slate-600 dark:text-slate-400">Data resmi kepegawaian pendidik &amp; tenaga kependidikan</p>
+            </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+            <div class="px-3 py-1.5 rounded-xl bg-white dark:bg-[#1A222C] border border-blue-100 dark:border-slate-700 shadow-xs text-xs">
+                <span class="text-slate-400 text-[10px] font-bold block uppercase">Pendidikan Terakhir</span>
+                <span class="font-extrabold text-blue-700 dark:text-blue-400">{{ $teacherUser->last_education ?: 'Belum Diisi' }}</span>
+            </div>
+            <div class="px-3 py-1.5 rounded-xl bg-white dark:bg-[#1A222C] border border-blue-100 dark:border-slate-700 shadow-xs text-xs">
+                <span class="text-slate-400 text-[10px] font-bold block uppercase">TMT (Awal Masuk)</span>
+                <span class="font-extrabold text-purple-700 dark:text-purple-400 font-mono">
+                    {{ $teacherUser->tmt ? \Carbon\Carbon::parse($teacherUser->tmt)->translatedFormat('d M Y') : 'Belum Terdata' }}
+                </span>
+            </div>
+            <div class="px-3 py-1.5 rounded-xl bg-white dark:bg-[#1A222C] border border-emerald-200 dark:border-emerald-800 shadow-xs text-xs">
+                <span class="text-slate-400 text-[10px] font-bold block uppercase">Lama Bekerja</span>
+                <span class="font-extrabold text-emerald-600 dark:text-emerald-400">
+                    ⏱️ {{ $teacherUser->masa_kerja }}
+                </span>
+            </div>
+        </div>
+    </div>
+
     @if(isset($pendingGradingResults) && $pendingGradingResults->count() > 0)
         <div class="p-5 rounded-3xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 shadow-xs space-y-3">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

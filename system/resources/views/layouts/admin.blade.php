@@ -645,6 +645,7 @@
                 </div>
 
                 <!-- 2. Master Data Sekolah -->
+                @if(auth()->user()->hasPermission('view-users|view-students|view-alumni|view-student-cards|view-face-id|view-classes|view-majors|view-subjects|view-schedules|view-academic-years|view-library'))
                 <div>
                     <p class="section-label">Master Data Sekolah</p>
                     <div class="space-y-1">
@@ -655,12 +656,12 @@
                                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                                     <circle cx="12" cy="7" r="4"></circle>
                                 </svg>
-                                <span>Data Guru & Pegawai</span>
+                                <span>Data Guru &amp; Pegawai</span>
                             </a>
                         @endif
 
                         <!-- Dropdown Data Siswa & Kartu -->
-                        @if(auth()->user()->hasPermission('view-students'))
+                        @if(auth()->user()->hasPermission('view-students|view-alumni|view-student-cards|view-face-id'))
                         @php
                             $isStudentDropdownActive = request()->routeIs('admin.students.*') || request()->routeIs('admin.student-cards.*') || request()->routeIs('admin.alumni.*');
                         @endphp
@@ -674,36 +675,45 @@
                                         <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                                         <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                                     </svg>
-                                    <span>Data Siswa & Kartu</span>
+                                    <span>Data Siswa &amp; Kartu</span>
                                 </div>
                                 <svg class="w-4 h-4 transition-transform duration-200 shrink-0 text-slate-400" :class="{ 'rotate-90': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                             </button>
 
                             <div x-show="open" x-collapse class="pl-4 space-y-1 mt-1 border-l-2 border-slate-200 dark:border-slate-800 ml-4">
-                                <a href="{{ route('admin.students.index') }}" 
-                                   class="nav-link text-xs {{ request()->routeIs('admin.students.*') && !request()->routeIs('admin.students.face-id*') ? 'nav-link-active' : '' }}">
-                                    <span>Data Siswa</span>
-                                </a>
-                                <a href="{{ route('admin.alumni.index') }}" 
-                                   class="nav-link text-xs {{ request()->routeIs('admin.alumni.*') ? 'nav-link-active' : '' }}">
-                                    <span class="flex items-center justify-between w-full">
-                                        <span>Daftar Alumni</span>
-                                        <span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">Lulus</span>
-                                    </span>
-                                </a>
-                                <a href="{{ route('admin.student-cards.index') }}" 
-                                   class="nav-link text-xs {{ request()->routeIs('admin.student-cards.*') ? 'nav-link-active' : '' }}">
-                                    <span>Cetak Kartu Siswa</span>
-                                </a>
-                                <a href="{{ route('admin.students.face-id.index') }}" 
-                                   class="nav-link text-xs {{ request()->routeIs('admin.students.face-id*') ? 'nav-link-active' : '' }}">
-                                    <span>Daftar Face ID Siswa</span>
-                                </a>
+                                @if(auth()->user()->hasPermission('view-students'))
+                                    <a href="{{ route('admin.students.index') }}" 
+                                       class="nav-link text-xs {{ request()->routeIs('admin.students.*') && !request()->routeIs('admin.students.face-id*') ? 'nav-link-active' : '' }}">
+                                        <span>Data Siswa</span>
+                                    </a>
+                                @endif
+                                @if(auth()->user()->hasPermission('view-alumni|view-students'))
+                                    <a href="{{ route('admin.alumni.index') }}" 
+                                       class="nav-link text-xs {{ request()->routeIs('admin.alumni.*') ? 'nav-link-active' : '' }}">
+                                        <span class="flex items-center justify-between w-full">
+                                            <span>Daftar Alumni</span>
+                                            <span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">Lulus</span>
+                                        </span>
+                                    </a>
+                                @endif
+                                @if(auth()->user()->hasPermission('view-student-cards|view-students'))
+                                    <a href="{{ route('admin.student-cards.index') }}" 
+                                       class="nav-link text-xs {{ request()->routeIs('admin.student-cards.*') ? 'nav-link-active' : '' }}">
+                                        <span>Cetak Kartu Siswa</span>
+                                    </a>
+                                @endif
+                                @if(auth()->user()->hasPermission('view-face-id|view-students'))
+                                    <a href="{{ route('admin.students.face-id.index') }}" 
+                                       class="nav-link text-xs {{ request()->routeIs('admin.students.face-id*') ? 'nav-link-active' : '' }}">
+                                        <span>Daftar Face ID Siswa</span>
+                                    </a>
+                                @endif
                             </div>
                         </div>
                         @endif
 
                         <!-- Dropdown Struktur Akademik & Kelas -->
+                        @if(auth()->user()->hasPermission('view-classes|view-majors|view-subjects|view-schedules|view-academic-years'))
                         @php
                             $isAcademicDropdownActive = request()->routeIs('admin.classes.*') || request()->routeIs('admin.subjects.*') || request()->routeIs('admin.majors.*') || request()->routeIs('admin.academic-years.*') || request()->routeIs('admin.schedules.*');
                         @endphp
@@ -733,11 +743,13 @@
                                         <span>Data Jurusan</span>
                                     </a>
                                 @endif
-                                <a href="{{ route('admin.subjects.index') }}"
-                                   class="nav-link text-xs {{ request()->routeIs('admin.subjects.*') ? 'nav-link-active' : '' }}">
-                                    <span>Mata Pelajaran</span>
-                                </a>
-                                @if(auth()->user()->hasPermission('view-learning'))
+                                @if(auth()->user()->hasPermission('view-subjects'))
+                                    <a href="{{ route('admin.subjects.index') }}"
+                                       class="nav-link text-xs {{ request()->routeIs('admin.subjects.*') ? 'nav-link-active' : '' }}">
+                                        <span>Mata Pelajaran</span>
+                                    </a>
+                                @endif
+                                @if(auth()->user()->hasPermission('view-schedules|view-learning'))
                                     <a href="{{ route('admin.schedules.index') }}"
                                        class="nav-link text-xs {{ request()->routeIs('admin.schedules.*') ? 'nav-link-active' : '' }}">
                                         <span>Jadwal Pelajaran</span>
@@ -751,9 +763,10 @@
                                 @endif
                             </div>
                         </div>
+                        @endif
 
                         <!-- Standalone Link Perpustakaan Digital -->
-                        @if(auth()->user()->hasPermission('view-learning'))
+                        @if(auth()->user()->hasPermission('view-library|view-learning'))
                             <a href="{{ route('admin.books.index') }}"
                                class="nav-link {{ request()->routeIs('admin.books.*') ? 'nav-link-active' : '' }}">
                                 <svg class="nav-icon text-purple-500 dark:text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -764,16 +777,17 @@
                         @endif
                     </div>
                 </div>
+                @endif
 
-                <!-- 3. Akademik & Kesiswaan -->
-                @if(auth()->user()->hasPermission('view-learning') || auth()->user()->hasPermission('view-attendance') || auth()->user()->hasRole('super-admin|admin|guru-bk|bk') || auth()->user()->hasPermission('view-bk') || auth()->user()->hasPermission('view-spmb'))
+                <!-- 3. Akademik & Pembelajaran -->
+                @if(auth()->user()->hasPermission('view-learning|view-lms|view-materials|view-assignments|view-exams|manage-cbt-server|view-halaqah|view-raport|view-grades|view-quran-raport|manage-raport-settings'))
                 <div>
-                    <p class="section-label">Akademik & Kesiswaan</p>
+                    <p class="section-label">Akademik &amp; Pembelajaran</p>
                     <div class="space-y-1">
                         <!-- LMS & CBT Dropdown -->
-                        @if(auth()->user()->hasPermission('view-learning'))
+                        @if(auth()->user()->hasPermission('view-learning|view-lms|view-materials|view-assignments|view-exams|manage-cbt-server'))
                         @php
-                            $isLearningActive = request()->routeIs('admin.materials.*') || request()->routeIs('admin.assignments.*') || request()->routeIs('admin.exams.*') || request()->routeIs('admin.cbt-capacity.*');
+                            $isLearningActive = request()->routeIs('admin.lms.*') || request()->routeIs('admin.materials.*') || request()->routeIs('admin.assignments.*') || request()->routeIs('admin.exams.*') || request()->routeIs('admin.cbt-capacity.*');
                         @endphp
                         <div x-data="{ open: {{ $isLearningActive ? 'true' : 'false' }} }">
                             <button type="button" @click="open = !open" 
@@ -783,7 +797,7 @@
                                         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
                                         <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
                                     </svg>
-                                    <span>LMS & CBT</span>
+                                    <span>LMS &amp; CBT</span>
                                     @if(($notificationCounts['cbt'] ?? 0) > 0)
                                         <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping ml-2" title="Ada Koreksi CBT"></span>
                                     @endif
@@ -792,30 +806,40 @@
                             </button>
 
                             <div x-show="open" x-collapse class="pl-4 space-y-1 mt-1 border-l-2 border-slate-200 dark:border-slate-800 ml-4">
-                                <a href="{{ route('admin.lms.chapters.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.lms.*') ? 'nav-link-active' : '' }}">
-                                    <span>LMS & Live class</span>
-                                    <span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-extrabold text-[9px] rounded">Pro</span>
-                                </a>
-                                <a href="{{ route('admin.materials.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.materials.*') ? 'nav-link-active' : '' }}">Materi & Modul Ajar</a>
-                                <a href="{{ route('admin.assignments.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.assignments.*') ? 'nav-link-active' : '' }}">Tugas Siswa</a>
-                                <a href="{{ route('admin.exams.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.exams.*') ? 'nav-link-active' : '' }}">
-                                    <span>Ujian CBT Online</span>
-                                    @if(($notificationCounts['cbt'] ?? 0) > 0)
-                                        <span class="px-2 py-0.5 bg-amber-500 text-white font-extrabold text-[9px] rounded-full animate-pulse shadow-xs">
-                                            {{ $notificationCounts['cbt'] }} Koreksi
-                                        </span>
-                                    @endif
-                                </a>
-                                <a href="{{ route('admin.cbt-capacity.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.cbt-capacity.*') ? 'nav-link-active' : '' }}">
-                                    <span>Server CBT</span>
-                                    <span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-extrabold text-[9px] rounded">Cek</span>
-                                </a>
+                                @if(auth()->user()->hasPermission('view-lms|view-learning'))
+                                    <a href="{{ route('admin.lms.chapters.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.lms.*') ? 'nav-link-active' : '' }}">
+                                        <span>LMS &amp; Live class</span>
+                                        <span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-extrabold text-[9px] rounded">Pro</span>
+                                    </a>
+                                @endif
+                                @if(auth()->user()->hasPermission('view-materials|view-learning'))
+                                    <a href="{{ route('admin.materials.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.materials.*') ? 'nav-link-active' : '' }}">Materi &amp; Modul Ajar</a>
+                                @endif
+                                @if(auth()->user()->hasPermission('view-assignments|view-learning'))
+                                    <a href="{{ route('admin.assignments.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.assignments.*') ? 'nav-link-active' : '' }}">Tugas Siswa</a>
+                                @endif
+                                @if(auth()->user()->hasPermission('view-exams|view-learning'))
+                                    <a href="{{ route('admin.exams.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.exams.*') ? 'nav-link-active' : '' }}">
+                                        <span>Ujian CBT Online</span>
+                                        @if(($notificationCounts['cbt'] ?? 0) > 0)
+                                            <span class="px-2 py-0.5 bg-amber-500 text-white font-extrabold text-[9px] rounded-full animate-pulse shadow-xs">
+                                                {{ $notificationCounts['cbt'] }} Koreksi
+                                            </span>
+                                        @endif
+                                    </a>
+                                @endif
+                                @if(auth()->user()->hasPermission('manage-cbt-server|view-learning'))
+                                    <a href="{{ route('admin.cbt-capacity.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.cbt-capacity.*') ? 'nav-link-active' : '' }}">
+                                        <span>Server CBT</span>
+                                        <span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-extrabold text-[9px] rounded">Cek</span>
+                                    </a>
+                                @endif
                             </div>
                         </div>
                         @endif
 
                         <!-- Standalone Menu Halaqah Al-Qur'an (Tahsin & Tahfidz) -->
-                        @if(auth()->user()->hasPermission('view-learning'))
+                        @if(auth()->user()->hasPermission('view-halaqah|view-learning'))
                             <a href="{{ route('admin.halaqah.index') }}"
                                class="nav-link {{ request()->routeIs('admin.halaqah.*') ? 'nav-link-active' : '' }}">
                                 <svg class="nav-icon text-emerald-500 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -831,8 +855,8 @@
                             </a>
                         @endif
 
-                        <!-- Standalone Menu E-Raport -->
-                        @if(auth()->user()->hasPermission('view-learning'))
+                        <!-- Dropdown Menu E-Raport -->
+                        @if(auth()->user()->hasPermission('view-raport|view-grades|view-quran-raport|manage-raport-settings|view-learning'))
                         @php
                             $isRaportActive = request()->routeIs('admin.raport.*') || request()->routeIs('admin.grades.*') || request()->routeIs('admin.quran-raport.*');
                         @endphp
@@ -853,179 +877,45 @@
                             </button>
 
                             <div x-show="open" x-collapse class="pl-4 space-y-1 mt-1 border-l-2 border-slate-200 dark:border-slate-800 ml-4">
-                                <a href="{{ route('admin.grades.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.grades.*') ? 'nav-link-active' : '' }}">Entri Nilai Siswa</a>
-                                <a href="{{ route('admin.raport.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.raport.index') || request()->routeIs('admin.raport.print*') ? 'nav-link-active' : '' }}">
-                                    <span>Raport Mapel Umum</span>
-                                    <span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-extrabold text-[9px] rounded">A4/PDF</span>
-                                </a>
-                                <a href="{{ route('admin.quran-raport.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.quran-raport.*') ? 'nav-link-active' : '' }}">
-                                    <span class="font-bold text-emerald-600 dark:text-emerald-400">Raport Al-Qur'an</span>
-                                    <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[9px] rounded">Khusus</span>
-                                </a>
-                                <a href="{{ route('admin.raport.settings') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.raport.settings') ? 'nav-link-active' : '' }}">
-                                    <span>Pengaturan Raport</span>
-                                    <span class="px-1.5 py-0.5 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 font-extrabold text-[9px] rounded">Setting</span>
-                                </a>
-                            </div>
-                        </div>
-                        @endif
-
-                        <!-- Presensi & Kehadiran Navigation -->
-                        @if(auth()->user()->hasRole('admin|super-admin|operator|kepala-sekolah') || auth()->user()->hasPermission('manage-attendance'))
-                        @php
-                            $isAttendanceActive = request()->routeIs('admin.attendances.*') || request()->routeIs('admin.student-permits.*') || request()->routeIs('admin.employee-permits.*') || request()->routeIs('admin.teacher-attendances.*') || request()->routeIs('admin.qr-attendance.*');
-                            
-                            $isPermitApprover = auth()->user()->hasRole('kepala-sekolah') || auth()->user()->hasRole('super-admin') || auth()->user()->hasRole('admin');
-                            $pendingEmployeePermitsCount = 0;
-                            if ($isPermitApprover) {
-                                try {
-                                    if (\Illuminate\Support\Facades\Schema::hasTable('employee_permits')) {
-                                        $pendingEmployeePermitsCount = \App\Models\EmployeePermit::where('status', 'pending')->count();
-                                    }
-                                } catch (\Throwable $e) {
-                                    $pendingEmployeePermitsCount = 0;
-                                }
-                            }
-                        @endphp
-                        <div x-data="{ open: {{ $isAttendanceActive ? 'true' : 'false' }} }">
-                            <button type="button" @click="open = !open" 
-                                    class="nav-link w-full flex items-center justify-between transition-colors {{ $isAttendanceActive ? 'text-[#3C50E0] dark:text-indigo-400 font-bold' : '' }}">
-                                <div class="flex items-center">
-                                    <svg class="nav-icon text-cyan-500 dark:text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                                        <line x1="16" y1="2" x2="16" y2="6"></line>
-                                        <line x1="8" y1="2" x2="8" y2="6"></line>
-                                        <line x1="3" y1="10" x2="21" y2="10"></line>
-                                    </svg>
-                                    <span class="flex items-center gap-1.5">
-                                        <span>Presensi &amp; Kehadiran</span>
-                                        @if($isPermitApprover && $pendingEmployeePermitsCount > 0)
-                                            <span class="relative flex h-2 w-2" title="{{ $pendingEmployeePermitsCount }} Izin Baru Menunggu Verifikasi">
-                                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                                                <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
-                                            </span>
-                                        @endif
-                                    </span>
-                                </div>
-                                <div class="flex items-center space-x-1.5">
-                                    @if($isPermitApprover && $pendingEmployeePermitsCount > 0)
-                                        <span class="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-xs animate-pulse" title="{{ $pendingEmployeePermitsCount }} Permohonan Izin Menunggu">
-                                            {{ $pendingEmployeePermitsCount > 99 ? '99+' : $pendingEmployeePermitsCount }}
-                                        </span>
-                                    @endif
-                                    <svg class="w-4 h-4 transition-transform duration-200 shrink-0 text-slate-400" :class="{ 'rotate-90': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                                </div>
-                            </button>
-
-                            <div x-show="open" x-collapse class="pl-4 space-y-1 mt-1 border-l-2 border-slate-200 dark:border-slate-800 ml-4">
-                                <a href="{{ route('admin.teacher-attendances.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.teacher-attendances.index') ? 'nav-link-active' : '' }}">
-                                    <span>Manajemen Presensi Guru</span>
-                                    @if($isPermitApprover && $pendingEmployeePermitsCount > 0)
-                                        <span class="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-extrabold text-[9px] rounded-full">
-                                            {{ $pendingEmployeePermitsCount }} Izin
-                                        </span>
-                                    @endif
-                                </a>
-                                <a href="{{ route('admin.employee-permits.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.employee-permits.*') ? 'nav-link-active font-bold text-[#3C50E0]' : '' }}">
-                                    <span class="flex items-center gap-1.5">
-                                        <span>Izin &amp; Cuti Pegawai</span>
-                                        @if($isPermitApprover && $pendingEmployeePermitsCount > 0)
-                                            <span class="relative flex h-2 w-2">
-                                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                                                <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
-                                            </span>
-                                        @endif
-                                    </span>
-                                    @if($isPermitApprover && $pendingEmployeePermitsCount > 0)
-                                        <span class="px-2 py-0.5 bg-rose-500 text-white font-black text-[10px] rounded-full shadow-xs animate-pulse">
-                                            {{ $pendingEmployeePermitsCount }} Baru
-                                        </span>
-                                    @endif
-                                </a>
-                                <a href="{{ route('admin.teacher-attendances.fingerprint') }}" class="nav-link text-xs {{ request()->routeIs('admin.teacher-attendances.fingerprint') ? 'nav-link-active' : '' }}">Scanner Sidik Jari USB</a>
-                                <a href="{{ route('admin.teacher-attendances.scan') }}" target="_blank" rel="noopener" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.teacher-attendances.scan') ? 'nav-link-active' : '' }}">
-                                    <span>Scanner Face ID Guru</span>
-                                    <svg class="w-3 h-3 text-indigo-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                                </a>
-                                <a href="{{ route('admin.teacher-attendances.recap') }}" class="nav-link text-xs {{ request()->routeIs('admin.teacher-attendances.recap') ? 'nav-link-active' : '' }}">Rekap Bulanan Guru</a>
-                                <a href="{{ route('admin.attendances.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.attendances.index') ? 'nav-link-active' : '' }}">Rekap Presensi Siswa</a>
-                                <a href="{{ route('admin.student-permits.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.student-permits.*') ? 'nav-link-active' : '' }}">Permohonan Izin Siswa</a>
-                                <a href="{{ route('admin.attendances.settings') }}" class="nav-link text-xs {{ request()->routeIs('admin.attendances.settings') ? 'nav-link-active' : '' }}">Pengaturan Presensi Siswa</a>
-                                <a href="{{ route('admin.teacher-attendances.settings') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.teacher-attendances.settings') ? 'nav-link-active font-bold text-[#3C50E0]' : '' }}">
-                                    <span>Pengaturan Presensi Guru</span>
-                                    <span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-extrabold text-[9px] rounded">Config</span>
-                                </a>
-                                <a href="{{ route('admin.employee-tasks.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.employee-tasks.*') ? 'nav-link-active' : '' }}">Tugas &amp; Checklist Pegawai</a>
-                                <a href="{{ route('admin.teacher-attendances.my-attendance') }}" class="nav-link text-xs {{ request()->routeIs('admin.teacher-attendances.my-attendance') ? 'nav-link-active' : '' }}">Presensi Mandiri Saya</a>
-                                <a href="{{ route('admin.qr-attendance.scan') }}" target="_blank" rel="noopener" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.qr-attendance.*') ? 'nav-link-active' : '' }}">
-                                    <span>Terminal Presensi Siswa (Global)</span>
-                                    <svg class="w-3 h-3 text-cyan-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                                </a>
-                            </div>
-                        </div>
-                        @else
-                        <!-- Direct Navigation for Teachers / Staff -->
-                        <div class="space-y-1">
-                            <a href="{{ route('admin.teacher-attendances.my-attendance') }}" 
-                               class="nav-link text-xs {{ request()->routeIs('admin.teacher-attendances.my-attendance') ? 'nav-link-active font-bold text-[#3C50E0] dark:text-indigo-400' : '' }}">
-                                <div class="flex items-center">
-                                    <svg class="nav-icon text-emerald-500 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11a8.136 8.136 0 00.99 3.845"/>
-                                    </svg>
-                                    <span>Presensi Mandiri</span>
-                                </div>
-                            </a>
-                            <a href="{{ route('admin.employee-permits.index') }}" 
-                               class="nav-link text-xs {{ request()->routeIs('admin.employee-permits.*') ? 'nav-link-active font-bold text-[#3C50E0] dark:text-indigo-400' : '' }}">
-                                <div class="flex items-center">
-                                    <svg class="nav-icon text-indigo-500 dark:text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                    </svg>
-                                    <span>Pengajuan Izin / Cuti</span>
-                                </div>
-                            </a>
-                        </div>
-                        @endif
-
-                        <!-- Bimbingan & Konseling Dropdown -->
-                        @if(auth()->user()->hasPermission('view-bk') || auth()->user()->hasPermission('manage-bk') || auth()->user()->hasRole('guru-bk|bk'))
-                            @php
-                                $isBkActive = request()->routeIs('admin.bk.*');
-                            @endphp
-                            <div x-data="{ open: {{ $isBkActive ? 'true' : 'false' }} }">
-                                <button type="button" @click="open = !open" 
-                                        class="nav-link w-full flex items-center justify-between transition-colors {{ $isBkActive ? 'text-[#3C50E0] dark:text-indigo-400 font-bold' : '' }}">
-                                    <div class="flex items-center">
-                                        <svg class="nav-icon text-purple-500 dark:text-purple-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                                        <span>Bimbingan &amp; Konseling</span>
-                                    </div>
-                                    <svg class="w-4 h-4 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                                </button>
-                                <div x-show="open" x-collapse class="pl-4 space-y-1 mt-1 border-l-2 border-slate-200 dark:border-slate-800 ml-4">
-                                    <a href="{{ route('admin.bk.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.bk.index') || request()->routeIs('admin.bk.show') || request()->routeIs('admin.bk.create') ? 'nav-link-active font-bold text-[#3C50E0]' : '' }}">Sesi Konseling Siswa</a>
-                                    <a href="{{ route('admin.bk.violations.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.bk.violations.index') || request()->routeIs('admin.bk.violations.show') || request()->routeIs('admin.bk.violations.create') || request()->routeIs('admin.bk.violations.edit') ? 'nav-link-active font-bold text-[#3C50E0]' : '' }}">
-                                        <span>Pelanggaran Siswa</span>
-                                        @php
-                                            try {
-                                                $violationPendingCount = \App\Models\BkStudentViolation::whereIn('status', ['pending', 'processed', 'sp1', 'sp2', 'sp3'])->count();
-                                            } catch (\Throwable $e) {
-                                                $violationPendingCount = 0;
-                                            }
-                                        @endphp
-                                        @if($violationPendingCount > 0)
-                                            <span class="bg-rose-500 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded-full shadow-xs">
-                                                {{ $violationPendingCount > 99 ? '99+' : $violationPendingCount }}
-                                            </span>
-                                        @endif
+                                @if(auth()->user()->hasPermission('view-grades|view-learning'))
+                                    <a href="{{ route('admin.grades.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.grades.*') ? 'nav-link-active' : '' }}">Entri Nilai Siswa</a>
+                                @endif
+                                @if(auth()->user()->hasPermission('view-raport|view-learning'))
+                                    <a href="{{ route('admin.raport.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.raport.index') || request()->routeIs('admin.raport.print*') ? 'nav-link-active' : '' }}">
+                                        <span>Raport Mapel Umum</span>
+                                        <span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-extrabold text-[9px] rounded">A4/PDF</span>
                                     </a>
-                                    <a href="{{ route('admin.bk.violations.categories') }}" class="nav-link text-xs {{ request()->routeIs('admin.bk.violations.categories') ? 'nav-link-active font-bold text-[#3C50E0]' : '' }}">Kategori &amp; Poin Pelanggaran</a>
-                                    <a href="{{ route('admin.bk.assessments') }}" class="nav-link text-xs {{ request()->routeIs('admin.bk.assessments') ? 'nav-link-active font-bold text-[#3C50E0]' : '' }}">Asesmen &amp; Minat Bakat</a>
-                                </div>
+                                @endif
+                                @if(auth()->user()->hasPermission('view-quran-raport|view-halaqah|view-learning'))
+                                    <a href="{{ route('admin.quran-raport.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.quran-raport.index') || request()->routeIs('admin.quran-raport.print') ? 'nav-link-active' : '' }}">
+                                        <span class="font-bold text-emerald-600 dark:text-emerald-400">Raport Al-Qur'an</span>
+                                        <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[9px] rounded">Khusus</span>
+                                    </a>
+                                    <a href="{{ route('admin.quran-raport.settings') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.quran-raport.settings') ? 'nav-link-active' : '' }}">
+                                        <span>Template Raport Qur'an</span>
+                                        <span class="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[9px] rounded">Desain</span>
+                                    </a>
+                                @endif
+                                @if(auth()->user()->hasPermission('manage-raport-settings'))
+                                    <a href="{{ route('admin.raport.settings') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.raport.settings') ? 'nav-link-active' : '' }}">
+                                        <span>Pengaturan Raport</span>
+                                        <span class="px-1.5 py-0.5 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 font-extrabold text-[9px] rounded">Setting</span>
+                                    </a>
+                                @endif
                             </div>
+                        </div>
                         @endif
+                    </div>
+                </div>
+                @endif
 
+                <!-- 4. Kesiswaan & SPMB -->
+                @if(auth()->user()->hasPermission('view-spmb|manage-spmb-waves|manage-spmb-settings|view-bk|view-bk-counseling|view-bk-violations|manage-bk-categories|view-bk-assessments|manage-extracurriculars|view-content') || auth()->user()->hasRole('super-admin|admin|guru-bk|bk|wakasek-kesiswaan'))
+                <div>
+                    <p class="section-label">Kesiswaan &amp; SPMB</p>
+                    <div class="space-y-1">
                         <!-- Penerimaan Siswa (SPMB) Dropdown -->
-                        @if(auth()->user()->hasPermission('view-spmb'))
+                        @if(auth()->user()->hasPermission('view-spmb|manage-spmb-waves|manage-spmb-settings'))
                             @php
                                 $isSpmbActive = request()->routeIs('admin.spmb.*') || request()->routeIs('admin.waves.*');
                             @endphp
@@ -1058,23 +948,240 @@
                                 </button>
 
                                 <div x-show="open" x-collapse class="pl-4 space-y-1 mt-1 border-l-2 border-slate-200 dark:border-slate-800 ml-4">
-                                    <a href="{{ route('admin.spmb.index') }}" class="nav-link text-xs {{ (request()->routeIs('admin.spmb.index') || request()->routeIs('admin.spmb.show') || request()->routeIs('admin.spmb.print')) ? 'nav-link-active' : '' }}">Pendaftaran SPMB</a>
-                                    <a href="{{ route('admin.waves.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.waves.*') ? 'nav-link-active' : '' }}">Gelombang SPMB</a>
-                                    <a href="{{ route('admin.spmb.settings') }}" class="nav-link text-xs {{ request()->routeIs('admin.spmb.settings') ? 'nav-link-active' : '' }}">Pengaturan SPMB</a>
+                                    @if(auth()->user()->hasPermission('view-spmb'))
+                                        <a href="{{ route('admin.spmb.index') }}" class="nav-link text-xs {{ (request()->routeIs('admin.spmb.index') || request()->routeIs('admin.spmb.show') || request()->routeIs('admin.spmb.print')) ? 'nav-link-active' : '' }}">Pendaftaran SPMB</a>
+                                    @endif
+                                    @if(auth()->user()->hasPermission('manage-spmb-waves|view-spmb'))
+                                        <a href="{{ route('admin.waves.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.waves.*') ? 'nav-link-active' : '' }}">Gelombang SPMB</a>
+                                    @endif
+                                    @if(auth()->user()->hasPermission('manage-spmb-settings'))
+                                        <a href="{{ route('admin.spmb.settings') }}" class="nav-link text-xs {{ request()->routeIs('admin.spmb.settings') ? 'nav-link-active' : '' }}">Pengaturan SPMB</a>
+                                    @endif
                                 </div>
                             </div>
+                        @endif
+
+                        <!-- Bimbingan & Konseling Dropdown -->
+                        @if(auth()->user()->hasPermission('view-bk|view-bk-counseling|view-bk-violations|manage-bk-categories|view-bk-assessments') || auth()->user()->hasRole('guru-bk|bk'))
+                            @php
+                                $isBkActive = request()->routeIs('admin.bk.*');
+                            @endphp
+                            <div x-data="{ open: {{ $isBkActive ? 'true' : 'false' }} }">
+                                <button type="button" @click="open = !open" 
+                                        class="nav-link w-full flex items-center justify-between transition-colors {{ $isBkActive ? 'text-[#3C50E0] dark:text-indigo-400 font-bold' : '' }}">
+                                    <div class="flex items-center">
+                                        <svg class="nav-icon text-purple-500 dark:text-purple-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                                        <span>Bimbingan &amp; Konseling</span>
+                                    </div>
+                                    <svg class="w-4 h-4 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </button>
+                                <div x-show="open" x-collapse class="pl-4 space-y-1 mt-1 border-l-2 border-slate-200 dark:border-slate-800 ml-4">
+                                    @if(auth()->user()->hasPermission('view-bk-counseling|view-bk') || auth()->user()->hasRole('guru-bk|bk'))
+                                        <a href="{{ route('admin.bk.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.bk.index') || request()->routeIs('admin.bk.show') || request()->routeIs('admin.bk.create') ? 'nav-link-active font-bold text-[#3C50E0]' : '' }}">Sesi Konseling Siswa</a>
+                                    @endif
+                                    @if(auth()->user()->hasPermission('view-bk-violations|view-bk') || auth()->user()->hasRole('guru-bk|bk'))
+                                        <a href="{{ route('admin.bk.violations.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.bk.violations.index') || request()->routeIs('admin.bk.violations.show') || request()->routeIs('admin.bk.violations.create') || request()->routeIs('admin.bk.violations.edit') ? 'nav-link-active font-bold text-[#3C50E0]' : '' }}">
+                                            <span>Pelanggaran Siswa</span>
+                                            @php
+                                                try {
+                                                    $violationPendingCount = \App\Models\BkStudentViolation::whereIn('status', ['pending', 'processed', 'sp1', 'sp2', 'sp3'])->count();
+                                                } catch (\Throwable $e) {
+                                                    $violationPendingCount = 0;
+                                                }
+                                            @endphp
+                                            @if($violationPendingCount > 0)
+                                                <span class="bg-rose-500 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded-full shadow-xs">
+                                                    {{ $violationPendingCount > 99 ? '99+' : $violationPendingCount }}
+                                                </span>
+                                            @endif
+                                        </a>
+                                    @endif
+                                    @if(auth()->user()->hasPermission('manage-bk-categories|view-bk') || auth()->user()->hasRole('guru-bk|bk'))
+                                        <a href="{{ route('admin.bk.violations.categories') }}" class="nav-link text-xs {{ request()->routeIs('admin.bk.violations.categories') ? 'nav-link-active font-bold text-[#3C50E0]' : '' }}">Kategori &amp; Poin Pelanggaran</a>
+                                    @endif
+                                    @if(auth()->user()->hasPermission('view-bk-assessments|view-bk') || auth()->user()->hasRole('guru-bk|bk'))
+                                        <a href="{{ route('admin.bk.assessments') }}" class="nav-link text-xs {{ request()->routeIs('admin.bk.assessments') ? 'nav-link-active font-bold text-[#3C50E0]' : '' }}">Asesmen &amp; Minat Bakat</a>
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
+
+                        <!-- Ekstrakurikuler Siswa -->
+                        @if(auth()->user()->hasPermission('manage-extracurriculars|view-content'))
+                            <a href="{{ route('admin.extracurriculars.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.extracurriculars.*') ? 'nav-link-active' : '' }}">
+                                <svg class="nav-icon text-sky-500 dark:text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <polygon points="12 8 8 12 12 16 16 12 12 8"></polygon>
+                                </svg>
+                                <span class="flex items-center justify-between w-full">
+                                    <span>Ekstrakurikuler Siswa</span>
+                                    <span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">Kegiatan</span>
+                                </span>
+                            </a>
                         @endif
                     </div>
                 </div>
                 @endif
 
-                <!-- 4. Keuangan & Operasional -->
-                @if(auth()->user()->hasPermission('view-financial') || auth()->user()->hasPermission('view-canteen-admin'))
+                <!-- 5. Presensi & Kehadiran -->
                 <div>
-                    <p class="section-label">Keuangan & Operasional</p>
+                    <p class="section-label">Presensi &amp; Kehadiran</p>
+                    <div class="space-y-1">
+                        @if(auth()->user()->hasRole('admin|super-admin|operator|kepala-sekolah|wakasek-kurikulum|wakasek-kesiswaan') || auth()->user()->hasPermission('view-teacher-attendance|view-employee-permits|manage-attendance'))
+                        @php
+                            $isTeacherAttendanceActive = request()->routeIs('admin.teacher-attendances.*') || request()->routeIs('admin.employee-permits.*') || request()->routeIs('admin.employee-tasks.*');
+                            $isPermitApprover = auth()->user()->hasRole('kepala-sekolah') || auth()->user()->hasRole('super-admin') || auth()->user()->hasRole('admin');
+                            $pendingEmployeePermitsCount = 0;
+                            if ($isPermitApprover) {
+                                try {
+                                    if (\Illuminate\Support\Facades\Schema::hasTable('employee_permits')) {
+                                        $pendingEmployeePermitsCount = \App\Models\EmployeePermit::where('status', 'pending')->count();
+                                    }
+                                } catch (\Throwable $e) {
+                                    $pendingEmployeePermitsCount = 0;
+                                }
+                            }
+                        @endphp
+                        <!-- Dropdown Presensi Guru & Tendik -->
+                        <div x-data="{ open: {{ $isTeacherAttendanceActive ? 'true' : 'false' }} }">
+                            <button type="button" @click="open = !open" 
+                                    class="nav-link w-full flex items-center justify-between transition-colors {{ $isTeacherAttendanceActive ? 'text-[#3C50E0] dark:text-indigo-400 font-bold' : '' }}">
+                                <div class="flex items-center">
+                                    <svg class="nav-icon text-cyan-500 dark:text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                                    </svg>
+                                    <span class="flex items-center gap-1.5">
+                                        <span>Presensi Guru &amp; Tendik</span>
+                                        @if($isPermitApprover && $pendingEmployeePermitsCount > 0)
+                                            <span class="relative flex h-2 w-2" title="{{ $pendingEmployeePermitsCount }} Izin Menunggu">
+                                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                                <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                                            </span>
+                                        @endif
+                                    </span>
+                                </div>
+                                <div class="flex items-center space-x-1.5">
+                                    @if($isPermitApprover && $pendingEmployeePermitsCount > 0)
+                                        <span class="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-xs animate-pulse">
+                                            {{ $pendingEmployeePermitsCount > 99 ? '99+' : $pendingEmployeePermitsCount }}
+                                        </span>
+                                    @endif
+                                    <svg class="w-4 h-4 transition-transform duration-200 shrink-0 text-slate-400" :class="{ 'rotate-90': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                </div>
+                            </button>
+
+                            <div x-show="open" x-collapse class="pl-4 space-y-1 mt-1 border-l-2 border-slate-200 dark:border-slate-800 ml-4">
+                                @if(auth()->user()->hasPermission('view-teacher-attendance|manage-attendance'))
+                                    <a href="{{ route('admin.teacher-attendances.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.teacher-attendances.index') ? 'nav-link-active' : '' }}">
+                                        <span>Manajemen Presensi</span>
+                                    </a>
+                                @endif
+                                @if(auth()->user()->hasPermission('view-employee-permits|approve-employee-permits|manage-attendance'))
+                                    <a href="{{ route('admin.employee-permits.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.employee-permits.*') ? 'nav-link-active font-bold text-[#3C50E0]' : '' }}">
+                                        <span>Izin &amp; Cuti Pegawai</span>
+                                        @if($isPermitApprover && $pendingEmployeePermitsCount > 0)
+                                            <span class="px-2 py-0.5 bg-rose-500 text-white font-black text-[10px] rounded-full shadow-xs animate-pulse">
+                                                {{ $pendingEmployeePermitsCount }} Baru
+                                            </span>
+                                        @endif
+                                    </a>
+                                @endif
+                                @if(auth()->user()->hasPermission('view-teacher-attendance|manage-attendance'))
+                                    <a href="{{ route('admin.teacher-attendances.fingerprint') }}" class="nav-link text-xs {{ request()->routeIs('admin.teacher-attendances.fingerprint') ? 'nav-link-active' : '' }}">Scanner Sidik Jari USB</a>
+                                    <a href="{{ route('admin.teacher-attendances.scan') }}" target="_blank" rel="noopener" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.teacher-attendances.scan') ? 'nav-link-active' : '' }}">
+                                        <span>Scanner Face ID Guru</span>
+                                        <svg class="w-3 h-3 text-indigo-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                    </a>
+                                @endif
+                                @if(auth()->user()->hasPermission('view-teacher-recap|view-teacher-attendance|manage-attendance'))
+                                    <a href="{{ route('admin.teacher-attendances.recap') }}" class="nav-link text-xs {{ request()->routeIs('admin.teacher-attendances.recap') ? 'nav-link-active' : '' }}">Rekap Bulanan Guru</a>
+                                @endif
+                                @if(auth()->user()->hasPermission('view-employee-tasks|view-teacher-attendance|manage-attendance'))
+                                    <a href="{{ route('admin.employee-tasks.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.employee-tasks.*') ? 'nav-link-active' : '' }}">Tugas &amp; Checklist Pegawai</a>
+                                @endif
+                                @if(auth()->user()->hasPermission('manage-teacher-attendance-settings|manage-attendance'))
+                                    <a href="{{ route('admin.teacher-attendances.settings') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.teacher-attendances.settings') ? 'nav-link-active font-bold text-[#3C50E0]' : '' }}">
+                                        <span>Pengaturan Presensi Guru</span>
+                                        <span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-extrabold text-[9px] rounded">Config</span>
+                                    </a>
+                                @endif
+                            </div>
+                        </div>
+
+                        <!-- Dropdown Presensi Siswa -->
+                        @if(auth()->user()->hasPermission('view-student-attendance|view-student-permits|manage-student-attendance-settings|view-terminal-attendance|manage-attendance'))
+                        @php
+                            $isStudentAttendanceActive = request()->routeIs('admin.attendances.*') || request()->routeIs('admin.student-permits.*') || request()->routeIs('admin.qr-attendance.*');
+                        @endphp
+                        <div x-data="{ open: {{ $isStudentAttendanceActive ? 'true' : 'false' }} }">
+                            <button type="button" @click="open = !open" 
+                                    class="nav-link w-full flex items-center justify-between transition-colors {{ $isStudentAttendanceActive ? 'text-[#3C50E0] dark:text-indigo-400 font-bold' : '' }}">
+                                <div class="flex items-center">
+                                    <svg class="nav-icon text-teal-500 dark:text-teal-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                        <circle cx="9" cy="7" r="4"></circle>
+                                        <polyline points="16 11 18 13 22 9"></polyline>
+                                    </svg>
+                                    <span>Presensi Siswa</span>
+                                </div>
+                                <svg class="w-4 h-4 transition-transform duration-200 shrink-0 text-slate-400" :class="{ 'rotate-90': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                            </button>
+
+                            <div x-show="open" x-collapse class="pl-4 space-y-1 mt-1 border-l-2 border-slate-200 dark:border-slate-800 ml-4">
+                                @if(auth()->user()->hasPermission('view-student-attendance|manage-attendance'))
+                                    <a href="{{ route('admin.attendances.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.attendances.index') ? 'nav-link-active' : '' }}">Rekap Presensi Siswa</a>
+                                @endif
+                                @if(auth()->user()->hasPermission('view-student-permits|manage-attendance'))
+                                    <a href="{{ route('admin.student-permits.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.student-permits.*') ? 'nav-link-active' : '' }}">Permohonan Izin Siswa</a>
+                                @endif
+                                @if(auth()->user()->hasPermission('view-terminal-attendance|manage-attendance'))
+                                    <a href="{{ route('admin.qr-attendance.scan') }}" target="_blank" rel="noopener" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.qr-attendance.*') ? 'nav-link-active' : '' }}">
+                                        <span>Terminal Presensi (QR)</span>
+                                        <svg class="w-3 h-3 text-cyan-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                    </a>
+                                @endif
+                                @if(auth()->user()->hasPermission('manage-student-attendance-settings|manage-attendance'))
+                                    <a href="{{ route('admin.attendances.settings') }}" class="nav-link text-xs {{ request()->routeIs('admin.attendances.settings') ? 'nav-link-active' : '' }}">Pengaturan Presensi Siswa</a>
+                                @endif
+                            </div>
+                        </div>
+                        @endif
+                        @endif
+
+                        <!-- Direct Personal Attendance Links (Accessible for everyone) -->
+                        <div class="pt-1 space-y-1 border-t border-slate-100 dark:border-slate-800/80">
+                            <a href="{{ route('admin.teacher-attendances.my-attendance') }}" 
+                               class="nav-link text-xs {{ request()->routeIs('admin.teacher-attendances.my-attendance') ? 'nav-link-active font-bold text-[#3C50E0] dark:text-indigo-400' : '' }}">
+                                <div class="flex items-center">
+                                    <svg class="nav-icon text-emerald-500 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11a8.136 8.136 0 00.99 3.845"/>
+                                    </svg>
+                                    <span>Presensi Mandiri Saya</span>
+                                </div>
+                            </a>
+                            <a href="{{ route('admin.employee-permits.index') }}" 
+                               class="nav-link text-xs {{ request()->routeIs('admin.employee-permits.*') ? 'nav-link-active font-bold text-[#3C50E0] dark:text-indigo-400' : '' }}">
+                                <div class="flex items-center">
+                                    <svg class="nav-icon text-indigo-500 dark:text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                    </svg>
+                                    <span>Pengajuan Izin / Cuti</span>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. Keuangan & Operasional -->
+                @if(auth()->user()->hasPermission('view-financial|view-student-payments|view-savings|view-financial-transactions|manage-financial|manage-payment-bills|view-payment-tracking|view-financial-reports|view-canteen-admin|manage-canteen-admin'))
+                <div>
+                    <p class="section-label">Keuangan &amp; Operasional</p>
                     <div class="space-y-1">
                         <!-- Keuangan & Kas Sekolah Dropdown -->
-                        @if(auth()->user()->hasPermission('view-financial'))
+                        @if(auth()->user()->hasPermission('view-financial|view-student-payments|view-savings|view-financial-transactions|manage-financial|manage-payment-bills|view-payment-tracking|view-financial-reports'))
                         @php
                             $isFinancialActive = request()->routeIs('admin.student-payments.*') || request()->routeIs('admin.savings.*') || request()->routeIs('admin.payment-posts.*') || request()->routeIs('admin.payment-bills.*') || request()->routeIs('admin.financial-categories.*') || request()->routeIs('admin.financial-transactions.*') || request()->routeIs('admin.financial-reports.*');
                             try {
@@ -1095,7 +1202,7 @@
                                         <line x1="2" y1="10" x2="22" y2="10"></line>
                                     </svg>
                                     <span class="flex items-center space-x-1.5">
-                                        <span>Keuangan & Kas</span>
+                                        <span>Keuangan &amp; Kas</span>
                                         @if($totalPendingCount > 0)
                                             <span x-show="!open" class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse shrink-0"></span>
                                         @endif
@@ -1105,30 +1212,38 @@
                             </button>
 
                             <div x-show="open" x-collapse class="pl-4 space-y-1 mt-1 border-l-2 border-slate-200 dark:border-slate-800 ml-4">
-                                <a href="{{ route('admin.student-payments.index') }}" class="nav-link text-xs {{ (request()->routeIs('admin.student-payments.index') || request()->routeIs('admin.student-payments.manual-confirm') || request()->routeIs('admin.student-payments.pay')) ? 'nav-link-active' : '' }} w-full flex items-center justify-between">
-                                    <span>Pembayaran Siswa (POS)</span>
-                                    @if($pendingManualSPPCount > 0)
-                                        <span class="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-black leading-none animate-pulse shrink-0">{{ $pendingManualSPPCount }}</span>
-                                    @endif
-                                </a>
-                                <a href="{{ route('admin.savings.index') }}" class="nav-link text-xs {{ (request()->routeIs('admin.savings.index') || request()->routeIs('admin.savings.manual-confirm') || request()->routeIs('admin.savings.show')) ? 'nav-link-active' : '' }} w-full flex items-center justify-between">
-                                    <span>Tabungan Siswa</span>
-                                    @if($pendingManualSavingsCount > 0)
-                                        <span class="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-black leading-none animate-pulse shrink-0">{{ $pendingManualSavingsCount }}</span>
-                                    @endif
-                                </a>
-                                @if(auth()->user()->hasPermission('manage-financial'))
-                                <a href="{{ route('admin.financial-transactions.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.financial-transactions.*') || request()->routeIs('admin.financial-categories.*') ? 'nav-link-active' : '' }}">Jurnal & Kas Sekolah</a>
-                                <a href="{{ route('admin.payment-bills.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.payment-bills.*') || request()->routeIs('admin.payment-posts.*') ? 'nav-link-active' : '' }}">Setting Tarif Tagihan</a>
+                                @if(auth()->user()->hasPermission('view-student-payments|view-financial'))
+                                    <a href="{{ route('admin.student-payments.index') }}" class="nav-link text-xs {{ (request()->routeIs('admin.student-payments.index') || request()->routeIs('admin.student-payments.manual-confirm') || request()->routeIs('admin.student-payments.pay')) ? 'nav-link-active' : '' }} w-full flex items-center justify-between">
+                                        <span>Pembayaran Siswa (POS)</span>
+                                        @if($pendingManualSPPCount > 0)
+                                            <span class="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-black leading-none animate-pulse shrink-0">{{ $pendingManualSPPCount }}</span>
+                                        @endif
+                                    </a>
                                 @endif
-                                <a href="{{ route('admin.student-payments.tracking') }}" class="nav-link text-xs {{ request()->routeIs('admin.student-payments.tracking') ? 'nav-link-active' : '' }}">Tracking Tunggakan</a>
-                                <a href="{{ route('admin.financial-reports.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.financial-reports.*') ? 'nav-link-active' : '' }}">Laporan Keuangan</a>
+                                @if(auth()->user()->hasPermission('view-savings|view-financial'))
+                                    <a href="{{ route('admin.savings.index') }}" class="nav-link text-xs {{ (request()->routeIs('admin.savings.index') || request()->routeIs('admin.savings.manual-confirm') || request()->routeIs('admin.savings.show')) ? 'nav-link-active' : '' }} w-full flex items-center justify-between">
+                                        <span>Tabungan Siswa</span>
+                                        @if($pendingManualSavingsCount > 0)
+                                            <span class="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-black leading-none animate-pulse shrink-0">{{ $pendingManualSavingsCount }}</span>
+                                        @endif
+                                    </a>
+                                @endif
+                                @if(auth()->user()->hasPermission('manage-financial'))
+                                    <a href="{{ route('admin.financial-transactions.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.financial-transactions.*') || request()->routeIs('admin.financial-categories.*') ? 'nav-link-active' : '' }}">Jurnal &amp; Kas Sekolah</a>
+                                    <a href="{{ route('admin.payment-bills.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.payment-bills.*') || request()->routeIs('admin.payment-posts.*') ? 'nav-link-active' : '' }}">Setting Tarif Tagihan</a>
+                                @endif
+                                @if(auth()->user()->hasPermission('view-payment-tracking|view-financial'))
+                                    <a href="{{ route('admin.student-payments.tracking') }}" class="nav-link text-xs {{ request()->routeIs('admin.student-payments.tracking') ? 'nav-link-active' : '' }}">Tracking Tunggakan</a>
+                                @endif
+                                @if(auth()->user()->hasPermission('view-financial-reports|view-financial'))
+                                    <a href="{{ route('admin.financial-reports.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.financial-reports.*') ? 'nav-link-active' : '' }}">Laporan Keuangan</a>
+                                @endif
                             </div>
                         </div>
                         @endif
 
                         <!-- Digital E-Kantin Dropdown -->
-                        @if(auth()->user()->hasPermission('view-canteen-admin'))
+                        @if(auth()->user()->hasPermission('view-canteen-admin|manage-canteen-admin'))
                         @php
                             $isCanteenActive = request()->routeIs('admin.canteen.*');
                             try {
@@ -1172,15 +1287,15 @@
                 </div>
                 @endif
 
-                <!-- 5. Informasi & Konten Web -->
-                @if(auth()->user()->hasPermission('view-content') || auth()->user()->hasPermission('view-announcements') || auth()->user()->hasPermission('view-posts') || auth()->user()->hasPermission('view-categories') || auth()->user()->hasPermission('view-broadcast') || auth()->user()->hasPermission('view-notifications'))
+                <!-- 7. Publikasi & Informasi -->
+                @if(auth()->user()->hasPermission('view-posts|manage-posts|view-announcements|manage-announcements|view-gallery|manage-gallery|manage-sliders|manage-curriculum|view-broadcast|view-notifications|view-content'))
                 <div>
-                    <p class="section-label">Informasi & Konten Web</p>
+                    <p class="section-label">Publikasi &amp; Informasi</p>
                     <div class="space-y-0.5">
                         <!-- Konten & Website Dropdown -->
-                        @if(auth()->user()->hasPermission('view-content') || auth()->user()->hasPermission('view-announcements') || auth()->user()->hasPermission('view-posts') || auth()->user()->hasPermission('view-categories'))
+                        @if(auth()->user()->hasPermission('view-posts|view-announcements|view-gallery|manage-sliders|manage-curriculum|view-content'))
                         @php
-                            $isContentActive = request()->routeIs('admin.posts.*') || request()->routeIs('admin.categories.*') || request()->routeIs('admin.gallery.*') || request()->routeIs('admin.announcements.*') || request()->routeIs('admin.sliders.*') || request()->routeIs('admin.curriculum.*') || request()->routeIs('admin.extracurriculars.*');
+                            $isContentActive = request()->routeIs('admin.posts.*') || request()->routeIs('admin.categories.*') || request()->routeIs('admin.gallery.*') || request()->routeIs('admin.announcements.*') || request()->routeIs('admin.sliders.*') || request()->routeIs('admin.curriculum.*');
                         @endphp
                         <div x-data="{ open: {{ $isContentActive ? 'true' : 'false' }} }">
                             <button type="button" @click="open = !open" 
@@ -1190,7 +1305,7 @@
                                         <path d="M19 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10l5 5v11a2 2 0 0 1-2 2z"></path>
                                         <polyline points="14 2 14 8 20 8"></polyline>
                                     </svg>
-                                    <span>Konten & Website</span>
+                                    <span>Konten &amp; Website</span>
                                 </div>
                                 <svg class="w-4 h-4 transition-transform duration-200 shrink-0 text-slate-400" :class="{ 'rotate-90': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                             </button>
@@ -1205,15 +1320,11 @@
                                 @if(auth()->user()->hasPermission('view-gallery'))
                                     <a href="{{ route('admin.gallery.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.gallery.*') ? 'nav-link-active' : '' }}">Galeri Foto</a>
                                 @endif
-                                @if(auth()->user()->hasPermission('view-content'))
+                                @if(auth()->user()->hasPermission('manage-sliders|view-content'))
                                     <a href="{{ route('admin.sliders.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.sliders.*') ? 'nav-link-active' : '' }}">Hero Banner Slider</a>
+                                @endif
+                                @if(auth()->user()->hasPermission('manage-curriculum|view-content'))
                                     <a href="{{ route('admin.curriculum.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.curriculum.*') ? 'nav-link-active' : '' }}">Kurikulum &amp; Program</a>
-                                    <a href="{{ route('admin.extracurriculars.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.extracurriculars.*') ? 'nav-link-active' : '' }}">
-                                        <span class="flex items-center justify-between w-full">
-                                            <span>Ekstrakurikuler Siswa</span>
-                                            <span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">Kegiatan</span>
-                                        </span>
-                                    </a>
                                 @endif
                             </div>
                         </div>
@@ -1242,12 +1353,11 @@
                 </div>
                 @endif
 
-                <!-- 6. Sistem & Pengaturan -->
-                @if(auth()->user()->hasPermission('view-users') || auth()->user()->hasPermission('view-roles') || auth()->user()->hasPermission('view-settings') || auth()->user()->hasRole('super-admin') || auth()->user()->hasRole('admin'))
+                <!-- 8. Sistem & Pengaturan -->
+                @if(auth()->user()->hasPermission('view-roles|manage-roles|view-settings|edit-settings|view-security|manage-database-maintenance') || auth()->user()->hasRole('super-admin|admin'))
                 <div>
-                    <p class="section-label">Sistem & Pengaturan</p>
+                    <p class="section-label">Sistem &amp; Pengaturan</p>
                     <div class="space-y-0.5">
-                        @if(auth()->user()->hasPermission('view-users') || auth()->user()->hasPermission('view-roles') || auth()->user()->hasPermission('view-settings'))
                         @php
                             $isSystemActive = request()->routeIs('admin.roles.*') || request()->routeIs('admin.profile-settings') || request()->routeIs('admin.settings') || request()->routeIs('admin.security.*');
                         @endphp
@@ -1265,22 +1375,25 @@
                             </button>
 
                             <div x-show="open" x-collapse class="pl-4 space-y-1 mt-1 border-l-2 border-slate-200 dark:border-slate-800 ml-4">
-                                @if(auth()->user()->hasPermission('view-roles'))
-                                    <a href="{{ route('admin.roles.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.roles.*') ? 'nav-link-active' : '' }}">Role & Hak Akses</a>
+                                @if(auth()->user()->hasPermission('view-roles|manage-roles') || auth()->user()->hasRole('super-admin|admin'))
+                                    <a href="{{ route('admin.roles.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.roles.*') ? 'nav-link-active' : '' }}">Role &amp; Hak Akses</a>
                                 @endif
-                                @if(auth()->user()->hasPermission('view-settings'))
-                                    <a href="{{ route('admin.profile-settings') }}" class="nav-link text-xs {{ request()->routeIs('admin.profile-settings') ? 'nav-link-active' : '' }}">Profil Web</a>
+                                @if(auth()->user()->hasPermission('view-settings|edit-settings') || auth()->user()->hasRole('super-admin|admin'))
+                                    <a href="{{ route('admin.profile-settings') }}" class="nav-link text-xs {{ request()->routeIs('admin.profile-settings') ? 'nav-link-active' : '' }}">Profil Website</a>
+                                @endif
+                                @if(auth()->user()->hasPermission('view-security') || auth()->user()->hasRole('super-admin|admin'))
                                     <a href="{{ route('admin.security.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.security.*') ? 'nav-link-active' : '' }}">
                                         <span>Keamanan Sistem</span>
                                         <span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 font-extrabold text-[9px] rounded">Pro</span>
                                     </a>
+                                @endif
+                                @if(auth()->user()->hasPermission('view-settings|edit-settings') || auth()->user()->hasRole('super-admin|admin'))
                                     <a href="{{ route('admin.settings') }}" class="nav-link text-xs {{ request()->routeIs('admin.settings') ? 'nav-link-active' : '' }}">Konfigurasi Web</a>
                                 @endif
                             </div>
                         </div>
-                        @endif
 
-                        @if(auth()->user()->hasRole('super-admin') || auth()->user()->hasRole('admin'))
+                        @if(auth()->user()->hasRole('super-admin') || auth()->user()->hasRole('admin') || auth()->user()->hasPermission('manage-database-maintenance'))
                         @php
                             $pendingMigrationsCount = 0;
                             try {
@@ -1299,7 +1412,7 @@
                                 <svg class="nav-icon text-rose-500 dark:text-rose-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/>
                                 </svg>
-                                <span>Database & Backup</span>
+                                <span>Database &amp; Backup</span>
                             </div>
                             @if($pendingMigrationsCount > 0)
                                 <span class="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-black leading-none animate-pulse shrink-0">
@@ -1312,10 +1425,9 @@
                 </div>
                 @endif
 
-                <!-- 7. Bantuan & Panduan -->
-                @if(auth()->user()->hasRole('super-admin') || auth()->user()->hasRole('superadmin') || auth()->user()->hasRole('admin'))
+                <!-- 9. Bantuan & Panduan -->
                 <div>
-                    <p class="section-label">Bantuan & Dokumen</p>
+                    <p class="section-label">Bantuan &amp; Panduan</p>
                     <div class="space-y-0.5">
                         <a href="{{ route('admin.guide') }}" target="_blank" rel="noopener"
                            class="nav-link flex items-center justify-between {{ request()->routeIs('admin.guide') ? 'nav-link-active font-bold' : '' }}">
@@ -1332,7 +1444,6 @@
                         </a>
                     </div>
                 </div>
-                @endif
             </nav>
 
             <!-- TailAdmin User Profile Card Footer -->
@@ -1714,7 +1825,6 @@
                         </div>
                     </footer>
                 </main>
-            @endif
         </div>
     </div>
 

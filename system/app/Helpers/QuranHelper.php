@@ -1,0 +1,147 @@
+<?php
+
+namespace App\Helpers;
+
+class QuranHelper
+{
+    /**
+     * Daftar 114 Surah Al-Qur'an lengkap dengan nomor, nama, juz awal/utama, dan jumlah ayat.
+     */
+    public static function getAllSurahs(): array
+    {
+        return [
+            1 => ['number' => 1, 'name' => "Al-Fatihah", 'juz' => 1, 'verses' => 7],
+            2 => ['number' => 2, 'name' => "Al-Baqarah", 'juz' => 1, 'verses' => 286],
+            3 => ['number' => 3, 'name' => "Ali 'Imran", 'juz' => 3, 'verses' => 200],
+            4 => ['number' => 4, 'name' => "An-Nisa'", 'juz' => 4, 'verses' => 176],
+            5 => ['number' => 5, 'name' => "Al-Ma'idah", 'juz' => 6, 'verses' => 120],
+            6 => ['number' => 6, 'name' => "Al-An'am", 'juz' => 7, 'verses' => 165],
+            7 => ['number' => 7, 'name' => "Al-A'raf", 'juz' => 8, 'verses' => 206],
+            8 => ['number' => 8, 'name' => "Al-Anfal", 'juz' => 9, 'verses' => 75],
+            9 => ['number' => 9, 'name' => "At-Taubah", 'juz' => 10, 'verses' => 129],
+            10 => ['number' => 10, 'name' => "Yunus", 'juz' => 11, 'verses' => 109],
+            11 => ['number' => 11, 'name' => "Hud", 'juz' => 11, 'verses' => 123],
+            12 => ['number' => 12, 'name' => "Yusuf", 'juz' => 12, 'verses' => 111],
+            13 => ['number' => 13, 'name' => "Ar-Ra'd", 'juz' => 13, 'verses' => 43],
+            14 => ['number' => 14, 'name' => "Ibrahim", 'juz' => 13, 'verses' => 52],
+            15 => ['number' => 15, 'name' => "Al-Hijr", 'juz' => 14, 'verses' => 99],
+            16 => ['number' => 16, 'name' => "An-Nahl", 'juz' => 14, 'verses' => 128],
+            17 => ['number' => 17, 'name' => "Al-Isra'", 'juz' => 15, 'verses' => 111],
+            18 => ['number' => 18, 'name' => "Al-Kahf", 'juz' => 15, 'verses' => 110],
+            19 => ['number' => 19, 'name' => "Maryam", 'juz' => 16, 'verses' => 98],
+            20 => ['number' => 20, 'name' => "Taha", 'juz' => 16, 'verses' => 135],
+            21 => ['number' => 21, 'name' => "Al-Anbiya'", 'juz' => 17, 'verses' => 112],
+            22 => ['number' => 22, 'name' => "Al-Hajj", 'juz' => 17, 'verses' => 78],
+            23 => ['number' => 23, 'name' => "Al-Mu'minun", 'juz' => 18, 'verses' => 118],
+            24 => ['number' => 24, 'name' => "An-Nur", 'juz' => 18, 'verses' => 64],
+            25 => ['number' => 25, 'name' => "Al-Furqan", 'juz' => 18, 'verses' => 77],
+            26 => ['number' => 26, 'name' => "Asy-Syu'ara'", 'juz' => 19, 'verses' => 227],
+            27 => ['number' => 27, 'name' => "An-Naml", 'juz' => 19, 'verses' => 93],
+            28 => ['number' => 28, 'name' => "Al-Qashash", 'juz' => 20, 'verses' => 88],
+            29 => ['number' => 29, 'name' => "Al-'Ankabut", 'juz' => 20, 'verses' => 69],
+            30 => ['number' => 30, 'name' => "Ar-Rum", 'juz' => 21, 'verses' => 60],
+            31 => ['number' => 31, 'name' => "Luqman", 'juz' => 21, 'verses' => 34],
+            32 => ['number' => 32, 'name' => "As-Sajdah", 'juz' => 21, 'verses' => 30],
+            33 => ['number' => 33, 'name' => "Al-Ahzab", 'juz' => 21, 'verses' => 73],
+            34 => ['number' => 34, 'name' => "Saba'", 'juz' => 22, 'verses' => 54],
+            35 => ['number' => 35, 'name' => "Fatir", 'juz' => 22, 'verses' => 45],
+            36 => ['number' => 36, 'name' => "Yasin", 'juz' => 22, 'verses' => 83],
+            37 => ['number' => 37, 'name' => "Ash-Shaffat", 'juz' => 23, 'verses' => 182],
+            38 => ['number' => 38, 'name' => "Shad", 'juz' => 23, 'verses' => 88],
+            39 => ['number' => 39, 'name' => "Az-Zumar", 'juz' => 23, 'verses' => 75],
+            40 => ['number' => 40, 'name' => "Ghafir", 'juz' => 24, 'verses' => 85],
+            41 => ['number' => 41, 'name' => "Fushshilat", 'juz' => 24, 'verses' => 54],
+            42 => ['number' => 42, 'name' => "Asy-Syura", 'juz' => 25, 'verses' => 53],
+            43 => ['number' => 43, 'name' => "Az-Zukhruf", 'juz' => 25, 'verses' => 89],
+            44 => ['number' => 44, 'name' => "Ad-Dukhan", 'juz' => 25, 'verses' => 59],
+            45 => ['number' => 45, 'name' => "Al-Jasiyah", 'juz' => 25, 'verses' => 37],
+            46 => ['number' => 46, 'name' => "Al-Ahqaf", 'juz' => 26, 'verses' => 35],
+            47 => ['number' => 47, 'name' => "Muhammad", 'juz' => 26, 'verses' => 38],
+            48 => ['number' => 48, 'name' => "Al-Fath", 'juz' => 26, 'verses' => 29],
+            49 => ['number' => 49, 'name' => "Al-Hujurat", 'juz' => 26, 'verses' => 18],
+            50 => ['number' => 50, 'name' => "Qaf", 'juz' => 26, 'verses' => 45],
+            51 => ['number' => 51, 'name' => "Az-Zariyat", 'juz' => 26, 'verses' => 60],
+            52 => ['number' => 52, 'name' => "At-Tur", 'juz' => 27, 'verses' => 49],
+            53 => ['number' => 53, 'name' => "An-Najm", 'juz' => 27, 'verses' => 62],
+            54 => ['number' => 54, 'name' => "Al-Qamar", 'juz' => 27, 'verses' => 55],
+            55 => ['number' => 55, 'name' => "Ar-Rahman", 'juz' => 27, 'verses' => 78],
+            56 => ['number' => 56, 'name' => "Al-Waqi'ah", 'juz' => 27, 'verses' => 96],
+            57 => ['number' => 57, 'name' => "Al-Hadid", 'juz' => 27, 'verses' => 29],
+            58 => ['number' => 58, 'name' => "Al-Mujadilah", 'juz' => 28, 'verses' => 22],
+            59 => ['number' => 59, 'name' => "Al-Hasyr", 'juz' => 28, 'verses' => 24],
+            60 => ['number' => 60, 'name' => "Al-Mumtahanah", 'juz' => 28, 'verses' => 13],
+            61 => ['number' => 61, 'name' => "Ash-Shaff", 'juz' => 28, 'verses' => 14],
+            62 => ['number' => 62, 'name' => "Al-Jumu'ah", 'juz' => 28, 'verses' => 11],
+            63 => ['number' => 63, 'name' => "Al-Munafiqun", 'juz' => 28, 'verses' => 11],
+            64 => ['number' => 64, 'name' => "At-Taghabun", 'juz' => 28, 'verses' => 18],
+            65 => ['number' => 65, 'name' => "At-Talaq", 'juz' => 28, 'verses' => 12],
+            66 => ['number' => 66, 'name' => "At-Tahrim", 'juz' => 28, 'verses' => 12],
+            67 => ['number' => 67, 'name' => "Al-Mulk", 'juz' => 29, 'verses' => 30],
+            68 => ['number' => 68, 'name' => "Al-Qalam", 'juz' => 29, 'verses' => 52],
+            69 => ['number' => 69, 'name' => "Al-Haqqah", 'juz' => 29, 'verses' => 52],
+            70 => ['number' => 70, 'name' => "Al-Ma'arij", 'juz' => 29, 'verses' => 44],
+            71 => ['number' => 71, 'name' => "Nuh", 'juz' => 29, 'verses' => 28],
+            72 => ['number' => 72, 'name' => "Al-Jinn", 'juz' => 29, 'verses' => 28],
+            73 => ['number' => 73, 'name' => "Al-Muzzammil", 'juz' => 29, 'verses' => 20],
+            74 => ['number' => 74, 'name' => "Al-Muddassir", 'juz' => 29, 'verses' => 56],
+            75 => ['number' => 75, 'name' => "Al-Qiyamah", 'juz' => 29, 'verses' => 40],
+            76 => ['number' => 76, 'name' => "Al-Insan", 'juz' => 29, 'verses' => 31],
+            77 => ['number' => 77, 'name' => "Al-Mursalat", 'juz' => 29, 'verses' => 50],
+            78 => ['number' => 78, 'name' => "An-Naba'", 'juz' => 30, 'verses' => 40],
+            79 => ['number' => 79, 'name' => "An-Nazi'at", 'juz' => 30, 'verses' => 46],
+            80 => ['number' => 80, 'name' => "'Abasa", 'juz' => 30, 'verses' => 42],
+            81 => ['number' => 81, 'name' => "At-Takwir", 'juz' => 30, 'verses' => 29],
+            82 => ['number' => 82, 'name' => "Al-Infitar", 'juz' => 30, 'verses' => 19],
+            83 => ['number' => 83, 'name' => "Al-Muthaffifin", 'juz' => 30, 'verses' => 36],
+            84 => ['number' => 84, 'name' => "Al-Insyiqaq", 'juz' => 30, 'verses' => 25],
+            85 => ['number' => 85, 'name' => "Al-Buruj", 'juz' => 30, 'verses' => 22],
+            86 => ['number' => 86, 'name' => "At-Tariq", 'juz' => 30, 'verses' => 17],
+            87 => ['number' => 87, 'name' => "Al-A'la", 'juz' => 30, 'verses' => 19],
+            88 => ['number' => 88, 'name' => "Al-Ghasyiyah", 'juz' => 30, 'verses' => 26],
+            89 => ['number' => 89, 'name' => "Al-Fajr", 'juz' => 30, 'verses' => 30],
+            90 => ['number' => 90, 'name' => "Al-Balad", 'juz' => 30, 'verses' => 20],
+            91 => ['number' => 91, 'name' => "Asy-Syams", 'juz' => 30, 'verses' => 15],
+            92 => ['number' => 92, 'name' => "Al-Lail", 'juz' => 30, 'verses' => 21],
+            93 => ['number' => 93, 'name' => "Ad-Duha", 'juz' => 30, 'verses' => 11],
+            94 => ['number' => 94, 'name' => "Al-Insyirah", 'juz' => 30, 'verses' => 8],
+            95 => ['number' => 95, 'name' => "At-Tin", 'juz' => 30, 'verses' => 8],
+            96 => ['number' => 96, 'name' => "Al-'Alaq", 'juz' => 30, 'verses' => 19],
+            97 => ['number' => 97, 'name' => "Al-Qadr", 'juz' => 30, 'verses' => 5],
+            98 => ['number' => 98, 'name' => "Al-Bayyinah", 'juz' => 30, 'verses' => 8],
+            99 => ['number' => 99, 'name' => "Az-Zalzalah", 'juz' => 30, 'verses' => 8],
+            100 => ['number' => 100, 'name' => "Al-'Adiyat", 'juz' => 30, 'verses' => 11],
+            101 => ['number' => 101, 'name' => "Al-Qari'ah", 'juz' => 30, 'verses' => 11],
+            102 => ['number' => 102, 'name' => "At-Takasur", 'juz' => 30, 'verses' => 8],
+            103 => ['number' => 103, 'name' => "Al-'Asr", 'juz' => 30, 'verses' => 3],
+            104 => ['number' => 104, 'name' => "Al-Humazah", 'juz' => 30, 'verses' => 9],
+            105 => ['number' => 105, 'name' => "Al-Fil", 'juz' => 30, 'verses' => 5],
+            106 => ['number' => 106, 'name' => "Quraisy", 'juz' => 30, 'verses' => 4],
+            107 => ['number' => 107, 'name' => "Al-Ma'un", 'juz' => 30, 'verses' => 7],
+            108 => ['number' => 108, 'name' => "Al-Kausar", 'juz' => 30, 'verses' => 3],
+            109 => ['number' => 109, 'name' => "Al-Kafirun", 'juz' => 30, 'verses' => 6],
+            110 => ['number' => 110, 'name' => "An-Nasr", 'juz' => 30, 'verses' => 3],
+            111 => ['number' => 111, 'name' => "Al-Lahab", 'juz' => 30, 'verses' => 5],
+            112 => ['number' => 112, 'name' => "Al-Ikhlas", 'juz' => 30, 'verses' => 4],
+            113 => ['number' => 113, 'name' => "Al-Falaq", 'juz' => 30, 'verses' => 5],
+            114 => ['number' => 114, 'name' => "An-Nas", 'juz' => 30, 'verses' => 6],
+        ];
+    }
+
+    /**
+     * Dapatkan format display dropdown "[Nomor]. [Nama Surah] (Juz [Juz])"
+     */
+    public static function getDropdownOptions(): array
+    {
+        $options = [];
+        foreach (self::getAllSurahs() as $s) {
+            $options[] = [
+                'number' => $s['number'],
+                'name' => $s['name'],
+                'juz' => $s['juz'],
+                'verses' => $s['verses'],
+                'label' => "{$s['number']}. {$s['name']} (Juz {$s['juz']})",
+            ];
+        }
+        return $options;
+    }
+}

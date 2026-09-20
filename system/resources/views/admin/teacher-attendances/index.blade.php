@@ -377,26 +377,7 @@
                 <span>Scanner Sidik Jari USB ↗</span>
             </a>
 
-            <!-- Presensi Mandiri Dashboard (Lock GPS) Link Button -->
-            <a href="{{ route('admin.dashboard') }}"
-               class="inline-flex items-center space-x-2 px-3.5 py-2.5 bg-primary/10 hover:bg-primary hover:text-white text-primary text-xs font-bold rounded-xl transition-all border border-primary/20 cursor-pointer">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-                <span>Presensi GPS Mandiri (Dashboard) ↗</span>
-            </a>
 
-            <!-- Kontrol Sesi Presensi & Live Briefing Modal Trigger -->
-            <button type="button" @click="showSesiBriefingModal = true"
-                    class="inline-flex items-center space-x-2 px-3.5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-orange-500/25 cursor-pointer">
-                <span>👑</span>
-                <span>Sesi & Briefing ⚙️</span>
-            </button>
-
-            <!-- Pengaturan Radius GPS Shortcut Button -->
-            <a href="{{ route('admin.settings', ['tab' => 'contact']) }}"
-               class="inline-flex items-center space-x-1.5 px-3 py-2.5 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-600 hover:text-white text-blue-700 dark:text-blue-300 text-xs font-bold rounded-xl transition-all border border-blue-200 dark:border-blue-800" title="Atur Titik Lokasi & Radius Presensi Sekolah">
-                <span>📍</span>
-                <span>Radius GPS ({{ Setting::get('school_attendance_radius', 100) }}m) ⚙️</span>
-            </a>
 
             <!-- Scanner AI Face ID Link Button -->
             <a href="{{ route('admin.teacher-attendances.scan') }}" target="_blank" rel="noopener"

@@ -11,6 +11,14 @@
     tahsinType: 'jilid',
     scoreCognitive: 90,
     scoreAdab: 85,
+    selectedJuz: 30,
+    onSurahChange(event) {
+        const sel = event.target;
+        const opt = sel.options[sel.selectedIndex];
+        if (opt && opt.dataset.juz) {
+            this.selectedJuz = parseInt(opt.dataset.juz);
+        }
+    },
     get calculatedPredicate() {
         let sc = parseFloat(this.scoreCognitive) || 0;
         if (sc >= 90) return 'Mumtaz (90-100)';
@@ -173,13 +181,14 @@
                         <div class="flex items-center justify-between">
                             <span class="text-[11px] font-extrabold text-slate-500 uppercase">Detail Lembar Tajwid Tahsin:</span>
                             <div class="inline-flex p-0.5 bg-slate-200 dark:bg-slate-700 rounded-lg text-[10px] font-bold">
-                                <button type="button" @click="tahsinType = 'jilid'" :class="tahsinType === 'jilid' ? 'bg-emerald-600 text-white' : 'text-slate-600 dark:text-slate-300'" class="px-2 py-0.5 rounded">Jilid</button>
-                                <button type="button" @click="tahsinType = 'tilawah'" :class="tahsinType === 'tilawah' ? 'bg-emerald-600 text-white' : 'text-slate-600 dark:text-slate-300'" class="px-2 py-0.5 rounded">Tilawah</button>
+                                <button type="button" @click="tahsinType = 'jilid'" :class="tahsinType === 'jilid' ? 'bg-emerald-600 text-white' : 'text-slate-600 dark:text-slate-300'" class="px-2.5 py-0.5 rounded transition">Jilid</button>
+                                <button type="button" @click="tahsinType = 'tilawah'" :class="tahsinType === 'tilawah' ? 'bg-emerald-600 text-white' : 'text-slate-600 dark:text-slate-300'" class="px-2.5 py-0.5 rounded transition">Tilawah (Al-Qur'an)</button>
                             </div>
                             <input type="hidden" name="tahsin_type" :value="tahsinType">
                         </div>
 
-                        <div class="grid grid-cols-3 gap-2">
+                        {{-- Mode 1: Tahsin Standar Jilid --}}
+                        <div x-show="tahsinType === 'jilid'" class="grid grid-cols-3 gap-2">
                             <div>
                                 <label class="block text-[10px] font-bold text-slate-400 mb-1">Standard Jilid</label>
                                 <select name="jilid_level" class="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold">
@@ -187,7 +196,6 @@
                                     <option value="Jilid 2">Jilid 2</option>
                                     <option value="Jilid 3">Jilid 3</option>
                                     <option value="Jilid 4">Jilid 4</option>
-                                    <option value="Tilawah">Tilawah</option>
                                 </select>
                             </div>
                             <div>
@@ -199,27 +207,65 @@
                                 <input type="number" name="page_end" value="10" min="1" class="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold text-center">
                             </div>
                         </div>
+
+                        {{-- Mode 2: Tahsin Tilawah Al-Qur'an (Dropdown Surah Lengkap) --}}
+                        <div x-show="tahsinType === 'tilawah'" class="space-y-2.5">
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 mb-1">Juz (Otomatis)</label>
+                                    <input type="number" name="juz_number" x-model="selectedJuz" min="1" max="30" class="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold text-center">
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <label class="block text-[10px] font-bold text-slate-400 mb-1">Pilih Nama Surah (1 - 114)</label>
+                                    <select name="surah_name" @change="onSurahChange($event)" class="w-full px-2.5 py-2 border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold focus:ring-2 focus:ring-emerald-500">
+                                        <option value="">-- Pilih Nama Surah --</option>
+                                        @foreach($surahOptions ?? [] as $surah)
+                                            <option value="{{ $surah['name'] }}" data-juz="{{ $surah['juz'] }}">
+                                                {{ $surah['label'] }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 mb-1">Ayat Mulai</label>
+                                    <input type="number" name="ayat_start" value="1" min="1" class="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold text-center">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 mb-1">Ayat Selesai</label>
+                                    <input type="number" name="ayat_end" value="10" min="1" class="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold text-center">
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    {{-- Detail Jika Tahfidz --}}
+                    {{-- Detail Jika Tahfidz (Dropdown Surah Lengkap) --}}
                     <div x-show="programType === 'tahfidz'" class="space-y-3 p-3.5 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-2xl border border-emerald-100 dark:border-emerald-900/40">
                         <span class="text-[11px] font-extrabold text-emerald-800 dark:text-emerald-300 uppercase">Detail Setoran Tahfidz:</span>
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                             <div>
-                                <label class="block text-[10px] font-bold text-slate-400 mb-1">Juz</label>
-                                <input type="number" name="juz_number" value="30" min="1" max="30" class="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold text-center">
+                                <label class="block text-[10px] font-bold text-slate-400 mb-1">Juz (Otomatis)</label>
+                                <input type="number" name="juz_number" x-model="selectedJuz" min="1" max="30" class="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold text-center">
                             </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-400 mb-1">Nama Surah</label>
-                                <input type="text" name="surah_name" placeholder="Misal: An-Naba" class="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold">
+                            <div class="sm:col-span-2">
+                                <label class="block text-[10px] font-bold text-slate-400 mb-1">Pilih Nama Surah (1 - 114)</label>
+                                <select name="surah_name" @change="onSurahChange($event)" class="w-full px-2.5 py-2 border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold focus:ring-2 focus:ring-emerald-500">
+                                    <option value="">-- Pilih Nama Surah --</option>
+                                    @foreach($surahOptions ?? [] as $surah)
+                                        <option value="{{ $surah['name'] }}" data-juz="{{ $surah['juz'] }}" {{ $surah['number'] == 78 ? 'selected' : '' }}>
+                                            {{ $surah['label'] }}
+                                        </option>
+                                    @endforeach
+                                </select>
                             </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-400 mb-1">Ayat (Mulai-Selesai)</label>
-                                <div class="flex items-center gap-1">
-                                    <input type="number" name="ayat_start" value="1" min="1" class="w-1/2 px-2 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold text-center">
-                                    <span>-</span>
-                                    <input type="number" name="ayat_end" value="10" min="1" class="w-1/2 px-2 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold text-center">
-                                </div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 mb-1">Ayat (Mulai - Selesai)</label>
+                            <div class="flex items-center gap-1">
+                                <input type="number" name="ayat_start" value="1" min="1" class="w-1/2 px-2 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold text-center" placeholder="Mulai">
+                                <span>-</span>
+                                <input type="number" name="ayat_end" value="10" min="1" class="w-1/2 px-2 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold text-center" placeholder="Selesai">
                             </div>
                         </div>
                     </div>
@@ -453,17 +499,25 @@
                                     </select>
                                 </td>
                                 <td class="py-3 px-3">
-                                    <div class="flex items-center gap-1.5">
-                                        <select name="items[{{ $st->id }}][program_type]" class="mass-program-select px-2 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold">
-                                            <option value="tahsin">Tahsin</option>
-                                            <option value="tahfidz">Tahfidz</option>
-                                        </select>
-                                        <select name="items[{{ $st->id }}][jilid_level]" class="mass-jilid-select px-2 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold">
-                                            <option value="Jilid 1">Jilid 1</option>
-                                            <option value="Jilid 2">Jilid 2</option>
-                                            <option value="Jilid 3">Jilid 3</option>
-                                            <option value="Jilid 4">Jilid 4</option>
-                                            <option value="Tilawah">Tilawah</option>
+                                    <div class="flex flex-col gap-1.5">
+                                        <div class="flex items-center gap-1.5">
+                                            <select name="items[{{ $st->id }}][program_type]" class="mass-program-select px-2 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold">
+                                                <option value="tahsin">Tahsin</option>
+                                                <option value="tahfidz">Tahfidz</option>
+                                            </select>
+                                            <select name="items[{{ $st->id }}][jilid_level]" class="mass-jilid-select px-2 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold">
+                                                <option value="Jilid 1">Jilid 1</option>
+                                                <option value="Jilid 2">Jilid 2</option>
+                                                <option value="Jilid 3">Jilid 3</option>
+                                                <option value="Jilid 4">Jilid 4</option>
+                                                <option value="Tilawah">Tilawah</option>
+                                            </select>
+                                        </div>
+                                        <select name="items[{{ $st->id }}][surah_name]" class="mass-surah-select w-full px-2 py-1 border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-800 rounded-lg text-[10px] font-bold">
+                                            <option value="">-- Pilihan Surah (Khusus Tahfidz / Tilawah) --</option>
+                                            @foreach($surahOptions ?? [] as $surah)
+                                                <option value="{{ $surah['name'] }}">{{ $surah['label'] }}</option>
+                                            @endforeach
                                         </select>
                                     </div>
                                 </td>

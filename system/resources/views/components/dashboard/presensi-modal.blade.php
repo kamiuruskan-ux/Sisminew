@@ -133,6 +133,7 @@
                 <button type="button" @click="refreshGps()" class="text-[#3C50E0] dark:text-indigo-400 font-bold text-xs hover:underline flex items-center gap-1 cursor-pointer">
                     <span :class="gpsLoading ? 'animate-spin' : ''">🔄</span> Refresh GPS
                 </button>
+            </div>
             <!-- Loading State -->
             <template x-if="gpsLoading">
                 <div class="flex items-center space-x-2 text-xs text-indigo-600 dark:text-indigo-400">

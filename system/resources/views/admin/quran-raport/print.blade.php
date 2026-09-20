@@ -83,6 +83,19 @@
         .btn-close:hover {
             background: #475569;
         }
+        .preview-banner {
+            background: linear-gradient(90deg, #065f46 0%, #047857 100%);
+            color: white;
+            padding: 10px 20px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
 
         /* Kop Surat */
         .kop-header {
@@ -271,6 +284,19 @@
 </head>
 <body>
 
+    @if(!empty($isPreview))
+    <div class="preview-banner no-print">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="background: rgba(255,255,255,0.2); padding: 3px 10px; border-radius: 20px; font-weight: 800; font-size: 11px;">MODE PRATINJAU / PREVIEW</span>
+            <span>Pratinjau Lembar Raport Al-Qur'an • Template: <strong>{{ $selectedTemplate['name'] ?? 'Standar' }}</strong> • Kota: <strong>{{ $raportSettings['city'] ?? 'Palu' }}</strong></span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <a href="{{ route('admin.quran-raport.settings') }}" style="background: #ffffff; color: #065f46; padding: 5px 14px; border-radius: 20px; text-decoration: none; font-weight: 700; font-size: 11px;">⚙️ Edit Template &amp; Capaian</a>
+            <button onclick="window.close()" style="background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 5px 14px; border-radius: 20px; cursor: pointer; font-size: 11px; font-weight: 600;">Tutup Preview</button>
+        </div>
+    </div>
+    @endif
+
     <div class="action-bar no-print">
         <button onclick="window.print()" class="action-btn">
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
@@ -290,15 +316,21 @@
         {{-- Kop Lembaga --}}
         <div class="kop-header">
             <div class="kop-logo-box">
-                @php
-                    $schoolLogo = \App\Models\Setting::getLogoUrl();
-                @endphp
-                <img src="{{ $schoolLogo }}" class="kop-logo" alt="Logo">
+                @if(($raportSettings['logo_type'] ?? 'default') === 'placeholder')
+                    <div style="width: 72px; height: 72px; border: 2px dashed #94a3b8; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8fafc; color: #64748b; font-size: 8px; font-weight: 700; text-align: center; padding: 4px;">
+                        <svg style="width: 22px; height: 22px; margin-bottom: 2px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        <span>LOGO SEKOLAH</span>
+                    </div>
+                @elseif(($raportSettings['logo_type'] ?? 'default') === 'custom' && !empty($raportSettings['custom_logo_path']))
+                    <img src="{{ asset($raportSettings['custom_logo_path']) }}" class="kop-logo" alt="Logo">
+                @else
+                    <img src="{{ \App\Models\Setting::getLogoUrl() }}" class="kop-logo" alt="Logo">
+                @endif
             </div>
             <div class="kop-details">
-                <p class="kop-header-top">LEMBAGA PENDIDIKAN DAN TAHFIDZ AL-QUR'AN</p>
-                <h1>{{ $raportSettings['school_name'] }}</h1>
-                <p>{{ $raportSettings['school_address'] }} • Telp: {{ $raportSettings['school_phone'] }} • Web: {{ $raportSettings['school_website'] }}</p>
+                <p class="kop-header-top">{{ $raportSettings['kop_top'] ?? "LEMBAGA PENDIDIKAN DAN TAHFIDZ AL-QUR'AN" }}</p>
+                <h1>{{ $raportSettings['school_name'] ?? 'SDIT AL-FAHMI PALU' }}</h1>
+                <p>{{ $raportSettings['school_address'] ?? 'Kota Palu' }} • Telp: {{ $raportSettings['school_phone'] ?? '-' }} • Web: {{ $raportSettings['school_website'] ?? '-' }}</p>
             </div>
         </div>
 
@@ -359,14 +391,14 @@
             <tbody>
                 <tr>
                     <td class="text-center">1</td>
-                    <td class="font-bold">Standar Jilid &amp; Kelancaran Bacaan</td>
+                    <td class="font-bold">{{ $selectedTemplate['tahsin_aspect_1'] ?? 'Standar Jilid & Kelancaran Bacaan' }}</td>
                     <td>{{ $data['tahsin']['last_jilid'] }} ({{ $data['tahsin']['last_pages'] }})</td>
                     <td class="text-center font-bold">{{ $data['tahsin']['score'] }}</td>
                     <td class="text-center font-bold" style="color: #059669;">{{ $data['tahsin']['predicate'] }}</td>
                 </tr>
                 <tr>
                     <td class="text-center">2</td>
-                    <td class="font-bold">Makharijul Huruf &amp; Kaidah Tajwid</td>
+                    <td class="font-bold">{{ $selectedTemplate['tahsin_aspect_2'] ?? 'Makharijul Huruf & Kaidah Tajwid' }}</td>
                     <td>Sesuai Bimbingan Musyrif</td>
                     <td class="text-center font-bold">{{ $data['tahsin']['score'] }}</td>
                     <td class="text-center font-bold" style="color: #059669;">{{ $data['tahsin']['predicate'] }}</td>
@@ -389,14 +421,14 @@
             <tbody>
                 <tr>
                     <td class="text-center">1</td>
-                    <td class="font-bold">{{ $data['tahfidz']['last_surah'] }}</td>
+                    <td class="font-bold">{{ $selectedTemplate['tahfidz_aspect_1'] ?? 'Materi Setoran Hafalan' }}: {{ $data['tahfidz']['last_surah'] }}</td>
                     <td>{{ $data['tahfidz']['juz_list'] }} ({{ $data['tahfidz']['last_ayat'] }})</td>
                     <td class="text-center font-bold">{{ $data['tahfidz']['score'] }}</td>
                     <td class="text-center font-bold" style="color: #059669;">{{ $data['tahfidz']['predicate'] }}</td>
                 </tr>
                 <tr>
                     <td class="text-center">2</td>
-                    <td class="font-bold">Kelancaran &amp; Fashohah Muroja'ah</td>
+                    <td class="font-bold">{{ $selectedTemplate['tahfidz_aspect_2'] ?? "Kelancaran & Fashohah Muroja'ah" }}</td>
                     <td>Tercatat {{ $data['tahfidz']['total_setoran'] }} Kali Setoran</td>
                     <td class="text-center font-bold">{{ $data['tahfidz']['score'] }}</td>
                     <td class="text-center font-bold" style="color: #059669;">{{ $data['tahfidz']['predicate'] }}</td>
@@ -448,7 +480,7 @@
 
         {{-- Tanda Tangan Resmi --}}
         <div style="text-align: right; margin-top: 25px; margin-bottom: 5px; font-size: 9pt;">
-            <p>{{ $raportSettings['city'] }}, {{ $raportSettings['date'] }}</p>
+            <p>{{ $raportSettings['city'] ?? 'Palu' }}, {{ $raportSettings['date'] }}</p>
         </div>
 
         <div class="signature-section">
@@ -465,10 +497,13 @@
             </div>
 
             <div class="sig-block">
-                <p class="sig-title">Kepala Pengasuhan / Sekolah,</p>
-                <div class="sig-space">
+                <p class="sig-title">{{ $raportSettings['principal_title'] ?? 'Kepala Pengasuhan / Sekolah' }},</p>
+                <div class="sig-space" style="position: relative;">
+                    @if(!empty($raportSettings['stamp_path']))
+                        <img src="{{ asset($raportSettings['stamp_path']) }}" style="position: absolute; max-height: 65px; opacity: 0.85; left: 15px; z-index: 1;" alt="Stempel">
+                    @endif
                     @if(!empty($raportSettings['signature_path']))
-                        <img src="{{ asset($raportSettings['signature_path']) }}" style="max-height: 55px;" alt="TTD">
+                        <img src="{{ asset($raportSettings['signature_path']) }}" style="position: relative; max-height: 55px; z-index: 2;" alt="TTD">
                     @endif
                 </div>
                 <p class="sig-name">{{ $raportSettings['principal_name'] }}</p>

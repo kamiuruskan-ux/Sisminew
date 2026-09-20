@@ -21,6 +21,8 @@ class User extends Authenticatable implements CanResetPassword
         'password',
         'phone',
         'nip',
+        'tmt',
+        'last_education',
         'avatar',
         'status',
         'face_embedding',
@@ -44,6 +46,7 @@ class User extends Authenticatable implements CanResetPassword
     {
         return [
             'email_verified_at' => 'datetime',
+            'tmt' => 'date',
             'locked_until' => 'datetime',
             'last_login_at' => 'datetime',
             'password' => 'hashed',
@@ -221,6 +224,73 @@ class User extends Authenticatable implements CanResetPassword
     public function homeroomClasses(): HasMany
     {
         return $this->hasMany(ClassModel::class, 'homeroom_teacher_id');
+    }
+
+    public function quranClasses(): BelongsToMany
+    {
+        return $this->belongsToMany(ClassModel::class, 'quran_teacher_classes', 'user_id', 'class_id')->withTimestamps();
+    }
+
+    public function getMasaKerjaAttribute(): string
+    {
+        if (!$this->tmt) {
+            return '-';
+        }
+
+        $start = \Carbon\Carbon::parse($this->tmt);
+        $diff = $start->diff(now());
+
+        $parts = [];
+        if ($diff->y > 0) {
+            $parts[] = $diff->y . ' Tahun';
+        }
+        if ($diff->m > 0) {
+            $parts[] = $diff->m . ' Bulan';
+        }
+
+        if (empty($parts)) {
+            return '< 1 Bulan';
+        }
+
+        return implode(' ', $parts);
+    }
+
+    protected static function booted()
+    {
+        static::ensureEmploymentSchemaExists();
+    }
+
+    public static function ensureEmploymentSchemaExists(): void
+    {
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('users')) {
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('users', 'tmt')) {
+                    \Illuminate\Support\Facades\Schema::table('users', function ($table) {
+                        $table->date('tmt')->nullable()->after('nip');
+                    });
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('users', 'last_education')) {
+                    \Illuminate\Support\Facades\Schema::table('users', function ($table) {
+                        $table->string('last_education', 100)->nullable()->after('tmt');
+                    });
+                }
+            }
+
+            if (!\Illuminate\Support\Facades\Schema::hasTable('quran_teacher_classes')) {
+                \Illuminate\Support\Facades\Schema::create('quran_teacher_classes', function ($table) {
+                    $table->id();
+                    $table->unsignedBigInteger('user_id');
+                    $table->unsignedBigInteger('class_id');
+                    $table->timestamps();
+
+                    $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+                    $table->foreign('class_id')->references('id')->on('classes')->onDelete('cascade');
+                    $table->unique(['user_id', 'class_id']);
+                });
+            }
+        } catch (\Throwable $e) {
+            // Handled
+        }
     }
 
     public function getAvatarUrlAttribute(): string

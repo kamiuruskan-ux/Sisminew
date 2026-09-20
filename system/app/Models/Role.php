@@ -35,6 +35,11 @@ class Role extends Model
     public const PROTECTED_SYSTEM_SLUGS = [
         'admin',
         'guru',
+        'guru-quran',
+        'kepala-sekolah',
+        'wakasek-kesiswaan',
+        'wakasek-kurikulum',
+        'wakasek-kehumasan',
         'bendahara',
         'operator',
         'staff',

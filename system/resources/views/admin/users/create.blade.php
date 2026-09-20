@@ -299,6 +299,68 @@
                             @enderror
                         </div>
 
+                        <!-- TMT (Terhitung Mulai Tanggal) -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                TMT (Terhitung Mulai Tanggal)
+                                <span class="text-xs text-gray-400 font-normal ml-1">(Awal Masuk Kerja)</span>
+                            </label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                    </svg>
+                                </div>
+                                <input type="date" 
+                                       name="tmt" 
+                                       value="{{ old('tmt') }}" 
+                                       class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent transition">
+                            </div>
+                            @error('tmt')
+                                <p class="text-xs text-red-500 mt-1 font-medium">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <!-- Pendidikan Terakhir -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Pendidikan Terakhir</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
+                                    </svg>
+                                </div>
+                                <select name="last_education" class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent transition appearance-none bg-white">
+                                    <option value="">-- Pilih Pendidikan Terakhir --</option>
+                                    @php
+                                        $eduList = [
+                                            'S3 / Doktor',
+                                            'S2 / Magister',
+                                            'S1 / Sarjana',
+                                            'D4 / Diploma 4',
+                                            'D3 / Diploma 3',
+                                            'D2 / Diploma 2',
+                                            'D1 / Diploma 1',
+                                            'SMA / MA / SMK Sederajat',
+                                            'Pondok Pesantren / Ma\'had Aly',
+                                            'SMP / MTs Sederajat',
+                                            'Lainnya'
+                                        ];
+                                    @endphp
+                                    @foreach($eduList as $edu)
+                                        <option value="{{ $edu }}" {{ old('last_education') == $edu ? 'selected' : '' }}>{{ $edu }}</option>
+                                    @endforeach
+                                </select>
+                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </div>
+                            </div>
+                            @error('last_education')
+                                <p class="text-xs text-red-500 mt-1 font-medium">{{ $message }}</p>
+                            @enderror
+                        </div>
+
                         <!-- Role / Peran -->
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium text-gray-700 mb-2">Role / Peran <span class="text-red-500">*</span></label>
@@ -384,6 +446,36 @@
                                             @endforeach
                                         </div>
                                     @endif
+                                </div>
+                            @endif
+
+                            <!-- Penugasan Kelas Halaqah Al-Qur'an (Multi-Kelas untuk Guru Qur'an) -->
+                            @if(isset($classes) && count($classes) > 0)
+                                <div x-show="selectedRoleSlug === 'guru-quran' || selectedRoleSlug === 'guru' || selectedRoleSlug === 'teacher'" x-cloak class="md:col-span-2 p-4 bg-emerald-50/60 dark:bg-emerald-950/20 rounded-2xl border border-emerald-200 dark:border-emerald-800/50 space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-2">
+                                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                            <label class="block text-xs font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wider">
+                                                Penugasan Kelas Halaqah Al-Qur'an (Hak Akses Guru Qur'an)
+                                            </label>
+                                        </div>
+                                        <span class="px-2.5 py-0.5 text-[10px] font-extrabold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 rounded-md">
+                                            Khusus Guru Al-Qur'an
+                                        </span>
+                                    </div>
+                                    <p class="text-xs text-emerald-700 dark:text-emerald-400">
+                                        Guru Al-Qur'an hanya dapat menginput nilai halaqah, melihat hafalan, dan mencetak raport santri dari kelas-kelas yang dicentang di bawah ini:
+                                    </p>
+                                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-1">
+                                        @foreach($classes as $cls)
+                                            <label class="flex items-center space-x-2 p-2.5 bg-white dark:bg-boxdark rounded-xl border border-emerald-200/80 dark:border-emerald-900/40 cursor-pointer hover:bg-emerald-100/50 dark:hover:bg-emerald-950/40 transition">
+                                                <input type="checkbox" name="quran_classes[]" value="{{ $cls->id }}" 
+                                                       {{ is_array(old('quran_classes')) && in_array($cls->id, old('quran_classes')) ? 'checked' : '' }}
+                                                       class="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500">
+                                                <span class="text-xs font-bold text-gray-800 dark:text-slate-200">Kelas {{ $cls->name }}</span>
+                                            </label>
+                                        @endforeach
+                                    </div>
                                 </div>
                             @endif
 
@@ -480,6 +572,12 @@ function userCreateForm() {
                     const cbs = document.querySelectorAll('input[name="homeroom_classes[]"]');
                     for (let i = 0; i < cbs.length; i++) {
                         cbs[i].checked = false;
+                    }
+                }
+                if (this.selectedRoleSlug !== 'guru-quran' && this.selectedRoleSlug !== 'guru' && this.selectedRoleSlug !== 'teacher') {
+                    const qbs = document.querySelectorAll('input[name="quran_classes[]"]');
+                    for (let i = 0; i < qbs.length; i++) {
+                        qbs[i].checked = false;
                     }
                 }
             }

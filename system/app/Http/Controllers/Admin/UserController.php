@@ -27,11 +27,15 @@ class UserController extends Controller
         // Base query excluding students and canteen users
         $query = User::whereDoesntHave('roles', function ($q) {
             $q->whereIn('slug', ['student', 'siswa', 'calon-siswa', 'kantin', 'canteen']);
-        })->with(['roles', 'homeroomClasses']);
+        })->with(['roles', 'homeroomClasses', 'quranClasses']);
 
         if ($activeTab === 'guru') {
             $query->whereHas('roles', function ($q) {
-                $q->whereIn('slug', ['guru', 'teacher', 'admin', 'operator', 'tata-usaha', 'staff', 'kepala-sekolah']);
+                $q->whereIn('slug', [
+                    'guru', 'teacher', 'guru-quran', 'admin', 'operator', 
+                    'tata-usaha', 'staff', 'kepala-sekolah', 'wakasek-kesiswaan', 
+                    'wakasek-kurikulum', 'wakasek-kehumasan'
+                ]);
             });
         }
 
@@ -79,12 +83,16 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email',
             'nip' => 'nullable|string|max:50|unique:users,nip',
+            'tmt' => 'nullable|date',
+            'last_education' => 'nullable|string|max:100',
             'password' => 'required|string|min:8|confirmed',
             'phone' => 'nullable|string|max:30',
             'role_id' => 'required|exists:roles,id',
             'avatar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'homeroom_classes' => 'nullable|array',
             'homeroom_classes.*' => 'exists:classes,id',
+            'quran_classes' => 'nullable|array',
+            'quran_classes.*' => 'exists:classes,id',
         ], [
             'name.required' => 'Nama lengkap pegawai/staff wajib diisi.',
             'name.max' => 'Nama tidak boleh melebihi 255 karakter.',
@@ -103,6 +111,7 @@ class UserController extends Controller
             'avatar.mimes' => 'Format foto profil harus JPG, JPEG, PNG, atau WEBP.',
             'avatar.max' => 'Ukuran foto profil tidak boleh melebihi 2MB.',
             'homeroom_classes.*.exists' => 'Kelas yang dipilih sebagai Wali Kelas tidak valid.',
+            'quran_classes.*.exists' => 'Kelas yang dipilih sebagai Kelas Binaan Qur\'an tidak valid.',
         ]);
 
         // Handle avatar upload
@@ -116,6 +125,8 @@ class UserController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'nip' => $validated['nip'] ?? null,
+            'tmt' => $validated['tmt'] ?? null,
+            'last_education' => $validated['last_education'] ?? null,
             'password' => Hash::make($validated['password']),
             'phone' => $validated['phone'] ?? null,
             'avatar' => $avatarPath,
@@ -130,6 +141,11 @@ class UserController extends Controller
             \App\Models\ClassModel::whereIn('id', $request->homeroom_classes)->update(['homeroom_teacher_id' => $user->id]);
         }
 
+        // Assign quran classes (for guru-quran or guru)
+        if (!empty($request->quran_classes)) {
+            $user->quranClasses()->sync($request->quran_classes);
+        }
+
         return redirect()->route('admin.users.index', ['tab' => 'guru'])
             ->with('success', 'Data Guru & Staf berhasil ditambahkan.');
     }
@@ -142,7 +158,7 @@ class UserController extends Controller
     public function edit($encodedId)
     {
         $id = decode_id($encodedId);
-        $user = User::with('homeroomClasses')->findOrFail($id);
+        $user = User::with(['homeroomClasses', 'quranClasses'])->findOrFail($id);
         $roles = Role::whereNotIn('slug', ['student', 'siswa', 'calon-siswa', 'kantin', 'canteen'])->get();
         $classes = \App\Models\ClassModel::with('major')->where('is_active', true)->orderBy('name')->get();
         return view('admin.users.edit', compact('user', 'roles', 'classes'));
@@ -157,12 +173,16 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email,' . $user->id,
             'nip' => 'nullable|string|max:50|unique:users,nip,' . $user->id,
+            'tmt' => 'nullable|date',
+            'last_education' => 'nullable|string|max:100',
             'password' => 'nullable|string|min:8|confirmed',
             'phone' => 'nullable|string|max:30',
             'role_id' => 'required|exists:roles,id',
             'avatar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'homeroom_classes' => 'nullable|array',
             'homeroom_classes.*' => 'exists:classes,id',
+            'quran_classes' => 'nullable|array',
+            'quran_classes.*' => 'exists:classes,id',
         ], [
             'name.required' => 'Nama lengkap pegawai/staff wajib diisi.',
             'name.max' => 'Nama tidak boleh melebihi 255 karakter.',
@@ -180,12 +200,15 @@ class UserController extends Controller
             'avatar.mimes' => 'Format foto profil harus JPG, JPEG, PNG, atau WEBP.',
             'avatar.max' => 'Ukuran foto profil tidak boleh melebihi 2MB.',
             'homeroom_classes.*.exists' => 'Kelas yang dipilih sebagai Wali Kelas tidak valid.',
+            'quran_classes.*.exists' => 'Kelas yang dipilih sebagai Kelas Binaan Qur\'an tidak valid.',
         ]);
 
         $user->name = $validated['name'];
         $user->email = $validated['email'];
         $user->phone = $validated['phone'] ?? $user->phone;
         $user->nip = $validated['nip'] ?? null;
+        $user->tmt = $validated['tmt'] ?? null;
+        $user->last_education = $validated['last_education'] ?? null;
 
         // Handle password update
         if (!empty($validated['password'])) {
@@ -212,9 +235,12 @@ class UserController extends Controller
         if (in_array($role->slug, ['guru', 'teacher']) && !empty($request->homeroom_classes)) {
             \App\Models\ClassModel::whereIn('id', $request->homeroom_classes)->update(['homeroom_teacher_id' => $user->id]);
         }
+
+        // Sync quran classes
+        $user->quranClasses()->sync($request->quran_classes ?? []);
         
         // Reload user to get updated roles
-        $user->load('roles');
+        $user->load(['roles', 'quranClasses']);
         
         // Check if current user is updating their own role and lost admin access
         if (auth()->id() == $user->id && !($user->hasRole('super-admin') || $user->hasRole('admin'))) {

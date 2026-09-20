@@ -26,8 +26,21 @@
             <p class="text-xs text-emerald-100 max-w-xl">Cetak lembar Raport Khusus Capaian Tahsin &amp; Tahfidz Al-Qur'an santri secara individu atau massal per kelas dalam format A4 siap cetak &amp; simpan PDF.</p>
         </div>
         <div class="flex items-center gap-2.5 flex-wrap">
+            <a href="{{ route('admin.quran-raport.settings') }}"
+               class="inline-flex items-center gap-2 px-3.5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-2xl font-bold text-xs backdrop-blur-md transition">
+                <svg class="w-4 h-4 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                <span>Edit Template Raport</span>
+            </a>
+
+            <a href="{{ route('admin.quran-raport.preview', ['template_key' => request('template_key', 'kelas_1_2'), 'semester' => request('semester', 'Ganjil')]) }}"
+               target="_blank"
+               class="inline-flex items-center gap-2 px-3.5 py-2.5 bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 border border-sky-400/30 rounded-2xl font-bold text-xs backdrop-blur-md transition">
+                <svg class="w-4 h-4 text-sky-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                <span>Pratinjau (Preview)</span>
+            </a>
+
             @if($selectedClass)
-            <a href="{{ route('admin.quran-raport.print', ['class_id' => encrypt_id($selectedClass->id), 'academic_year_id' => request('academic_year_id'), 'semester' => request('semester', 'Ganjil')]) }}"
+            <a href="{{ route('admin.quran-raport.print', ['class_id' => encrypt_id($selectedClass->id), 'academic_year_id' => request('academic_year_id'), 'semester' => request('semester', 'Ganjil'), 'template_key' => request('template_key', 'kelas_1_2')]) }}"
                target="_blank"
                class="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-2xl font-bold text-xs shadow-lg shadow-teal-500/20 transition">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
@@ -39,15 +52,27 @@
 
     {{-- Filter Panel --}}
     <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-xs border border-slate-200 dark:border-slate-800 space-y-4">
-        <form action="{{ route('admin.quran-raport.index') }}" method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <form action="{{ route('admin.quran-raport.index') }}" method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
             <div>
                 <label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Pilih Kelas</label>
                 <select name="class_id" onchange="this.form.submit()"
                         class="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl text-xs font-semibold">
-                    <option value="">-- Semua Kelas --</option>
+                    <option value="">-- Semua Kelas Aktif --</option>
                     @foreach($classes as $c)
                         <option value="{{ $c->id }}" {{ request('class_id') == $c->id ? 'selected' : '' }}>
                             {{ $c->name }} ({{ $c->students_count }} Santri)
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Template Capaian Santri</label>
+                <select name="template_key" onchange="this.form.submit()"
+                        class="w-full px-3.5 py-2.5 border border-emerald-300 dark:border-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200 rounded-xl text-xs font-bold">
+                    @foreach($templates as $key => $tpl)
+                        <option value="{{ $key }}" {{ request('template_key', 'kelas_1_2') == $key ? 'selected' : '' }}>
+                            {{ $tpl['name'] }}
                         </option>
                     @endforeach
                 </select>
@@ -117,7 +142,7 @@
                             </span>
                         </td>
                         <td class="py-3 px-4 text-right">
-                            <a href="{{ route('admin.quran-raport.print', ['student_id' => encrypt_id($st->id), 'academic_year_id' => request('academic_year_id'), 'semester' => request('semester', 'Ganjil')]) }}"
+                            <a href="{{ route('admin.quran-raport.print', ['student_id' => encrypt_id($st->id), 'academic_year_id' => request('academic_year_id'), 'semester' => request('semester', 'Ganjil'), 'template_key' => request('template_key', 'kelas_1_2')]) }}"
                                target="_blank"
                                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-xs transition">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>

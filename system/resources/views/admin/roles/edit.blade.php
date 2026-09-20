@@ -268,53 +268,72 @@
                                 @continue
                             @endif
                             @php
-                                $viewPerm = $groupPermissions->first(function($p) {
-                                    return \Illuminate\Support\Str::startsWith($p->slug, 'view-');
-                                });
-                                $subPerms = $groupPermissions->filter(function($p) use ($viewPerm) {
-                                    return !$viewPerm || $p->id !== $viewPerm->id;
-                                });
-                                $hasView = $viewPerm && in_array($viewPerm->id, old('permissions', $role->permissions->pluck('id')->toArray()));
+                                $rolePermIds = old('permissions', $role->permissions->pluck('id')->toArray());
                             @endphp
-                            <div class="border border-gray-200 rounded-2xl overflow-hidden shadow-xs transition-all bg-white" x-data="{ enabled: {{ $hasView ? 'true' : 'false' }} }">
-                                <div class="px-4 py-3 bg-slate-50 border-b border-gray-200 flex items-center justify-between">
-                                    <h4 class="text-sm font-bold text-gray-800 capitalize flex items-center">
-                                        <svg class="w-4 h-4 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                                        </svg>
-                                        {{ str_replace(['_', '-'], ' ', $group) }}
-                                    </h4>
-                                    @if($viewPerm)
-                                        <label class="relative inline-flex items-center cursor-pointer group/toggle" title="Toggle Akses Menu & Halaman {{ str_replace(['_', '-'], ' ', $group) }}">
-                                            <input type="checkbox" 
-                                                   name="permissions[]" 
-                                                   value="{{ $viewPerm->id }}" 
-                                                   {{ $hasView ? 'checked' : '' }}
-                                                   @change="enabled = $event.target.checked; if(!enabled) { $el.closest('.border').querySelectorAll('.sub-perm-checkbox').forEach(cb => { cb.checked = false; }); } updatePermissionCount()"
-                                                   class="sr-only peer">
-                                            <div class="w-9 h-5 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-500/40 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-                                            <span class="ml-2 text-[11px] font-bold tracking-wider" :class="enabled ? 'text-emerald-600' : 'text-gray-400'" x-text="enabled ? 'AKSES AKTIF' : 'NONAKTIF'"></span>
-                                        </label>
-                                    @endif
+                            <div class="border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:shadow-sm transition-all bg-white" 
+                                 x-data="{
+                                     groupTotal: {{ $groupPermissions->count() }},
+                                     checkedCount: 0,
+                                     updateCount() {
+                                         this.checkedCount = $el.querySelectorAll('.perm-checkbox:checked').length;
+                                     },
+                                     toggleGroup() {
+                                         const shouldCheck = this.checkedCount < this.groupTotal;
+                                         $el.querySelectorAll('.perm-checkbox').forEach(cb => {
+                                             cb.checked = shouldCheck;
+                                         });
+                                         this.updateCount();
+                                         updatePermissionCount();
+                                     }
+                                 }"
+                                 x-init="updateCount()">
+                                <div class="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                                    <div>
+                                        <h4 class="text-sm font-bold text-slate-800 capitalize flex items-center">
+                                            <svg class="w-4 h-4 mr-2 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                                            </svg>
+                                            <span>{{ str_replace(['_', '-'], ' ', $group) }}</span>
+                                        </h4>
+                                        <span class="text-[10px] font-semibold text-slate-400" x-text="checkedCount + ' dari ' + groupTotal + ' dipilih'"></span>
+                                    </div>
+                                    <button type="button" 
+                                            @click="toggleGroup()"
+                                            class="text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all shadow-2xs"
+                                            :class="checkedCount === groupTotal ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'"
+                                            x-text="checkedCount === groupTotal ? 'Batal Semua' : 'Pilih Semua'">
+                                    </button>
                                 </div>
-                                <div class="p-4 space-y-2 bg-white transition-all duration-200" :class="{ 'opacity-40 pointer-events-none bg-gray-50/50': !enabled }">
-                                    @if($subPerms->count() > 0)
-                                        @foreach($subPerms as $permission)
-                                            @if(is_object($permission) && isset($permission->id))
-                                                <label class="flex items-center p-2 hover:bg-slate-50 rounded-xl transition cursor-pointer group">
-                                                    <input type="checkbox" 
-                                                           name="permissions[]" 
-                                                           value="{{ $permission->id }}" 
-                                                           {{ in_array($permission->id, old('permissions', $role->permissions->pluck('id')->toArray())) ? 'checked' : '' }}
-                                                           onchange="updatePermissionCount()"
-                                                           class="sub-perm-checkbox w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 focus:ring-2">
-                                                    <span class="ml-3 text-xs font-semibold text-gray-700 group-hover:text-gray-900">{{ str_replace('-', ' ', $permission->name) }}</span>
-                                                </label>
-                                            @endif
-                                        @endforeach
-                                    @else
-                                        <p class="text-xs text-gray-400 italic py-1">Akses dasar halaman menu.</p>
-                                    @endif
+                                <div class="p-3 space-y-1.5 bg-white max-h-72 overflow-y-auto">
+                                    @foreach($groupPermissions as $permission)
+                                        @if(is_object($permission) && isset($permission->id))
+                                            @php
+                                                $isChecked = in_array($permission->id, $rolePermIds);
+                                                $isSubMenu = \Illuminate\Support\Str::startsWith($permission->slug, 'view-');
+                                            @endphp
+                                            <label class="flex items-start p-2 hover:bg-slate-50 rounded-xl transition cursor-pointer group border border-transparent hover:border-slate-200">
+                                                <input type="checkbox" 
+                                                       name="permissions[]" 
+                                                       value="{{ $permission->id }}" 
+                                                       {{ $isChecked ? 'checked' : '' }}
+                                                       @change="updateCount(); updatePermissionCount()"
+                                                       class="perm-checkbox w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 mt-0.5 shrink-0">
+                                                <div class="ml-2.5 flex-1 min-w-0">
+                                                    <div class="flex items-center justify-between gap-1.5">
+                                                        <span class="text-xs font-semibold text-slate-800 group-hover:text-indigo-600 transition-colors leading-tight">
+                                                            {{ $permission->name }}
+                                                        </span>
+                                                        @if($isSubMenu)
+                                                            <span class="text-[9px] font-black px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200/60 shrink-0">Sub Menu</span>
+                                                        @else
+                                                            <span class="text-[9px] font-black px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200/60 shrink-0">Aksi</span>
+                                                        @endif
+                                                    </div>
+                                                    <span class="text-[10px] text-slate-400 font-mono block truncate mt-0.5">{{ $permission->slug }}</span>
+                                                </div>
+                                            </label>
+                                        @endif
+                                    @endforeach
                                 </div>
                             </div>
                         @endforeach

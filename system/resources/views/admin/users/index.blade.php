@@ -154,7 +154,8 @@
                         <th class="px-6 py-3.5">Pendidik / User</th>
                         <th class="px-6 py-3.5">No. WhatsApp / HP</th>
                         <th class="px-6 py-3.5">Role / Jabatan</th>
-                        <th class="px-6 py-3.5">Bina Kelas (Wali)</th>
+                        <th class="px-6 py-3.5">TMT &amp; Pendidikan</th>
+                        <th class="px-6 py-3.5">Bina Kelas</th>
                         <th class="px-6 py-3.5">Status Akun</th>
                         <th class="px-6 py-3.5">Face ID</th>
                         <th class="px-6 py-3.5 text-right">Aksi</th>
@@ -210,6 +211,7 @@
                                     @foreach($user->roles as $role)
                                         <span class="px-2.5 py-0.5 text-[10px] font-extrabold rounded-full uppercase tracking-wider
                                             @if($role->slug == 'super-admin' || $role->slug == 'admin') bg-[#3C50E0] text-white
+                                            @elseif($role->slug == 'guru-quran') bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800
                                             @elseif($role->slug == 'guru' || $role->slug == 'teacher') bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800
                                             @else bg-slate-100 dark:bg-[#1A222C] text-[#1C2434] dark:text-white border border-[#E2E8F0] dark:border-[#2E3A47] @endif">
                                             {{ $role->name }}
@@ -218,17 +220,56 @@
                                 </div>
                             </td>
 
-                            <!-- Bina Kelas -->
+                            <!-- TMT & Pendidikan Terakhir -->
+                            <td class="px-6 py-4">
+                                <div class="space-y-1">
+                                    <div class="flex items-center space-x-1.5">
+                                        <span class="text-[10px] text-slate-400 font-semibold">Pendidikan:</span>
+                                        <span class="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-bold text-[10px] rounded-md border border-blue-200 dark:border-blue-800">
+                                            {{ $user->last_education ?: '-' }}
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center space-x-1.5">
+                                        <span class="text-[10px] text-slate-400 font-semibold">TMT:</span>
+                                        <span class="font-mono text-[10px] text-slate-700 dark:text-slate-300 font-semibold">
+                                            {{ $user->tmt ? \Carbon\Carbon::parse($user->tmt)->format('d/m/Y') : '-' }}
+                                        </span>
+                                    </div>
+                                    @if($user->tmt)
+                                        <div class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                            ⏱️ {{ $user->masa_kerja }}
+                                        </div>
+                                    @endif
+                                </div>
+                            </td>
+
+                            <!-- Bina Kelas (Wali & Qur'an) -->
                             <td class="px-6 py-4">
                                 @if($user->homeroomClasses->count() > 0)
-                                    <div class="flex flex-wrap gap-1">
-                                        @foreach($user->homeroomClasses as $cls)
-                                            <span class="px-2 py-0.5 bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-300 font-extrabold text-[9px] rounded-md border border-purple-200 dark:border-purple-800">
-                                                Kelas {{ $cls->name }}
-                                            </span>
-                                        @endforeach
+                                    <div class="mb-1">
+                                        <span class="text-[9px] font-bold text-purple-700 uppercase">Wali:</span>
+                                        <div class="flex flex-wrap gap-1 mt-0.5">
+                                            @foreach($user->homeroomClasses as $cls)
+                                                <span class="px-2 py-0.5 bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-300 font-extrabold text-[9px] rounded-md border border-purple-200 dark:border-purple-800">
+                                                    Kelas {{ $cls->name }}
+                                                </span>
+                                            @endforeach
+                                        </div>
                                     </div>
-                                @else
+                                @endif
+                                @if($user->quranClasses && $user->quranClasses->count() > 0)
+                                    <div>
+                                        <span class="text-[9px] font-bold text-emerald-700 uppercase">Qur'an:</span>
+                                        <div class="flex flex-wrap gap-1 mt-0.5">
+                                            @foreach($user->quranClasses as $cls)
+                                                <span class="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-extrabold text-[9px] rounded-md border border-emerald-200 dark:border-emerald-800">
+                                                    Kelas {{ $cls->name }}
+                                                </span>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endif
+                                @if($user->homeroomClasses->count() === 0 && (!$user->quranClasses || $user->quranClasses->count() === 0))
                                     <span class="text-slate-400 text-[11px]">-</span>
                                 @endif
                             </td>

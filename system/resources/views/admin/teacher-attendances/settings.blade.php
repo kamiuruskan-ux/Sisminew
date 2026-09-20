@@ -191,18 +191,53 @@
         </div>
 
         <!-- SECTION 2: GEOFENCING GPS & LOKASI SEKOLAH -->
-        <div class="p-6 rounded-3xl bg-white dark:bg-[#1A222C] border border-slate-200 dark:border-slate-800 shadow-xs space-y-5">
-            <div class="flex items-center space-x-3 pb-4 border-b border-slate-100 dark:border-slate-800">
-                <div class="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-lg">
-                    📍
+        <div class="p-6 rounded-3xl bg-white dark:bg-[#1A222C] border border-slate-200 dark:border-slate-800 shadow-xs space-y-5"
+             x-data="{
+                 geoLoading: false,
+                 geoError: '',
+                 getCurLocation() {
+                     if (!navigator.geolocation) {
+                         this.geoError = 'Browser tidak mendukung GPS Geolocation.';
+                         return;
+                     }
+                     this.geoLoading = true;
+                     this.geoError = '';
+                     navigator.geolocation.getCurrentPosition(
+                         (pos) => {
+                             document.getElementById('input_school_latitude').value = pos.coords.latitude.toFixed(6);
+                             document.getElementById('input_school_longitude').value = pos.coords.longitude.toFixed(6);
+                             this.geoLoading = false;
+                         },
+                         (err) => {
+                             this.geoLoading = false;
+                             this.geoError = 'Gagal mendeteksi koordinat: ' + err.message;
+                         },
+                         { enableHighAccuracy: true, timeout: 10000 }
+                     );
+                 }
+             }">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-lg shrink-0">
+                        📍
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">Geofence GPS & Titik Koordinat Satelit</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Konfigurasi radius toleransi jarak dan titik acuan gerbang sekolah</p>
+                    </div>
                 </div>
-                <div>
-                    <h2 class="text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">Geofence GPS & Titik Koordinat Satelit</h2>
-                    <p class="text-xs text-slate-500 dark:text-slate-400">Konfigurasi radius toleransi jarak dan titik acuan gerbang sekolah</p>
-                </div>
+                <button type="button" @click="getCurLocation()"
+                        class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer">
+                    <span x-show="!geoLoading">🎯 Ambil Koordinat Saya (GPS)</span>
+                    <span x-show="geoLoading" class="animate-spin">⏳ Mendeteksi...</span>
+                </button>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <template x-if="geoError">
+                <p class="text-xs font-bold text-rose-600" x-text="geoError"></p>
+            </template>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
                 <div>
                     <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1.5">Radius Presensi GPS (Meter) *</label>
                     <div class="relative">
@@ -215,16 +250,26 @@
 
                 <div>
                     <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1.5">Latitude Gerbang Sekolah</label>
-                    <input type="text" name="school_latitude" value="{{ old('school_latitude', $settings['school_latitude']) }}"
+                    <input type="text" id="input_school_latitude" name="school_latitude" value="{{ old('school_latitude', $settings['school_latitude']) }}"
                            class="w-full text-xs font-mono font-bold px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-[#24303F] dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none">
                     <span class="text-[11px] text-slate-400 mt-1 block">Koordinat garis lintang (contoh: -0.891700).</span>
                 </div>
 
                 <div>
                     <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1.5">Longitude Gerbang Sekolah</label>
-                    <input type="text" name="school_longitude" value="{{ old('school_longitude', $settings['school_longitude']) }}"
+                    <input type="text" id="input_school_longitude" name="school_longitude" value="{{ old('school_longitude', $settings['school_longitude']) }}"
                            class="w-full text-xs font-mono font-bold px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-[#24303F] dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none">
                     <span class="text-[11px] text-slate-400 mt-1 block">Koordinat garis bujur (contoh: 119.870700).</span>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1.5">Zona Waktu Tampilan</label>
+                    <select name="school_timezone_label" class="w-full text-xs font-bold px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-[#24303F] dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                        <option value="WITA" {{ ($settings['timezone_label'] ?? 'WITA') === 'WITA' ? 'selected' : '' }}>WITA (Palu/Makassar)</option>
+                        <option value="WIB" {{ ($settings['timezone_label'] ?? 'WITA') === 'WIB' ? 'selected' : '' }}>WIB (Jakarta/Surabaya)</option>
+                        <option value="WIT" {{ ($settings['timezone_label'] ?? 'WITA') === 'WIT' ? 'selected' : '' }}>WIT (Jayapura/Maluku)</option>
+                    </select>
+                    <span class="text-[11px] text-slate-400 mt-1 block">Zona waktu server untuk jam presensi.</span>
                 </div>
             </div>
         </div>

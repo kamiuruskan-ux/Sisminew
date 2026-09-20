@@ -484,6 +484,9 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|bendahara|operator|kanti
 
         // Modul E-Raport Khusus Pembelajaran Al-Qur'an (Terpisah Sendiri)
         Route::get('quran-raport', [\App\Http\Controllers\Admin\QuranRaportController::class, 'index'])->name('quran-raport.index');
+        Route::get('quran-raport/settings', [\App\Http\Controllers\Admin\QuranRaportController::class, 'settings'])->name('quran-raport.settings');
+        Route::post('quran-raport/settings', [\App\Http\Controllers\Admin\QuranRaportController::class, 'saveSettings'])->name('quran-raport.settings.save');
+        Route::get('quran-raport/preview', [\App\Http\Controllers\Admin\QuranRaportController::class, 'preview'])->name('quran-raport.preview');
         Route::get('quran-raport/print', [\App\Http\Controllers\Admin\QuranRaportController::class, 'print'])->name('quran-raport.print');
         Route::post('quran-raport/print-bulk', [\App\Http\Controllers\Admin\QuranRaportController::class, 'print'])->name('quran-raport.print-bulk');
 

@@ -810,6 +810,9 @@ class TeacherAttendanceController extends Controller
         if ($request->filled('school_longitude')) {
             Setting::set('school_longitude', (string)$request->school_longitude);
         }
+        if ($request->filled('school_timezone_label')) {
+            Setting::set('school_timezone_label', (string)$request->school_timezone_label);
+        }
 
         // Toggles (checkboxes)
         Setting::set('attendance_gps_enabled', $request->has('attendance_gps_enabled') ? '1' : '0');
