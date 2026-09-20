@@ -3,12 +3,17 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AcademicYear;
+use App\Models\ClassModel;
 use App\Models\Grade;
 use App\Models\Student;
-use App\Models\ClassModel;
+use App\Models\TeachingAgenda;
+use App\Models\TeachingAgendaStudent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -16,14 +21,55 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 class GradeController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Display a listing of the resource with 3 tabs:
+     * Tab 1: Agenda Kelas & Penilaian Bidang Studi
+     * Tab 2: Histori Mengajar Saya
+     * Tab 3: Rerata Nilai Rapor Siswa
      */
     public function index(Request $request)
     {
+        TeachingAgenda::ensureTableExists();
+
         $user = auth()->user();
         $allowedClassIds = $user->getAssignedClassIds();
         $allowedSubjects = $user->getAssignedSubjects();
 
+        $tab = $request->get('tab', 'agenda'); // 'agenda', 'history', 'summary'
+
+        // Daftar Kelas yang diizinkan untuk guru
+        $classesQuery = ClassModel::withCount('students')->orderBy('name', 'asc');
+        if ($allowedClassIds !== null) {
+            $classesQuery->whereIn('id', $allowedClassIds);
+        }
+        $classes = $classesQuery->get();
+
+        // Kelas yang sedang aktif dipilih untuk Tab Agenda
+        $selectedClassId = $request->get('class_id') ?? ($classes->first()?->id ?? null);
+        if ($selectedClassId && $allowedClassIds !== null && !in_array($selectedClassId, $allowedClassIds)) {
+            $selectedClassId = $classes->first()?->id ?? null;
+        }
+
+        $selectedClass = $selectedClassId ? ClassModel::find($selectedClassId) : null;
+        $studentsInClass = $selectedClassId 
+            ? Student::with('user')->where('class_id', $selectedClassId)->orderBy('nisn', 'asc')->get() 
+            : collect();
+
+        // Daftar Mata Pelajaran
+        $allSubjects = $this->getSubjects();
+        $teacherSubjects = ($allowedSubjects !== null && !empty($allowedSubjects)) ? $allowedSubjects : $allSubjects;
+        $selectedSubject = $request->get('subject') ?? ($teacherSubjects[0] ?? null);
+
+        // Data Histori Mengajar (Tab 2)
+        $historyQuery = TeachingAgenda::with(['class', 'students.student.user', 'teacher'])->latest('date')->latest('id');
+        if ($allowedClassIds !== null) {
+            $historyQuery->whereIn('class_id', $allowedClassIds);
+        }
+        if (!$user->hasRole(['super-admin', 'admin', 'kepala-sekolah'])) {
+            $historyQuery->where('teacher_id', $user->id);
+        }
+        $teachingAgendas = $historyQuery->paginate(10, ['*'], 'history_page');
+
+        // Data Rerata Nilai Rapor Siswa (Tab 3)
         $query = Grade::with(['student', 'class', 'recordedBy'])
             ->when($allowedClassIds !== null, function ($q) use ($allowedClassIds) {
                 return $q->whereIn('class_id', $allowedClassIds);
@@ -51,14 +97,139 @@ class GradeController extends Controller
             ->latest();
 
         $grades = $query->paginate(20);
-        $classes = $allowedClassIds !== null ? ClassModel::whereIn('id', $allowedClassIds)->get() : ClassModel::all();
         $students = $allowedClassIds !== null 
             ? Student::with(['user', 'class'])->whereIn('class_id', $allowedClassIds)->get() 
             : Student::with(['user', 'class'])->get();
         $types = ['daily', 'mid_term', 'final_term', 'exam'];
-        $subjects = $this->getSubjects();
+        $subjects = $allSubjects;
 
-        return view('admin.grades.index', compact('grades', 'classes', 'students', 'types', 'subjects'));
+        return view('admin.grades.index', compact(
+            'tab',
+            'classes',
+            'selectedClassId',
+            'selectedClass',
+            'studentsInClass',
+            'teacherSubjects',
+            'selectedSubject',
+            'teachingAgendas',
+            'grades',
+            'students',
+            'types',
+            'subjects'
+        ));
+    }
+
+    /**
+     * Simpan Agenda Pembelajaran Kelas & Penilaian Siswa Bidang Studi
+     */
+    public function storeAgenda(Request $request)
+    {
+        $user = auth()->user();
+        $allowedClassIds = $user->getAssignedClassIds();
+        if ($allowedClassIds !== null && !in_array($request->class_id, $allowedClassIds)) {
+            abort(403, 'Anda tidak memiliki hak akses menginput agenda untuk kelas ini.');
+        }
+
+        $validated = $request->validate([
+            'class_id' => 'required|exists:classes,id',
+            'subject' => 'required|string|max:150',
+            'date' => 'required|date',
+            'material_taught' => 'required|string',
+            'class_notes' => 'nullable|string',
+            'students' => 'required|array',
+        ], [
+            'class_id.required' => 'Pilih kelas terlebih dahulu.',
+            'subject.required' => 'Mata pelajaran wajib dipilih/diisi.',
+            'material_taught.required' => 'Materi pembelajaran wajib diisi.',
+            'students.required' => 'Data penilaian dan absensi santri belum tersedia.',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            TeachingAgenda::ensureTableExists();
+
+            $agenda = TeachingAgenda::create([
+                'teacher_id' => $user->id,
+                'class_id' => $validated['class_id'],
+                'academic_year_id' => AcademicYear::getActive()?->id,
+                'subject' => $validated['subject'],
+                'date' => $validated['date'],
+                'material_taught' => $validated['material_taught'],
+                'class_notes' => $validated['class_notes'] ?? null,
+            ]);
+
+            foreach ($validated['students'] as $studentId => $item) {
+                $status = $item['attendance'] ?? 'hadir';
+                $scoreCognitive = isset($item['cognitive']) && is_numeric($item['cognitive']) ? (float)$item['cognitive'] : 80;
+                $scoreAdab = isset($item['adab']) && is_numeric($item['adab']) ? (float)$item['adab'] : 80;
+
+                TeachingAgendaStudent::create([
+                    'teaching_agenda_id' => $agenda->id,
+                    'student_id' => $studentId,
+                    'attendance_status' => $status,
+                    'score_cognitive' => $scoreCognitive,
+                    'score_adab' => $scoreAdab,
+                ]);
+
+                // Sync ke tabel grades (Nilai Harian Mapel Rapor)
+                Grade::updateOrCreate(
+                    [
+                        'student_id' => $studentId,
+                        'class_id' => $validated['class_id'],
+                        'subject' => $validated['subject'],
+                        'type' => 'daily',
+                        'date' => $validated['date'],
+                    ],
+                    [
+                        'score' => $scoreCognitive,
+                        'notes' => 'Materi: ' . Str::limit($validated['material_taught'], 80) . ' [Adab: ' . $scoreAdab . ']',
+                        'recorded_by' => $user->id,
+                    ]
+                );
+
+                // Sinkronisasi kehadiran siswa
+                try {
+                    if (class_exists(\App\Models\Attendance::class) && Schema::hasTable('attendances')) {
+                        \App\Models\Attendance::updateOrCreate(
+                            [
+                                'student_id' => $studentId,
+                                'date' => $validated['date'],
+                            ],
+                            [
+                                'class_id' => $validated['class_id'],
+                                'status' => $status,
+                                'notes' => 'Sesi Mapel: ' . $validated['subject'],
+                            ]
+                        );
+                    }
+                } catch (\Throwable $e) {}
+            }
+
+            DB::commit();
+
+            return redirect()->route('admin.grades.index', ['tab' => 'history', 'class_id' => $validated['class_id']])
+                ->with('success', 'Agenda pembelajaran kelas & evaluasi siswa berhasil disimpan!');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal menyimpan agenda pembelajaran: ' . $e->getMessage())->withInput();
+        }
+    }
+
+    /**
+     * Hapus Agenda Pembelajaran
+     */
+    public function destroyAgenda($id)
+    {
+        $user = auth()->user();
+        $agenda = TeachingAgenda::findOrFail($id);
+
+        if (!$user->hasRole(['super-admin', 'admin', 'kepala-sekolah']) && $agenda->teacher_id !== $user->id) {
+            abort(403, 'Anda tidak memiliki hak akses menghapus agenda ini.');
+        }
+
+        $agenda->delete();
+
+        return back()->with('success', 'Agenda pembelajaran berhasil dihapus.');
     }
 
     /**

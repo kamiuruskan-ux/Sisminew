@@ -114,10 +114,46 @@ class User extends Authenticatable implements CanResetPassword
 
     public function hasRole(string|array $role): bool
     {
+        $directRole = $this->role ?? $this->attributes['role'] ?? null;
+
         if (is_array($role)) {
-            return $this->roles->pluck('slug')->intersect($role)->isNotEmpty();
+            if ($directRole && in_array($directRole, $role)) {
+                return true;
+            }
+            if ($directRole === 'guru' && in_array('teacher', $role)) return true;
+            if ($directRole === 'teacher' && in_array('guru', $role)) return true;
+            if (in_array($directRole, ['guru-quran', 'guru_quran', 'guru-qur-an']) && (in_array('guru-quran', $role) || in_array('guru_quran', $role))) return true;
+
+            $slugs = $this->roles->pluck('slug');
+            if ($slugs->intersect($role)->isNotEmpty()) {
+                return true;
+            }
+
+            // Check normalized match (e.g. guru-quran vs guru_quran)
+            $normalizedRole = array_map(fn($r) => str_replace(['_', '-'], '', strtolower($r)), $role);
+            $normalizedSlugs = $slugs->map(fn($s) => str_replace(['_', '-'], '', strtolower($s)));
+            if ($normalizedSlugs->intersect($normalizedRole)->isNotEmpty()) {
+                return true;
+            }
+
+            return false;
         }
-        return $this->roles->contains('slug', $role);
+
+        if ($directRole) {
+            if ($directRole === $role) return true;
+            if ($directRole === 'guru' && $role === 'teacher') return true;
+            if ($directRole === 'teacher' && $role === 'guru') return true;
+            if (in_array($directRole, ['guru-quran', 'guru_quran', 'guru-qur-an']) && in_array($role, ['guru-quran', 'guru_quran', 'guru-qur-an'])) return true;
+        }
+
+        if ($this->roles->contains('slug', $role)) {
+            return true;
+        }
+
+        $norm = str_replace(['_', '-'], '', strtolower($role));
+        return $this->roles->contains(function ($r) use ($norm) {
+            return str_replace(['_', '-'], '', strtolower($r->slug)) === $norm;
+        });
     }
 
     public function assignRole(Role $role): void

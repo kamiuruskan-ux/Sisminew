@@ -43,11 +43,68 @@ class Role extends Model
         'bendahara',
         'operator',
         'staff',
+        'tata-usaha',
         'guru-bk',
         'superadmin',
         'super-admin',
         'super_admin',
     ];
+
+    protected static function booted()
+    {
+        static::ensureSpecializedRolesExist();
+    }
+
+    public static function ensureSpecializedRolesExist(): void
+    {
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('roles')) {
+                return;
+            }
+
+            $standardRoles = [
+                'guru-quran' => [
+                    'name' => 'Guru Al-Qur\'an',
+                    'description' => 'Guru Pengampu Halaqah Al-Qur\'an, Tahsin, Tahfidz & Raport Al-Qur\'an',
+                    'is_active' => true,
+                ],
+                'kepala-sekolah' => [
+                    'name' => 'Kepala Sekolah',
+                    'description' => 'Pimpinan Lembaga Pendidikan',
+                    'is_active' => true,
+                ],
+                'wakasek-kesiswaan' => [
+                    'name' => 'Wakasek Bidang Kesiswaan',
+                    'description' => 'Wakil Kepala Sekolah Bidang Kesiswaan',
+                    'is_active' => true,
+                ],
+                'wakasek-kurikulum' => [
+                    'name' => 'Wakasek Bidang Kurikulum',
+                    'description' => 'Wakil Kepala Sekolah Bidang Kurikulum',
+                    'is_active' => true,
+                ],
+                'wakasek-kehumasan' => [
+                    'name' => 'Wakasek Bidang Kehumasan',
+                    'description' => 'Wakil Kepala Sekolah Bidang Kehumasan',
+                    'is_active' => true,
+                ],
+                'staff' => [
+                    'name' => 'Staf / Tata Usaha',
+                    'description' => 'Tenaga Kependidikan & Tata Usaha Sekolah',
+                    'is_active' => true,
+                ],
+            ];
+
+            foreach ($standardRoles as $slug => $data) {
+                $role = static::where('slug', $slug)->first();
+                if (!$role) {
+                    static::create(array_merge(['slug' => $slug], $data));
+                }
+            }
+        } catch (\Throwable $e) {
+            // Silently handle if table is not accessible yet
+        }
+    }
 
     public function scopeAdminOnly($query)
     {

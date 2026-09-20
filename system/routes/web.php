@@ -147,7 +147,7 @@ Route::get('profile-settings', function () {
 | Admin Panel Routes
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'role:super-admin|admin|guru|bendahara|operator|kantin|guru-bk|bk|staff|tata-usaha|kepala-sekolah'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepala-sekolah|wakasek-kesiswaan|wakasek-kurikulum|wakasek-kehumasan|bendahara|operator|kantin|guru-bk|bk|staff|tata-usaha'])->prefix('admin')->name('admin.')->group(function () {
     // Dashboard (Open to all admin roles)
     Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
     
@@ -466,6 +466,8 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|bendahara|operator|kanti
         Route::get('grades/export/excel', [GradeController::class, 'exportExcel'])->name('grades.export.excel');
         Route::post('grades/import/excel', [GradeController::class, 'importExcel'])->name('grades.import.excel');
         Route::get('grades', [GradeController::class, 'index'])->name('grades.index');
+        Route::post('grades/store-agenda', [GradeController::class, 'storeAgenda'])->name('grades.store-agenda');
+        Route::delete('grades/agenda/{id}', [GradeController::class, 'destroyAgenda'])->name('grades.destroy-agenda');
         Route::get('grades/{grade}', [GradeController::class, 'show'])->name('grades.show');
 
         // Cetak Raport Siswa

@@ -81,6 +81,11 @@ class HalaqahController extends Controller
      */
     public function index(Request $request)
     {
+        $user = Auth::user();
+        if (!$user || !$user->hasRole(['super-admin', 'admin', 'kepala-sekolah', 'guru-quran'])) {
+            abort(403, 'Akses menu Halaqah Al-Qur\'an hanya terkhusus untuk Guru Al-Qur\'an dan Pimpinan Sekolah.');
+        }
+
         $allowedClassIds = $this->getAllowedClassIds();
 
         $classesQuery = ClassModel::withCount('students')->orderBy('name', 'asc');

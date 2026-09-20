@@ -37,17 +37,14 @@ class RoleMiddleware
                 return redirect()->route('student.dashboard');
             } elseif ($user->hasRole('calon-siswa')) {
                 return redirect()->route('spmb.dashboard.index');
-            } elseif ($user->hasRole('admin') || $user->hasRole('super-admin')) {
-                return redirect()->route('admin.dashboard');
-            } elseif ($user->hasRole('teacher') || $user->hasRole('guru')) {
-                return redirect()->route('admin.dashboard');
             } elseif ($user->hasRole('kantin')) {
                 return redirect()->route('canteen.vendor.dashboard');
+            } elseif ($user->hasRole(['super-admin', 'admin', 'guru', 'teacher', 'guru-quran', 'kepala-sekolah', 'wakasek-kesiswaan', 'wakasek-kurikulum', 'wakasek-kehumasan', 'bendahara', 'operator', 'staff', 'tata-usaha', 'guru-bk', 'bk'])) {
+                return redirect()->route('admin.dashboard');
             }
             
-            // If no matching role, logout and redirect to login
-            Auth::logout();
-            return redirect()->route('login')->with('error', 'Anda tidak memiliki akses ke halaman ini.');
+            // If no specific role match above but user is authenticated staff/employee, fallback to admin dashboard
+            return redirect()->route('admin.dashboard')->with('error', 'Anda tidak memiliki hak akses ke halaman tersebut.');
         }
 
         return $next($request);

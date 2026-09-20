@@ -838,8 +838,8 @@
                         </div>
                         @endif
 
-                        <!-- Standalone Menu Halaqah Al-Qur'an (Tahsin & Tahfidz) -->
-                        @if(auth()->user()->hasPermission('view-halaqah|view-learning'))
+                        <!-- Standalone Menu Halaqah Al-Qur'an (Tahsin & Tahfidz - Khusus Guru Al-Qur'an & Manajemen) -->
+                        @if(auth()->user()->hasRole(['guru-quran', 'super-admin', 'admin', 'kepala-sekolah']))
                             <a href="{{ route('admin.halaqah.index') }}"
                                class="nav-link {{ request()->routeIs('admin.halaqah.*') ? 'nav-link-active' : '' }}">
                                 <svg class="nav-icon text-emerald-500 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -850,11 +850,12 @@
                                 </svg>
                                 <div class="flex items-center justify-between w-full">
                                     <span class="font-bold">Halaqah Al-Qur'an</span>
+                                    <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[9px] rounded">Qur'an</span>
                                 </div>
                             </a>
                         @endif
 
-                        <!-- Dropdown Menu E-Raport -->
+                        <!-- Dropdown Menu E-Raport & Penilaian -->
                         @if(auth()->user()->hasPermission('view-raport|view-grades|view-quran-raport|manage-raport-settings|view-learning'))
                         @php
                             $isRaportActive = request()->routeIs('admin.raport.*') || request()->routeIs('admin.grades.*') || request()->routeIs('admin.quran-raport.*');
@@ -870,14 +871,17 @@
                                         <line x1="16" y1="17" x2="8" y2="17"></line>
                                         <polyline points="10 9 9 9 8 9"></polyline>
                                     </svg>
-                                    <span>E-Raport Digital</span>
+                                    <span>E-Raport &amp; Penilaian</span>
                                 </div>
                                 <svg class="w-4 h-4 transition-transform duration-200 shrink-0 text-slate-400" :class="{ 'rotate-90': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                             </button>
 
                             <div x-show="open" x-collapse class="pl-4 space-y-1 mt-1 border-l-2 border-slate-200 dark:border-slate-800 ml-4">
                                 @if(auth()->user()->hasPermission('view-grades|view-learning'))
-                                    <a href="{{ route('admin.grades.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.grades.*') ? 'nav-link-active' : '' }}">Entri Nilai Siswa</a>
+                                    <a href="{{ route('admin.grades.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.grades.*') ? 'nav-link-active' : '' }}">
+                                        <span>Agenda &amp; Penilaian Mapel</span>
+                                        <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-bold text-[9px] rounded">Guru</span>
+                                    </a>
                                 @endif
                                 @if(auth()->user()->hasPermission('view-raport|view-learning'))
                                     <a href="{{ route('admin.raport.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.raport.index') || request()->routeIs('admin.raport.print*') ? 'nav-link-active' : '' }}">
@@ -885,7 +889,7 @@
                                         <span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-extrabold text-[9px] rounded">A4/PDF</span>
                                     </a>
                                 @endif
-                                @if(auth()->user()->hasPermission('view-quran-raport|view-halaqah|view-learning'))
+                                @if(auth()->user()->hasRole(['guru-quran', 'super-admin', 'admin', 'kepala-sekolah']))
                                     <a href="{{ route('admin.quran-raport.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.quran-raport.index') || request()->routeIs('admin.quran-raport.print') ? 'nav-link-active' : '' }}">
                                         <span class="font-bold text-emerald-600 dark:text-emerald-400">Raport Al-Qur'an</span>
                                         <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[9px] rounded">Khusus</span>
@@ -1073,7 +1077,7 @@
                             </button>
 
                             <div x-show="open" x-collapse class="pl-4 space-y-1 mt-1 border-l-2 border-slate-200 dark:border-slate-800 ml-4">
-                                @if(auth()->user()->hasPermission('view-teacher-attendance|manage-attendance'))
+                                @if(auth()->user()->hasRole(['super-admin', 'admin', 'operator', 'kepala-sekolah']))
                                     <a href="{{ route('admin.teacher-attendances.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.teacher-attendances.index') ? 'nav-link-active' : '' }}">
                                         <span>Manajemen Presensi</span>
                                     </a>
@@ -1088,24 +1092,18 @@
                                         @endif
                                     </a>
                                 @endif
-                                <a href="{{ route('admin.kajian-pekanan.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.kajian-pekanan.*') ? 'nav-link-active font-bold text-emerald-600 dark:text-emerald-400' : '' }}">
-                                    <span>Kajian Pekanan Pegawai</span>
-                                    <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[9px] rounded">Baru</span>
-                                </a>
-                                @if(auth()->user()->hasPermission('view-teacher-attendance|manage-attendance'))
+                                @if(auth()->user()->hasRole(['super-admin', 'admin', 'operator', 'kepala-sekolah']))
                                     <a href="{{ route('admin.teacher-attendances.fingerprint') }}" class="nav-link text-xs {{ request()->routeIs('admin.teacher-attendances.fingerprint') ? 'nav-link-active' : '' }}">Scanner Sidik Jari USB</a>
                                     <a href="{{ route('admin.teacher-attendances.scan') }}" target="_blank" rel="noopener" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.teacher-attendances.scan') ? 'nav-link-active' : '' }}">
                                         <span>Scanner Face ID Guru</span>
                                         <svg class="w-3 h-3 text-indigo-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
                                     </a>
-                                @endif
-                                @if(auth()->user()->hasPermission('view-teacher-recap|view-teacher-attendance|manage-attendance'))
                                     <a href="{{ route('admin.teacher-attendances.recap') }}" class="nav-link text-xs {{ request()->routeIs('admin.teacher-attendances.recap') ? 'nav-link-active' : '' }}">Rekap Bulanan Guru</a>
                                 @endif
                                 @if(auth()->user()->hasPermission('view-employee-tasks|view-teacher-attendance|manage-attendance'))
                                     <a href="{{ route('admin.employee-tasks.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.employee-tasks.*') ? 'nav-link-active' : '' }}">Tugas &amp; Checklist Pegawai</a>
                                 @endif
-                                @if(auth()->user()->hasPermission('manage-teacher-attendance-settings|manage-attendance'))
+                                @if(auth()->user()->hasRole(['super-admin', 'admin', 'operator']))
                                     <a href="{{ route('admin.teacher-attendances.settings') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.teacher-attendances.settings') ? 'nav-link-active font-bold text-[#3C50E0]' : '' }}">
                                         <span>Pengaturan Presensi Guru</span>
                                         <span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-extrabold text-[9px] rounded">Config</span>
@@ -1140,13 +1138,11 @@
                                 @if(auth()->user()->hasPermission('view-student-permits|manage-attendance'))
                                     <a href="{{ route('admin.student-permits.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.student-permits.*') ? 'nav-link-active' : '' }}">Permohonan Izin Siswa</a>
                                 @endif
-                                @if(auth()->user()->hasPermission('view-terminal-attendance|manage-attendance'))
+                                @if(auth()->user()->hasRole(['super-admin', 'admin', 'operator', 'wakasek-kesiswaan']))
                                     <a href="{{ route('admin.qr-attendance.scan') }}" target="_blank" rel="noopener" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.qr-attendance.*') ? 'nav-link-active' : '' }}">
                                         <span>Terminal Presensi (QR)</span>
                                         <svg class="w-3 h-3 text-cyan-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
                                     </a>
-                                @endif
-                                @if(auth()->user()->hasPermission('manage-student-attendance-settings|manage-attendance'))
                                     <a href="{{ route('admin.attendances.settings') }}" class="nav-link text-xs {{ request()->routeIs('admin.attendances.settings') ? 'nav-link-active' : '' }}">Pengaturan Presensi Siswa</a>
                                 @endif
                             </div>
@@ -1166,6 +1162,21 @@
                                 </div>
                             </a>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Dedicated Standalone Menu: Kajian Pekanan Pegawai (Terpisah dari Presensi) -->
+                <div>
+                    <p class="section-label">Kajian &amp; Pembinaan Pegawai</p>
+                    <div class="space-y-1">
+                        <a href="{{ route('admin.kajian-pekanan.index') }}" 
+                           class="nav-link {{ request()->routeIs('admin.kajian-pekanan.*') ? 'nav-link-active' : '' }}">
+                            <svg class="nav-icon text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                            <span class="flex items-center justify-between w-full">
+                                <span class="font-bold">Kajian Pekanan Pegawai</span>
+                                <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[9px] rounded">Kegiatan</span>
+                            </span>
+                        </a>
                     </div>
                 </div>
 
@@ -1858,11 +1869,19 @@
                 <span class="text-[10px] font-extrabold tracking-tight -mt-1.5 {{ request()->routeIs('admin.teacher-attendances.*') ? 'text-primary' : 'text-slate-600 dark:text-slate-300' }}">Presensi</span>
             </a>
 
+            @if(auth()->user()->hasRole(['guru-quran', 'super-admin', 'admin', 'kepala-sekolah']))
             <!-- Halaqah -->
             <a href="{{ route('admin.halaqah.index') }}" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all {{ request()->routeIs('admin.halaqah.*') ? 'text-[#3C50E0] dark:text-indigo-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800' }}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="{{ request()->routeIs('admin.halaqah.*') ? '2.5' : '2' }}"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
                 <span class="text-[10px] tracking-tight mt-0.5">Halaqah</span>
             </a>
+            @else
+            <!-- Agenda & Penilaian Mapel -->
+            <a href="{{ route('admin.grades.index') }}" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all {{ request()->routeIs('admin.grades.*') ? 'text-[#3C50E0] dark:text-indigo-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800' }}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="{{ request()->routeIs('admin.grades.*') ? '2.5' : '2' }}"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                <span class="text-[10px] tracking-tight mt-0.5">Agenda</span>
+            </a>
+            @endif
 
             <!-- Profil Akun -->
             <a href="{{ route('admin.profile') }}" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all {{ request()->routeIs('admin.profile') ? 'text-[#3C50E0] dark:text-indigo-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800' }}">

@@ -16,11 +16,24 @@ use Illuminate\Support\Str;
 class QuranRaportController extends Controller
 {
     /**
+     * Cek otorisasi akses menu raport Qur'an
+     */
+    private function checkAccess(): void
+    {
+        $user = Auth::user();
+        if (!$user || !$user->hasRole(['super-admin', 'admin', 'kepala-sekolah', 'guru-quran', 'wakasek-kurikulum'])) {
+            abort(403, 'Akses menu Raport Al-Qur\'an hanya diperuntukkan bagi Guru Al-Qur\'an dan Manajemen Sekolah.');
+        }
+    }
+
+    /**
      * Cek restriksi kelas untuk Guru Al-Qur'an.
      * Mengembalikan array of ID kelas jika guru-quran, atau null jika admin/super-admin.
      */
     private function getAllowedClassIds(): ?array
     {
+        $this->checkAccess();
+
         $user = Auth::user();
         if (!$user) return [];
 
@@ -156,6 +169,8 @@ class QuranRaportController extends Controller
      */
     public function settings()
     {
+        $this->checkAccess();
+
         $raportSettings = self::getRaportSettings();
         $templates = self::getCapaianTemplates();
 
@@ -167,6 +182,7 @@ class QuranRaportController extends Controller
      */
     public function saveSettings(Request $request)
     {
+        $this->checkAccess();
         $request->validate([
             'quran_raport_kop_top' => 'nullable|string|max:255',
             'quran_raport_school_name' => 'required|string|max:255',

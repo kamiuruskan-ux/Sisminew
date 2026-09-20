@@ -339,6 +339,8 @@ class UserController extends Controller
             'F1' => 'Jenis Kelamin (L/P)',
             'G1' => 'Peran / Jabatan',
             'H1' => 'Wali Kelas (Opsional)',
+            'I1' => 'TMT (YYYY-MM-DD)',
+            'J1' => 'Pendidikan Terakhir',
         ];
 
         foreach ($headers as $cell => $value) {
@@ -351,7 +353,7 @@ class UserController extends Controller
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E40AF']], // Royal Blue
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
         ];
-        $sheet->getStyle('A1:H1')->applyFromArray($headerStyle);
+        $sheet->getStyle('A1:J1')->applyFromArray($headerStyle);
         $sheet->getRowDimension(1)->setRowHeight(28);
 
         // Sample Data 1
@@ -363,6 +365,8 @@ class UserController extends Controller
         $sheet->setCellValue('F2', 'Laki-laki');
         $sheet->setCellValue('G2', 'guru');
         $sheet->setCellValue('H2', 'VII-A');
+        $sheet->setCellValue('I2', '2015-07-01');
+        $sheet->setCellValue('J2', 'S1 Pendidikan Agama Islam');
 
         // Sample Data 2
         $sheet->setCellValue('A3', 'Ustadzah Siti Aminah, S.Pd.');
@@ -373,6 +377,8 @@ class UserController extends Controller
         $sheet->setCellValue('F3', 'Perempuan');
         $sheet->setCellValue('G3', 'guru');
         $sheet->setCellValue('H3', 'VIII-B');
+        $sheet->setCellValue('I3', '2018-01-15');
+        $sheet->setCellValue('J2', 'S1 Pendidikan Bahasa dan Sastra Indonesia');
 
         // Sample Data 3 (Staff TU)
         $sheet->setCellValue('A4', 'Muhammad Rizky (Tata Usaha)');
@@ -383,8 +389,10 @@ class UserController extends Controller
         $sheet->setCellValue('F4', 'Laki-laki');
         $sheet->setCellValue('G4', 'tata-usaha');
         $sheet->setCellValue('H4', '');
+        $sheet->setCellValue('I4', '2020-03-01');
+        $sheet->setCellValue('J4', 'D3 Administrasi Perkantoran');
 
-        foreach (range('A', 'H') as $col) {
+        foreach (range('A', 'J') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
@@ -430,14 +438,16 @@ class UserController extends Controller
         }
 
         $columnAliases = [
-            'name'      => ['nama_lengkap', 'nama', 'nama guru', 'nama pegawai', 'name', 'nama lengkap'],
-            'nip'       => ['nip', 'nrh', 'no_nip', 'nomor induk pegawai', 'nip / nrh', 'nip/nrh'],
-            'email'     => ['email', 'e-mail', 'surel', 'username', 'email / username'],
-            'password'  => ['password', 'kata sandi', 'pass', 'sandi', 'pin'],
-            'phone'     => ['no_hp', 'no hp', 'nohp', 'telepon', 'phone', 'no wa', 'whatsapp', 'no_whatsapp'],
-            'gender'    => ['jenis_kelamin', 'jenis kelamin', 'jk', 'gender', 'l/p', 'l_p'],
-            'role'      => ['peran', 'jabatan', 'role', 'posisi', 'peran / jabatan'],
-            'homeroom'  => ['wali_kelas', 'wali kelas', 'bina_kelas', 'kelas', 'rombel'],
+            'name'           => ['nama_lengkap', 'nama', 'nama guru', 'nama pegawai', 'name', 'nama lengkap'],
+            'nip'            => ['nip', 'nrh', 'no_nip', 'nomor induk pegawai', 'nip / nrh', 'nip/nrh'],
+            'email'          => ['email', 'e-mail', 'surel', 'username', 'email / username'],
+            'password'       => ['password', 'kata sandi', 'pass', 'sandi', 'pin'],
+            'phone'          => ['no_hp', 'no hp', 'nohp', 'telepon', 'phone', 'no wa', 'whatsapp', 'no_whatsapp'],
+            'gender'         => ['jenis_kelamin', 'jenis kelamin', 'jk', 'gender', 'l/p', 'l_p'],
+            'role'           => ['peran', 'jabatan', 'role', 'posisi', 'peran / jabatan'],
+            'homeroom'       => ['wali_kelas', 'wali kelas', 'bina_kelas', 'kelas', 'rombel', 'tingkat kelas bimbingan khusus wali kelas'],
+            'tmt'            => ['tmt', 'terhitung_mulai_tanggal', 'terhitung mulai tanggal', 'tgl_tmt', 'tanggal_tmt', 'tmt (yyyy-mm-dd)', 'tmtyyyymmdd'],
+            'last_education' => ['pendidikan_terakhir', 'pendidikan terakhir', 'pendidikan', 'ijazah_terakhir', 'ijazah terakhir', 'jenjang_pendidikan'],
         ];
 
         $normalize = function ($str) {
@@ -514,6 +524,16 @@ class UserController extends Controller
             $phone = $getVal('phone');
             $roleInput = $getVal('role');
             $homeroomInput = $getVal('homeroom');
+            $tmtInput = $getVal('tmt');
+            $lastEduInput = $getVal('last_education');
+
+            // Format TMT if provided
+            $tmt = null;
+            if (!empty($tmtInput)) {
+                try {
+                    $tmt = \Carbon\Carbon::parse($tmtInput)->format('Y-m-d');
+                } catch (\Throwable $e) {}
+            }
 
             // Fallback email if empty
             if (empty($email)) {
@@ -560,6 +580,8 @@ class UserController extends Controller
                     ];
                     if (!empty($nip)) $updateData['nip'] = $nip;
                     if (!empty($phone)) $updateData['phone'] = $phone;
+                    if (!empty($tmt)) $updateData['tmt'] = $tmt;
+                    if (!empty($lastEduInput)) $updateData['last_education'] = $lastEduInput;
                     if (!empty($pass)) {
                         $updateData['password'] = Hash::make($pass);
                     }
@@ -576,6 +598,8 @@ class UserController extends Controller
                         'email' => $email,
                         'nip' => $nip,
                         'phone' => $phone,
+                        'tmt' => $tmt,
+                        'last_education' => $lastEduInput ?: null,
                         'password' => Hash::make($rawPass),
                         'status' => 'active',
                     ]);

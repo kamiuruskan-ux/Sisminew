@@ -294,8 +294,15 @@ class TeacherAttendanceController extends Controller
      */
     public function recap(Request $request)
     {
+        $user = auth()->user();
         $month = (int) $request->input('month', date('m'));
         $year = (int) $request->input('year', date('Y'));
+
+        // Jika guru/staf biasa, alihkan ke presensi mandiri pribadi mereka
+        if (!$user->hasRole(['super-admin', 'admin', 'kepala-sekolah', 'operator'])) {
+            return redirect()->route('admin.teacher-attendances.my-attendance')
+                ->with('error', 'Anda hanya dapat melihat riwayat dan rekapan presensi pribadi Anda.');
+        }
 
         $recapData = $this->reportService->getMonthlyRecap($month, $year);
 
@@ -307,6 +314,11 @@ class TeacherAttendanceController extends Controller
      */
     public function export(Request $request)
     {
+        $user = auth()->user();
+        if (!$user->hasRole(['super-admin', 'admin', 'kepala-sekolah', 'operator'])) {
+            abort(403, 'Anda tidak berwenang mengunduh berkas rekapan presensi guru.');
+        }
+
         $date = $request->input('date', date('Y-m-d'));
 
         $spreadsheet = $this->reportService->generateExcelExport($date);
