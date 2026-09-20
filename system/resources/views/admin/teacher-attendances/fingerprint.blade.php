@@ -66,7 +66,7 @@
     deviceName: 'HID DigitalPersona U.are.U 4500',
     deviceStatus: 'Disconnected', // 'Ready', 'Busy', 'Capturing Fingerprint', 'Disconnected', 'Error', 'Timeout'
     sensorArmed: false,
-    activeFormatName: 'Auto',
+    activeFormatName: 'Intermediate (Format 2)',
     dpDeviceUid: null,
     webSocket: null,
     reconnectTimer: null,
@@ -111,8 +111,8 @@
                 this.deviceName = window.AttendanceFingerprintService.deviceName || 'HID DigitalPersona U.are.U 4500';
                 this.sensorArmed = window.AttendanceFingerprintService.isAcquiring || (state.status === 'waiting_finger' || state.status === 'reading');
                 
-                const fmt = window.AttendanceFingerprintService.workingFormat;
-                this.activeFormatName = fmt === 5 ? 'PNG Image' : (fmt === 1 ? 'Raw Sensor' : (fmt === 2 ? 'Intermediate' : 'Auto'));
+                const fmt = window.AttendanceFingerprintService.workingFormat || state.format;
+                this.activeFormatName = fmt === 2 ? 'Intermediate (Format 2)' : (fmt === 1 ? 'Raw Sensor (1)' : (fmt === 5 ? 'PNG Image (5)' : 'Intermediate (Format 2)'));
 
                 if (state.status === 'device_connected') {
                     this.scanStage = 'idle';
@@ -160,7 +160,7 @@
 
     async rearmSensor() {
         if (window.AttendanceFingerprintService) {
-            this.scanMessage = '🔄 Mengaktifkan sensor scanner...';
+            this.scanMessage = '🔄 Mengaktifkan sensor optik scanner...';
             const ok = await window.AttendanceFingerprintService.startCapture(true);
             if (ok) {
                 this.sensorArmed = true;
@@ -179,6 +179,14 @@
             return ok;
         }
         return false;
+    },
+
+    async stopSensor() {
+        if (window.AttendanceFingerprintService) {
+            await window.AttendanceFingerprintService.stopCapture();
+            this.sensorArmed = false;
+            this.scanMessage = 'Sensor optik dinonaktifkan sementara. Klik Tes Sensor untuk mengaktifkan kembali.';
+        }
     },
 
     openBrowserSslApproval() {
@@ -754,10 +762,16 @@
                     <div class="flex items-center space-x-3 text-slate-400 font-mono text-[11px]">
                         <span>Status: <strong :class="sensorArmed ? 'text-emerald-400' : 'text-amber-400'" x-text="deviceStatus"></strong></span>
                         <span>Format: <strong class="text-indigo-400" x-text="activeFormatName"></strong></span>
-                        <button type="button" @click="rearmSensor()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer" title="Picukan ulang sensor">
-                            <span>⚡</span>
-                            <span>Tes Sensor</span>
-                        </button>
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" @click="rearmSensor()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer" title="Picukan ulang sensor">
+                                <span>⚡</span>
+                                <span>Tes Sensor</span>
+                            </button>
+                            <button type="button" @click="stopSensor()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-rose-400 border border-rose-500/30 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer" title="Hentikan sensor sementara">
+                                <span>⏹️</span>
+                                <span>Stop</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

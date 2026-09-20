@@ -1,7 +1,7 @@
 /**
  * FingerprintService - Official DigitalPersona Web SDK Integration
  * Interfaces with HID DigitalPersona Local Device Access running on https://localhost:52181.
- * Uses native SDK events (@digitalpersona/devices & @digitalpersona/core) without excessive polling.
+ * Optimized for HID DigitalPersona U.are.U 4500 USB Optical Scanner.
  * 
  * Terminal Realtime States:
  * 🟢 Scanner terhubung
@@ -30,7 +30,8 @@
             this.statusBadge = '🔴 Scanner tidak ditemukan';
             this.isAcquiring = false;
             this.isStartingCapture = false;
-            this.workingFormat = null;
+            // Native format for U.are.U 4500 is Intermediate (2 - Minutiae features)
+            this.workingFormat = 2;
             this.lastSampleImage = null;
 
             this.listeners = {
@@ -39,7 +40,7 @@
                 error: []
             };
 
-            // Auto-reconnect / re-arm when user returns to or focuses this window (Debounced to avoid driver race)
+            // Auto-reconnect / re-arm when user returns to or focuses this window
             if (typeof window !== 'undefined') {
                 let focusDebounceTimer = null;
                 const handleWakeup = () => {
@@ -55,7 +56,7 @@
                             global.AttendanceLogger?.fingerprint('Window focused: re-arming fingerprint sensor acquisition...');
                             await this.startCapture();
                         }
-                    }, 350);
+                    }, 300);
                 };
 
                 window.addEventListener('focus', handleWakeup);
@@ -83,7 +84,7 @@
             global.AttendanceLogger?.fingerprint(`Status changed: [${statusKey}] -> ${text}`, extra);
 
             this.listeners.statusChange.forEach((fn) => {
-                try { fn({ status: this.status, text: this.statusText, badge: this.statusBadge, isAcquiring: this.isAcquiring, extra }); } catch (e) { console.error(e); }
+                try { fn({ status: this.status, text: this.statusText, badge: this.statusBadge, isAcquiring: this.isAcquiring, format: this.workingFormat, extra }); } catch (e) { console.error(e); }
             });
         }
 
@@ -150,15 +151,11 @@
                     return false;
                 }
 
-                // 3. Instantiate fresh official SDK FingerprintReader
-                if (this.reader) {
-                    try { 
-                        await this.reader.stopAcquisition(); 
-                        this.reader.off(); 
-                    } catch (e) {}
+                // 3. Singleton FingerprintReader instance (Reuse existing to prevent multiple WebSocket connections)
+                if (!this.reader) {
+                    this.reader = new global.dp.devices.FingerprintReader();
+                    this._attachSdkEventListeners();
                 }
-                this.reader = new global.dp.devices.FingerprintReader();
-                this._attachSdkEventListeners();
 
                 // 4. Enumerate connected devices using SDK method
                 const devices = await this.reader.enumerateDevices();
@@ -167,13 +164,13 @@
                 if (devices && devices.length > 0) {
                     this.activeDeviceUid = devices[0];
                     this.deviceConnected = true;
-                    this._setStatus('device_connected', '🟢 Scanner terhubung');
+                    this._setStatus('device_connected', '🟢 Scanner terhubung', { deviceUid: this.activeDeviceUid });
                     
-                    // Directly arm the sensor
-                    const captureStarted = await this.startCapture();
-                    return captureStarted;
+                    // Directly arm the sensor using native Intermediate format
+                    return await this.startCapture();
                 } else {
                     this.deviceConnected = false;
+                    this.activeDeviceUid = null;
                     this._setStatus('device_disconnected', '🔴 Scanner tidak ditemukan');
                     return false;
                 }
@@ -225,7 +222,7 @@
                 this._setStatus('device_disconnected', '🔴 Scanner tidak ditemukan', { deviceUid: event.deviceId || event.deviceUid });
             });
 
-            // Event: Acquisition Started (Ready for touch)
+            // Event: Acquisition Started (Hardware optical glass pad illuminated & ready)
             this.reader.on('AcquisitionStarted', (event) => {
                 global.AttendanceLogger?.fingerprint('Event: AcquisitionStarted - Ready for finger placement', event);
                 this.isAcquiring = true;
@@ -236,7 +233,7 @@
             this.reader.on('AcquisitionStopped', (event) => {
                 global.AttendanceLogger?.fingerprint('Event: AcquisitionStopped', event);
                 this.isAcquiring = false;
-                // Sync UI status when acquisition ceases normally (and not in the middle of reading/success)
+                // Sync UI status when acquisition ceases normally (and not during verification)
                 if (this.deviceConnected && this.status !== 'sample_acquired' && this.status !== 'error') {
                     this._setStatus('device_connected', '🟢 Scanner terhubung');
                 }
@@ -273,12 +270,12 @@
                     try { fn(sampleData, event); } catch (e) { console.error(e); }
                 });
 
-                // Auto re-arm sensor acquisition after brief delay (1800ms) for next scan
+                // Auto re-arm sensor acquisition after brief delay (1500ms) for next scan
                 setTimeout(async () => {
                     if (this.deviceConnected && !this.isAcquiring && !this.isStartingCapture) {
                         await this.startCapture();
                     }
-                }, 1800);
+                }, 1500);
             });
 
             // Event: Hardware Error Occurred
@@ -295,7 +292,7 @@
                     if (this.deviceConnected && !this.isAcquiring && !this.isStartingCapture) {
                         await this.startCapture(true);
                     }
-                }, 2500);
+                }, 2000);
             });
 
             // Event: Communication Failed (Local agent not reachable)
@@ -310,6 +307,7 @@
 
         /**
          * Start biometric fingerprint acquisition
+         * Optimized for U.are.U 4500: uses SampleFormat.Intermediate (2)
          * @param {boolean} force - Force stop and re-arm even if previously marked as acquiring
          */
         async startCapture(force = false) {
@@ -337,53 +335,49 @@
                 if (this.isAcquiring || force) {
                     try {
                         await this.reader.stopAcquisition();
-                        // 150ms buffer to give Windows USB HID driver time to reset state
-                        await new Promise((res) => setTimeout(res, 150));
+                        // 120ms buffer to give Windows USB HID driver time to reset state
+                        await new Promise((res) => setTimeout(res, 120));
                     } catch (e) {
                         // Ignore stop errors
                     }
                     this.isAcquiring = false;
                 }
 
-                // Helper timeout wrapper for SDK calls
-                const withTimeout = (promise, ms = 3500) => Promise.race([
-                    promise,
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Driver timeout')), ms))
-                ]);
-
-                // Prioritized format candidate list:
-                // 1. Working format if already verified
-                // 2. PngImage (5) - Standard for web UI capture & server verification
-                // 3. Intermediate (2) - Standard feature extraction template
-                // 4. Raw (1) - Fallback raw optical capture
+                // Native format for HID DigitalPersona U.are.U 4500:
+                // Primary: SampleFormat.Intermediate (2) - standard minutiae extraction
+                // Fallback: SampleFormat.Raw (1)
                 const SF = global.dp?.devices?.SampleFormat || {};
                 const formatCandidates = [];
 
                 if (this.workingFormat !== null) {
                     formatCandidates.push(this.workingFormat);
                 }
-                [SF.PngImage ?? 5, SF.Intermediate ?? 2, SF.Raw ?? 1].forEach((fmt) => {
+                [SF.Intermediate ?? 2, SF.Raw ?? 1, SF.PngImage ?? 5].forEach((fmt) => {
                     if (!formatCandidates.includes(fmt)) formatCandidates.push(fmt);
                 });
+
+                // Target order: target specific reader if UID is known, then wildcard
+                const targets = this.activeDeviceUid ? [this.activeDeviceUid, undefined] : [undefined];
 
                 let lastError = null;
 
                 for (const format of formatCandidates) {
-                    try {
-                        global.AttendanceLogger?.fingerprint(`Attempting startAcquisition with format=${format}...`);
-                        await withTimeout(this.reader.startAcquisition(format, undefined), 3000);
+                    for (const targetId of targets) {
+                        try {
+                            global.AttendanceLogger?.fingerprint(`Calling startAcquisition(format=${format}, targetId=${targetId || 'wildcard'})...`);
+                            await this.reader.startAcquisition(format, targetId);
 
-                        // Acquisition successfully started on physical hardware!
-                        this.workingFormat = format;
-                        this.isAcquiring = true;
-                        this._setStatus('waiting_finger', '🟡 Menunggu sidik jari');
-                        global.AttendanceLogger?.fingerprint(`🟢 Sensor aktif! Format=${format} siap menerima tempelan jari.`);
-                        return true;
-                    } catch (err) {
-                        lastError = err;
-                        global.AttendanceLogger?.warn('FINGERPRINT', `startAcquisition failed with format=${format}:`, err?.message || err);
-                        // Delay 200ms between attempts to prevent driver flooding
-                        await new Promise((res) => setTimeout(res, 200));
+                            // Acquisition successfully started on physical hardware!
+                            this.workingFormat = format;
+                            this.isAcquiring = true;
+                            this._setStatus('waiting_finger', '🟡 Menunggu sidik jari', { format, targetId });
+                            global.AttendanceLogger?.fingerprint(`🟢 Sensor aktif! Format=${format} siap menerima tempelan jari.`);
+                            return true;
+                        } catch (err) {
+                            lastError = err;
+                            global.AttendanceLogger?.warn('FINGERPRINT', `startAcquisition failed with format=${format}, target=${targetId}:`, err?.message || err);
+                            await new Promise((res) => setTimeout(res, 150));
+                        }
                     }
                 }
 
