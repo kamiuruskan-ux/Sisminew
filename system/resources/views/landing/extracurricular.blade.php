@@ -1,6 +1,6 @@
 @extends('layouts.landing')
 
-@section('title', 'Ekstrakurikuler & Pengembangan Diri - ' . Setting::get('school_name', 'SMA Nusantara'))
+@section('title', 'Ekstrakurikuler & Pengembangan Diri - ' . Setting::get('school_name', 'SDIT AL-FAHMI PALU'))
 
 @section('content')
 
@@ -39,7 +39,7 @@
             </h1>
             
             <p class="text-slate-600 text-sm sm:text-base lg:text-lg leading-relaxed font-normal max-w-2xl mx-auto">
-                Wadah pembelajaran non-akademik bagi siswa {{ Setting::get('school_name', 'SMA Nusantara') }} untuk mengeksplorasi minat, mengasah kepemimpinan, sains, seni, dan olahraga.
+                Wadah pembelajaran non-akademik bagi siswa {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }} untuk mengeksplorasi minat, mengasah kepemimpinan, sains, seni, dan olahraga.
             </p>
         </div>
     </div>
@@ -174,7 +174,7 @@
                 </h2>
                 
                 <p class="text-slate-300 text-xs sm:text-sm font-normal leading-relaxed">
-                    Daftarkan diri Anda sekarang di {{ Setting::get('school_name', 'SMA Nusantara') }} dan nikmati berbagai fasilitas kegiatan ekstrakurikuler terlengkap.
+                    Daftarkan diri Anda sekarang di {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }} dan nikmati berbagai fasilitas kegiatan ekstrakurikuler terlengkap.
                 </p>
 
                 <div class="pt-3 flex flex-wrap items-center justify-center gap-4">

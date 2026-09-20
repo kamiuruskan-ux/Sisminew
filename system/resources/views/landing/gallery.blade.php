@@ -1,6 +1,6 @@
 @extends('layouts.landing')
 
-@section('title', 'Galeri Momen & Dokumentasi - ' . Setting::get('school_name', 'SMA Nusantara'))
+@section('title', 'Galeri Momen & Dokumentasi - ' . Setting::get('school_name', 'SDIT AL-FAHMI PALU'))
 
 @section('content')
 
@@ -50,7 +50,7 @@
             (object)['slug' => 'akademik', 'name' => 'Akademik & Sains'],
             (object)['slug' => 'olahraga', 'name' => 'Olahraga & Prestasi'],
             (object)['slug' => 'seni-budaya', 'name' => 'Seni & Budaya'],
-            (object)['slug' => 'fasilitas', 'name' => 'Fasilitas Kampus'],
+            (object)['slug' => 'fasilitas', 'name' => 'Fasilitas Sekolah'],
             (object)['slug' => 'ekstrakurikuler', 'name' => 'Ekstrakurikuler'],
         ]);
 @endphp
@@ -124,7 +124,7 @@ function galleryApp() {
                 Galeri Momen & Dokumentasi Sekolah
             </h1>
             <p class="text-slate-600 text-sm sm:text-base lg:text-lg leading-relaxed font-normal">
-                Jelajahi suasana pembelajaran interaktif, kejuaraan siswa, festival budaya, dan fasilitas unggulan di {{ Setting::get('school_name', 'SMA Nusantara') }}.
+                Jelajahi suasana pembelajaran interaktif, kejuaraan siswa, festival budaya, dan fasilitas unggulan di {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}.
             </p>
         </div>
     </div>

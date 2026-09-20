@@ -1,6 +1,6 @@
 @extends('layouts.landing')
 
-@section('title', 'Jurusan & Program Unggulan - ' . Setting::get('school_name', 'SMA Nusantara'))
+@section('title', 'Jurusan & Program Unggulan - ' . Setting::get('school_name', 'SDIT AL-FAHMI PALU'))
 
 @section('content')
 
@@ -30,7 +30,7 @@
             </h1>
             
             <p class="text-slate-600 text-sm sm:text-base lg:text-lg leading-relaxed font-normal max-w-2xl mx-auto">
-                Pilihan peminatan akademik terpadu yang dirancang sesuai minat, bakat, serta proyeksi karir masa depan siswa di {{ Setting::get('school_name', 'SMA Nusantara') }}.
+                Pilihan peminatan akademik terpadu yang dirancang sesuai minat, bakat, serta proyeksi karir masa depan siswa di {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}.
             </p>
         </div>
     </div>
@@ -257,7 +257,7 @@
                 KEUNGGULAN AKADEMIK
             </span>
             <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                Mengapa Memilih Program di {{ Setting::get('school_name', 'SMA Nusantara') }}?
+                Mengapa Memilih Program di {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}?
             </h2>
         </div>
 
@@ -318,7 +318,7 @@
                 </h2>
                 
                 <p class="text-slate-300 text-xs sm:text-sm font-normal leading-relaxed">
-                    Daftarkan diri Anda sekarang pada jurusan pilihan dan raih kesempatan mendapatkan Beasiswa Prestasi di {{ Setting::get('school_name', 'SMA Nusantara') }}.
+                    Daftarkan diri Anda sekarang pada jurusan pilihan dan raih kesempatan mendapatkan Beasiswa Prestasi di {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}.
                 </p>
 
                 <div class="pt-3 flex flex-wrap items-center justify-center gap-4">

@@ -1,6 +1,4 @@
-@extends('layouts.landing')
-
-@section('title', 'SMA Nusantara - Berkarakter • Berprestasi • Mendunia')
+@section('title', Setting::get('school_name', 'SDIT AL-FAHMI PALU') . ' - ' . Setting::get('school_tagline', 'Sekolahnya Calon Pemimpin Peradaban'))
 
 @section('content')
 
@@ -81,7 +79,7 @@
                                 <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/20 border border-primary/30 backdrop-blur-md">
                                     <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_2px_rgba(52,211,153,0.6)]"></span>
                                     <span class="text-[9px] sm:text-xs font-extrabold uppercase tracking-widest text-indigo-300">
-                                        SELAMAT DATANG DI {{ Setting::get('school_name', 'SMA NUSANTARA') }}
+                                        SELAMAT DATANG DI {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}
                                     </span>
                                 </div>
 
@@ -132,15 +130,17 @@
                                          class="w-full h-[240px] sm:h-[320px] lg:h-[380px] object-cover object-center group-hover:scale-105 transition-transform duration-700">
                                     
                                     <!-- Floating Accreditation Badge -->
+                                    @if(Setting::get('school_accreditation_show', '1') == '1')
                                     <div class="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 bg-slate-950/85 backdrop-blur-md p-3 rounded-xl sm:rounded-2xl border border-white/15 shadow-xl flex items-center gap-3">
                                         <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-primary to-secondary text-white flex items-center justify-center font-extrabold text-sm sm:text-base shrink-0 shadow-md border border-white/20">
-                                            A+
+                                            {{ Setting::get('school_accreditation_grade', 'A') }}
                                         </div>
                                         <div>
-                                            <h4 class="text-[11px] sm:text-xs font-extrabold uppercase tracking-wide text-white leading-tight">Akreditasi Unggul (A)</h4>
-                                            <p class="text-[10px] sm:text-[11px] text-slate-300 font-medium">{{ Setting::get('school_name', 'SMA Nusantara') }}</p>
+                                            <h4 class="text-[11px] sm:text-xs font-extrabold uppercase tracking-wide text-white leading-tight">{{ Setting::get('school_accreditation_label', 'AKREDITASI UNGGUL (A)') }}</h4>
+                                            <p class="text-[10px] sm:text-[11px] text-slate-300 font-medium">{{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}</p>
                                         </div>
                                     </div>
+                                    @endif
                                 </div>
                             </div>
 
@@ -188,7 +188,7 @@
         @endphp
         <div class="absolute inset-0 z-0 pointer-events-none">
             <img src="{{ $defaultHeroImg }}" 
-                 alt="Gedung Kampus {{ Setting::get('school_name', 'SMA Nusantara') }}" 
+                 alt="Gedung {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}" 
                  class="w-full h-full object-cover object-center opacity-40">
             <div class="absolute inset-0 bg-gradient-to-r from-slate-900/95 via-slate-900/75 to-slate-900/30"></div>
             <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-slate-900/40"></div>
@@ -204,7 +204,7 @@
                     <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3.5 sm:py-1 rounded-full bg-primary/10 border border-primary/20 backdrop-blur-md">
                         <span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-green-400 animate-pulse shadow-[0_0_8px_2px_rgba(74,222,128,0.6)]"></span>
                         <span class="text-[8px] sm:text-xs font-bold uppercase tracking-widest text-primary">
-                            SELAMAT DATANG DI {{ Setting::get('school_name', 'SMA NUSANTARA') }}
+                            SELAMAT DATANG DI {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}
                         </span>
                     </div>
                     
@@ -249,19 +249,21 @@
                     
                     <div class="relative rounded-2xl sm:rounded-3xl overflow-hidden border-2 border-slate-200/80 shadow-2xl bg-white group">
                         <img src="{{ $defaultHeroImg }}" 
-                             alt="Siswa {{ Setting::get('school_name', 'SMA Nusantara') }}" 
+                             alt="Siswa {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}" 
                              class="w-full h-[220px] sm:h-[340px] lg:h-[420px] object-cover object-top group-hover:scale-105 transition-transform duration-700">
                         
                         <!-- Floating Accreditation Badge -->
+                        @if(Setting::get('school_accreditation_show', '1') == '1')
                         <div class="absolute bottom-3 left-3 right-3 sm:bottom-5 sm:left-5 sm:right-5 bg-white/90 backdrop-blur-md p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-200/80 shadow-xl flex items-center gap-2.5 sm:gap-3">
                             <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-primary to-secondary text-white flex items-center justify-center font-extrabold text-sm sm:text-lg shrink-0 shadow-md border border-white/20">
-                                A+
+                                {{ Setting::get('school_accreditation_grade', 'A') }}
                             </div>
                             <div>
-                                <h4 class="text-[11px] sm:text-xs font-extrabold uppercase tracking-wide text-slate-900 leading-tight">Akreditasi Unggul (A)</h4>
-                                <p class="text-[10px] sm:text-[11px] text-slate-500 font-medium">Standar Pendidikan Internasional & Karakter</p>
+                                <h4 class="text-[11px] sm:text-xs font-extrabold uppercase tracking-wide text-slate-900 leading-tight">{{ Setting::get('school_accreditation_label', 'AKREDITASI UNGGUL (A)') }}</h4>
+                                <p class="text-[10px] sm:text-[11px] text-slate-500 font-medium">{{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}</p>
                             </div>
                         </div>
+                        @endif
                     </div>
 
                 </div>
@@ -288,9 +290,9 @@
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
                         </svg>
                     </div>
-                    <h3 class="text-xs sm:text-base font-extrabold text-slate-900 mb-1 leading-snug">Akademik Unggul</h3>
+                    <h3 class="text-xs sm:text-base font-extrabold text-slate-900 mb-1 leading-snug">{{ Setting::get('school_feature_title_1', 'Akademik Unggul') }}</h3>
                     <p class="text-[11px] sm:text-xs text-slate-500 leading-relaxed font-medium max-w-[220px]">
-                        Kurikulum berkualitas untuk hasil belajar maksimal.
+                        {{ Setting::get('school_feature_desc_1', 'Kurikulum berkualitas untuk hasil belajar maksimal.') }}
                     </p>
                 </div>
 
@@ -301,9 +303,9 @@
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                         </svg>
                     </div>
-                    <h3 class="text-xs sm:text-base font-extrabold text-slate-900 mb-1 leading-snug">Fasilitas Modern</h3>
+                    <h3 class="text-xs sm:text-base font-extrabold text-slate-900 mb-1 leading-snug">{{ Setting::get('school_feature_title_2', 'Fasilitas Modern') }}</h3>
                     <p class="text-[11px] sm:text-xs text-slate-500 leading-relaxed font-medium max-w-[220px]">
-                        Sarana lengkap dan teknologi pendukung pembelajaran.
+                        {{ Setting::get('school_feature_desc_2', 'Sarana lengkap dan teknologi pendukung pembelajaran.') }}
                     </p>
                 </div>
 
@@ -314,9 +316,9 @@
                             <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
                         </svg>
                     </div>
-                    <h3 class="text-xs sm:text-base font-extrabold text-slate-900 mb-1 leading-snug">Pembinaan Karakter</h3>
+                    <h3 class="text-xs sm:text-base font-extrabold text-slate-900 mb-1 leading-snug">{{ Setting::get('school_feature_title_3', 'Pembinaan Karakter') }}</h3>
                     <p class="text-[11px] sm:text-xs text-slate-500 leading-relaxed font-medium max-w-[220px]">
-                        Membentuk kepribadian unggul dan berakhlak mulia.
+                        {{ Setting::get('school_feature_desc_3', 'Membentuk kepribadian unggul dan berakhlak mulia.') }}
                     </p>
                 </div>
 
@@ -327,9 +329,9 @@
                             <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
                         </svg>
                     </div>
-                    <h3 class="text-xs sm:text-base font-extrabold text-slate-900 mb-1 leading-snug">Prestasi Membanggakan</h3>
+                    <h3 class="text-xs sm:text-base font-extrabold text-slate-900 mb-1 leading-snug">{{ Setting::get('school_feature_title_4', 'Prestasi Membanggakan') }}</h3>
                     <p class="text-[11px] sm:text-xs text-slate-500 leading-relaxed font-medium max-w-[220px]">
-                        Beragam prestasi di tingkat nasional & internasional.
+                        {{ Setting::get('school_feature_desc_4', 'Beragam prestasi di tingkat nasional & internasional.') }}
                     </p>
                 </div>
 
@@ -339,7 +341,7 @@
 </section>
 
 <!-- ==========================================
-     3. STATS SECTION ("SMA NUSANTARA DALAM ANGKA" - SaaS Dark Navy Card)
+     3. STATS SECTION (BUKTI KOMITMEN PENDIDIKAN DALAM ANGKA)
      ========================================== -->
 <section class="py-6">
     <div class="container-edunova">
@@ -352,10 +354,10 @@
                 <!-- Left Title Column -->
                 <div class="lg:col-span-5 space-y-3">
                     <span class="text-xs font-extrabold uppercase tracking-widest text-primary block">
-                        {{ strtoupper(Setting::get('school_name', 'SMA NUSANTARA')) }} DALAM ANGKA
+                        {{ Setting::get('school_stats_kicker', strtoupper(Setting::get('school_name', 'SDIT AL-FAHMI PALU')) . ' DALAM ANGKA') }}
                     </span>
                     <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">
-                        Bukti Komitmen Kami dalam Pendidikan
+                        {{ Setting::get('school_stats_title', 'Bukti Komitmen Kami dalam Pendidikan') }}
                     </h2>
                     <div class="w-16 h-1 bg-primary rounded-full"></div>
                 </div>
@@ -398,7 +400,7 @@
                                 </svg>
                             </div>
                             <span class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                                {{ isset($stats['achievements']) ? $stats['achievements'] . '+' : '150+' }}
+                                {{ Setting::get('stats_achievements', (isset($stats['achievements']) ? $stats['achievements'] . '+' : '50+')) }}
                             </span>
                             <span class="text-xs font-medium text-slate-500 mt-1">Prestasi Diraih</span>
                         </div>
@@ -411,7 +413,7 @@
                                 </svg>
                             </div>
                             <span class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                                {{ isset($stats['years']) ? $stats['years'] . '+' : '15+' }}
+                                {{ Setting::get('stats_years', (isset($stats['years']) ? $stats['years'] . '+' : '15+')) }}
                             </span>
                             <span class="text-xs font-medium text-slate-500 mt-1">Tahun Terpercaya</span>
                         </div>
@@ -442,21 +444,21 @@
                 <div class="rounded-3xl overflow-hidden shadow-card border border-slate-200/80 bg-gradient-to-br from-indigo-50/70 via-white to-slate-100/70 group relative min-h-[300px] sm:min-h-[360px] flex items-center justify-center p-4">
                     @if($hasHeroImage)
                         <img src="{{ $sambutanImg }}" 
-                             alt="Gedung Utama {{ Setting::get('school_name', 'SMA Nusantara') }}" 
+                             alt="Gedung Utama {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}" 
                              class="w-full h-[320px] sm:h-[380px] object-cover rounded-2xl group-hover:scale-105 transition-transform duration-700">
                     @else
                         <div class="flex flex-col items-center justify-center text-center space-y-3 py-6 px-4">
                             <div class="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl bg-white p-4 shadow-lg border border-slate-200/80 flex items-center justify-center group-hover:scale-105 transition-transform duration-500">
                                 <img src="{{ $sambutanImg }}" 
-                                     alt="Logo {{ Setting::get('school_name', 'SMA Nusantara') }}" 
+                                     alt="Logo {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}" 
                                      class="max-w-full max-h-full object-contain">
                             </div>
                             <div>
                                 <h3 class="text-base sm:text-lg font-extrabold text-slate-900 leading-tight">
-                                    {{ Setting::get('school_name', 'SMA Nusantara') }}
+                                    {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}
                                 </h3>
                                 <p class="text-[11px] sm:text-xs text-slate-500 font-medium mt-1">
-                                    {{ Setting::get('school_tagline', 'Berkarakter • Berprestasi • Mendunia') }}
+                                    {{ Setting::get('school_tagline', 'Sekolahnya Calon Pemimpin Peradaban') }}
                                 </p>
                             </div>
                         </div>
@@ -476,7 +478,7 @@
             <!-- Right Vision & Mission Tabs / Cards (Centered) -->
             <div class="lg:col-span-7 space-y-6 flex flex-col items-center text-center" data-aos="fade-left">
                 <span class="text-xs font-extrabold uppercase tracking-widest text-primary block">
-                    TENTANG {{ Setting::get('school_name', 'SMA NUSANTARA') }}
+                    TENTANG {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}
                 </span>
                 <h2 class="text-2xl sm:text-4xl font-extrabold text-slate-900 leading-tight max-w-xl">
                     Membimbing Potensi Siswa Menuju Keunggulan Global
@@ -721,10 +723,10 @@
 
                 <!-- Gallery Item 3 -->
                 <div class="rounded-2xl overflow-hidden relative group shadow-xl border border-slate-200/60 aspect-[4/3] bg-slate-50 flex items-center justify-center p-4" data-aos="zoom-in" data-aos-delay="150">
-                    <img src="{{ $gFallbackImg }}" alt="Kehidupan Kampus" class="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700">
+                    <img src="{{ $gFallbackImg }}" alt="Kehidupan Sekolah" class="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700">
                     <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-4 flex flex-col justify-end">
                         <h4 class="text-xs font-bold text-white">Kebersamaan Siswa</h4>
-                        <span class="text-[10px] text-indigo-300">Lingkungan Kampus</span>
+                        <span class="text-[10px] text-indigo-300">Lingkungan Sekolah</span>
                     </div>
                 </div>
 
@@ -739,9 +741,9 @@
 
                 <!-- Gallery Item 5 -->
                 <div class="col-span-2 lg:col-span-1 rounded-2xl overflow-hidden relative group shadow-xl border border-slate-200/60 aspect-[4/3] bg-slate-50 flex items-center justify-center p-4" data-aos="zoom-in" data-aos-delay="250">
-                    <img src="{{ $gFallbackImg }}" alt="Gedung Kampus Modern" class="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700">
+                    <img src="{{ $gFallbackImg }}" alt="Gedung Sekolah Modern" class="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700">
                     <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-4 flex flex-col justify-end">
-                        <h4 class="text-xs font-bold text-white">Gedung Kampus Modern</h4>
+                        <h4 class="text-xs font-bold text-white">Gedung Sekolah Modern</h4>
                         <span class="text-[10px] text-indigo-300">Fasilitas Utama</span>
                     </div>
                 </div>
@@ -808,7 +810,7 @@
                 Testimoni
             </span>
             <h2 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">
-                Apa Kata Mereka Tentang {{ Setting::get('school_name', 'SMA Nusantara') }}?
+                Apa Kata Mereka Tentang {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}?
             </h2>
             <p class="text-slate-600 text-sm sm:text-base mt-2.5 leading-relaxed">
                 Pengalaman dan kesan nyata dari para orang tua, alumni, dan siswa kami.
@@ -838,7 +840,7 @@
                         </div>
                     </div>
                     <p class="text-slate-700 text-sm sm:text-[15px] leading-relaxed font-normal mb-6">
-                        "SMA Nusantara memberikan lingkungan belajar yang sangat positif. Para guru sangat perhatian terhadap perkembangan akademik dan kepribadian anak kami."
+                        "{{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }} memberikan lingkungan belajar yang sangat positif. Para guru sangat perhatian terhadap perkembangan akademik dan kepribadian anak kami."
                     </p>
                 </div>
                 <div class="flex items-center gap-3.5 pt-4 border-t border-slate-100">
@@ -916,7 +918,7 @@
                         </div>
                     </div>
                     <p class="text-slate-700 text-sm sm:text-[15px] leading-relaxed font-normal mb-6">
-                        "Pembelajaran berbasis digital dan kurikulum yang aplikatif di SMA Nusantara membuat kami sangat siap beradaptasi dan bersaing di perguruan tinggi."
+                        "Pembelajaran berbasis digital dan kurikulum yang aplikatif di {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }} membuat kami sangat siap beradaptasi dan bersaing di masa depan."
                     </p>
                 </div>
                 <div class="flex items-center gap-3.5 pt-4 border-t border-slate-100">
@@ -1037,7 +1039,7 @@
                         Penerimaan Peserta Didik Baru
                     </h2>
                     <p class="text-slate-600 text-xs sm:text-sm max-w-xl font-normal leading-relaxed">
-                        Bergabunglah dengan SMA Nusantara dan raih masa depan cerah bersama kami. Pendaftaran dibuka mulai <span class="font-bold text-primary">1 Mei - 30 Juni 2024</span>.
+                        Bergabunglah bersama {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }} dan raih masa depan cerah bersama kami. Hubungi narahubung kami atau daftar online melalui portal SPMB.
                     </p>
                     <div class="pt-2">
                         <a href="{{ route('spmb.register') }}" class="px-8 py-3.5 rounded-full bg-gradient-to-r from-primary via-secondary to-primary hover:brightness-110 text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-primary/20 transition-all inline-flex items-center gap-2 transform hover:-translate-y-0.5 uppercase tracking-wider">
@@ -1193,7 +1195,7 @@
                     <div class="h-48 overflow-hidden relative bg-slate-50 flex items-center justify-center p-4">
                         <img src="{{ $blogFallbackImg }}" alt="Upacara Hari Pendidikan" class="w-full h-full object-contain group-hover:scale-108 transition-transform duration-500">
                         <div class="absolute top-3 left-3 px-3 py-1 rounded-md bg-purple-600 text-white text-[11px] font-bold shadow-md">
-                            Artikel Kampus
+                            Artikel Sekolah
                         </div>
                     </div>
                     <div class="p-6 flex flex-col justify-between flex-grow">
@@ -1223,12 +1225,12 @@
                     </div>
                     <div class="p-6 flex flex-col justify-between flex-grow">
                         <div>
-                            <span class="text-[11px] font-semibold text-slate-400 block mb-2">30 April 2024</span>
+                            <span class="text-[11px] font-semibold text-slate-400 block mb-2">{{ date('d M Y') }}</span>
                             <h3 class="text-base font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors leading-snug">
-                                Siswa SMA Nusantara Raih Juara Olimpiade Sains Nasional
+                                Siswa {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }} Raih Prestasi Tingkat Provinsi
                             </h3>
                             <p class="text-xs text-slate-500 leading-relaxed mb-4">
-                                Selamat kepada siswa kami yang berhasil meraih prestasi di Olimpiade Sains Nasional 2024.
+                                Selamat kepada siswa-siswi kami yang berhasil meraih prestasi gemilang dalam kompetisi terbaru.
                             </p>
                         </div>
                         <div class="inline-flex items-center text-xs font-bold text-blue-600 group-hover:text-blue-800 gap-1 mt-auto">
@@ -1262,7 +1264,7 @@
         </button>
         <!-- Video Player -->
         <div class="aspect-video w-full">
-            <iframe class="w-full h-full" src="{{ Setting::get('school_video_url', 'https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=0') }}" title="Video Profil {{ Setting::get('school_name', 'SMA Nusantara') }}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            <iframe class="w-full h-full" src="{{ Setting::get('school_video_url', 'https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=0') }}" title="Video Profil {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
         </div>
     </div>
 </div>

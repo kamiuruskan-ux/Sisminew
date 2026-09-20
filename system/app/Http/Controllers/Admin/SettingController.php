@@ -160,6 +160,30 @@ class SettingController extends Controller
             'raport_note_b' => 'nullable|string',
             'raport_note_c' => 'nullable|string',
             'raport_note_d' => 'nullable|string',
+
+            // Website Landing Page Content & Dynamic Customizations
+            'school_accreditation_grade' => 'nullable|string|max:20',
+            'school_accreditation_label' => 'nullable|string|max:100',
+            'school_accreditation_show' => 'nullable|in:0,1',
+            'school_feature_title_1' => 'nullable|string|max:100',
+            'school_feature_desc_1' => 'nullable|string|max:255',
+            'school_feature_title_2' => 'nullable|string|max:100',
+            'school_feature_desc_2' => 'nullable|string|max:255',
+            'school_feature_title_3' => 'nullable|string|max:100',
+            'school_feature_desc_3' => 'nullable|string|max:255',
+            'school_feature_title_4' => 'nullable|string|max:100',
+            'school_feature_desc_4' => 'nullable|string|max:255',
+            'school_stats_kicker' => 'nullable|string|max:100',
+            'school_stats_title' => 'nullable|string|max:255',
+            'stats_years' => 'nullable|string|max:50',
+            'school_campus_label' => 'nullable|string|max:100',
+            'school_map_title' => 'nullable|string|max:150',
+            'school_visit_faq_q' => 'nullable|string|max:255',
+            'school_visit_faq_a' => 'nullable|string',
+            'header_spmb_button_text' => 'nullable|string|max:50',
+            'footer_school_description' => 'nullable|string',
+            'footer_tagline' => 'nullable|string|max:255',
+            'footer_copyright_text' => 'nullable|string|max:255',
         ]);
 
         // Map fields to settings
@@ -277,6 +301,30 @@ class SettingController extends Controller
             'raport_note_b' => 'raport_note_b',
             'raport_note_c' => 'raport_note_c',
             'raport_note_d' => 'raport_note_d',
+
+            // Website Landing Page Content & Customizations
+            'school_accreditation_grade' => 'school_accreditation_grade',
+            'school_accreditation_label' => 'school_accreditation_label',
+            'school_accreditation_show' => 'school_accreditation_show',
+            'school_feature_title_1' => 'school_feature_title_1',
+            'school_feature_desc_1' => 'school_feature_desc_1',
+            'school_feature_title_2' => 'school_feature_title_2',
+            'school_feature_desc_2' => 'school_feature_desc_2',
+            'school_feature_title_3' => 'school_feature_title_3',
+            'school_feature_desc_3' => 'school_feature_desc_3',
+            'school_feature_title_4' => 'school_feature_title_4',
+            'school_feature_desc_4' => 'school_feature_desc_4',
+            'school_stats_kicker' => 'school_stats_kicker',
+            'school_stats_title' => 'school_stats_title',
+            'stats_years' => 'stats_years',
+            'school_campus_label' => 'school_campus_label',
+            'school_map_title' => 'school_map_title',
+            'school_visit_faq_q' => 'school_visit_faq_q',
+            'school_visit_faq_a' => 'school_visit_faq_a',
+            'header_spmb_button_text' => 'header_spmb_button_text',
+            'footer_school_description' => 'footer_school_description',
+            'footer_tagline' => 'footer_tagline',
+            'footer_copyright_text' => 'footer_copyright_text',
         ];
 
         foreach ($settingsMap as $input => $key) {

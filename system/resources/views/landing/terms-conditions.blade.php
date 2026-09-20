@@ -1,6 +1,6 @@
 @extends('layouts.landing')
 
-@section('title', 'Syarat & Ketentuan - ' . Setting::get('school_name', 'SMA Nusantara'))
+@section('title', 'Syarat & Ketentuan - ' . Setting::get('school_name', 'SDIT AL-FAHMI PALU'))
 
 @section('content')
 
@@ -21,7 +21,7 @@
                 Syarat & Ketentuan
             </h1>
             <p class="text-slate-600 text-sm sm:text-base leading-relaxed font-normal">
-                Ketentuan regulasi pendaftaran, kewajiban calon peserta didik, dan tata tertib penerimaan siswa baru di {{ Setting::get('school_name', 'SMA Nusantara') }}.
+                Ketentuan regulasi pendaftaran, kewajiban calon peserta didik, dan tata tertib penerimaan siswa baru di {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}.
             </p>
             <p class="text-xs text-slate-500 mt-4 font-medium">
                 Berlaku Untuk Tahun Ajaran {{ date('Y') }}/{{ date('Y') + 1 }}
@@ -67,7 +67,7 @@
                     <span class="text-[10px] font-extrabold uppercase tracking-widest text-blue-400 block mb-1">PANITIA SELEKSI</span>
                     <h4 class="text-sm font-extrabold text-white">Pertanyaan Ketentuan SPMB?</h4>
                     <p class="text-xs text-slate-300 mt-1 leading-relaxed">
-                        Panitia Penerimaan Siswa Baru {{ Setting::get('school_name', 'SMA Nusantara') }} siap memberikan penjelasan teknis.
+                        Panitia Penerimaan Siswa Baru {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }} siap memberikan penjelasan teknis.
                     </p>
                     <a href="{{ route('contact') }}" class="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-all">
                         Hubungi Panitia SPMB ↗
@@ -85,7 +85,7 @@
                     </div>
                     <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">1. Ketentuan Umum Sekolah</h2>
                     <p>
-                        Dokumen Syarat & Ketentuan ini mengatur tata cara penerimaan peserta didik baru, regulasi akademik, serta kewajiban administrasi di {{ Setting::get('school_name', 'SMA Nusantara') }}.
+                        Dokumen Syarat & Ketentuan ini mengatur tata cara penerimaan peserta didik baru, regulasi akademik, serta kewajiban administrasi di {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}.
                     </p>
                     <p>
                         Seluruh calon peserta didik dan orang tua/wali murid wajib memahami dan menyetujui seluruh ketentuan yang tercantum sebelum melengkapi formulir pendaftaran SPMB.
@@ -98,7 +98,7 @@
                         REGULASI 02
                     </div>
                     <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">2. Persyaratan Calon Peserta Didik</h2>
-                    <p>Calon peserta didik baru {{ Setting::get('school_name', 'SMA Nusantara') }} wajib memenuhi kriteria berikut:</p>
+                    <p>Calon peserta didik baru {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }} wajib memenuhi kriteria berikut:</p>
                     
                     <div class="space-y-3">
                         <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100">
@@ -123,7 +123,7 @@
                     </div>
                     <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">3. Prosedur Pendaftaran & Seleksi</h2>
                     <ol class="list-decimal pl-5 space-y-2.5 text-xs font-medium text-slate-600">
-                        <li>Pendaftaran dilakukan secara mandiri melalui website resmi SPMB {{ Setting::get('school_name', 'SMA Nusantara') }}.</li>
+                        <li>Pendaftaran dilakukan secara mandiri melalui website resmi SPMB {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}.</li>
                         <li>Pendaftar wajib mengisi formulir pendaftaran 5-tahapan secara jujur, akurat, dan dapat dipertanggungjawabkan.</li>
                         <li>Verifikasi berkas fisik akan dilakukan oleh panitia seleksi setelah data online berhasil dikirim.</li>
                         <li>Calon siswa wajib mengikuti seluruh rangkaian seleksi (Tes Potensi Akademik & Wawancara) sesuai jadwal gelombang pendaftaran yang dipilih.</li>
@@ -140,7 +140,7 @@
                     <ul class="list-disc pl-5 space-y-2 text-xs font-medium text-slate-600">
                         <li>Orang tua/wali berhak menerima laporan perkembangan seleksi dan pengumuman resmi dari pihak sekolah.</li>
                         <li>Orang tua/wali wajib menyelesaikan registrasi ulang (*re-registrasi*) dan administrasi keuangan sesuai batas waktu yang ditentukan setelah dinyatakan lulus.</li>
-                        <li>Orang tua/wali bersedia mendukung pelaksanaan tata tertib dan peraturan disiplin sekolah selama siswa menempuh pendidikan di {{ Setting::get('school_name', 'SMA Nusantara') }}.</li>
+                        <li>Orang tua/wali bersedia mendukung pelaksanaan tata tertib dan peraturan disiplin sekolah selama siswa menempuh pendidikan di {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}.</li>
                     </ul>
                 </div>
 
@@ -155,7 +155,7 @@
                     </p>
                     <div class="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs font-medium">
                         <strong class="font-extrabold block uppercase tracking-wider mb-1">Sanksi Pembatalan Hak Kelulusan:</strong>
-                        Panitia SPMB {{ Setting::get('school_name', 'SMA Nusantara') }} berhak secara sepihak **membatalkan hak kelulusan** atau **mengeluarkan siswa terdaftar** tanpa pengembalian biaya pendaftaran yang telah dibayarkan.
+                        Panitia SPMB {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }} berhak secara sepihak **membatalkan hak kelulusan** atau **mengeluarkan siswa terdaftar** tanpa pengembalian biaya pendaftaran yang telah dibayarkan.
                     </div>
                 </div>
 

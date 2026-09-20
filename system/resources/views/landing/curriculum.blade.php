@@ -1,6 +1,6 @@
 @extends('layouts.landing')
 
-@section('title', 'Kurikulum & Program Akademik - SMA Nusantara')
+@section('title', 'Kurikulum & Program Akademik - ' . Setting::get('school_name', 'SDIT AL-FAHMI PALU'))
 
 @section('content')
 
@@ -66,7 +66,7 @@
         <div class="bg-[#0B132B] text-white rounded-3xl p-8 sm:p-12 shadow-2xl relative overflow-hidden border border-white/10 text-center max-w-4xl mx-auto" data-aos="zoom-in">
             <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-3">Siap Menjadi Bagian dari Pembelajar Masa Depan?</h2>
             <p class="text-slate-300 text-xs sm:text-sm max-w-xl mx-auto mb-6">
-                Bergabunglah bersama SMA Nusantara dan rasakan pengalaman belajar yang menyenangkan, interaktif, dan penuh prestasi.
+                Bergabunglah bersama {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }} dan rasakan pengalaman belajar yang menyenangkan, interaktif, dan penuh prestasi.
             </p>
             <a href="{{ route('spmb.register') }}" class="px-8 py-3.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs uppercase tracking-wider shadow-glow inline-flex items-center gap-2">
                 Daftar Sekarang Online →

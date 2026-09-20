@@ -1,6 +1,6 @@
 @extends('layouts.landing')
 
-@section('title', ($event->title ?? 'Detail Kegiatan') . ' - ' . Setting::get('school_name', 'SMA Nusantara'))
+@section('title', ($event->title ?? 'Detail Kegiatan') . ' - ' . Setting::get('school_name', 'SDIT AL-FAHMI PALU'))
 
 @section('content')
 
@@ -95,7 +95,7 @@
                                 </div>
                                 <div>
                                     <span class="text-[11px] text-slate-400 block font-medium">Lokasi / Tempat</span>
-                                    <span class="text-xs sm:text-sm font-bold text-white">Kampus {{ Setting::get('school_name', 'SMA Nusantara') }}</span>
+                                    <span class="text-xs sm:text-sm font-bold text-white">{{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }} – {{ Setting::get('school_campus_label', 'Gedung Utama') }}</span>
                                 </div>
                             </div>
                         </div>
@@ -199,7 +199,7 @@
                     <div class="bg-gradient-to-br from-blue-900 via-indigo-900 to-slate-950 text-white rounded-3xl p-6 border border-white/10 shadow-xl space-y-3 relative overflow-hidden">
                         <div class="absolute -right-6 -bottom-6 w-32 h-32 bg-primary/20 rounded-full blur-2xl pointer-events-none"></div>
                         <span class="px-2.5 py-0.5 rounded-full bg-white/15 text-blue-300 text-[10px] font-extrabold uppercase tracking-wider">Penerimaan Siswa</span>
-                        <h3 class="text-base font-extrabold leading-snug">Tertarik Bergabung dengan {{ Setting::get('school_name', 'SMA Nusantara') }}?</h3>
+                        <h3 class="text-base font-extrabold leading-snug">Tertarik Bergabung dengan {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}?</h3>
                         <p class="text-xs text-slate-300 font-normal leading-relaxed">Pendaftaran peserta didik baru telah dibuka. Isi formulir pendaftaran secara online sekarang.</p>
                         <a href="{{ route('spmb.register') }}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-blue-950 font-extrabold text-xs hover:bg-slate-100 transition-all shadow-md mt-1 uppercase tracking-wider">
                             <span>Daftar Sekarang</span>

@@ -25,7 +25,7 @@ $mainThumb = $getBlogThumb($post->thumbnail);
 @section('description', $post->meta_description ?? \Illuminate\Support\Str::limit($post->excerpt ?? strip_tags($post->content), 160))
 @section('keywords', $post->meta_keywords ?? ($post->tags ? $post->tags->pluck('name')->implode(', ') : ''))
 
-@section('og_title', $post->title . ' - ' . Setting::get('school_name', 'SMA Nusantara'))
+@section('og_title', $post->title . ' - ' . Setting::get('school_name', 'SDIT AL-FAHMI PALU'))
 @section('og_description', $post->excerpt ?? \Illuminate\Support\Str::limit(strip_tags($post->content), 200))
 @section('og_image', $mainThumb ?? asset('img/logo.png'))
 @section('og_type', 'article')
@@ -215,7 +215,7 @@ $mainThumb = $getBlogThumb($post->thumbnail);
                 <svg class="w-16 h-16 text-indigo-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
                 </svg>
-                <span class="text-xs font-bold text-slate-300 uppercase tracking-widest">{{ Setting::get('school_name', 'SMA Nusantara') }}</span>
+                <span class="text-xs font-bold text-slate-300 uppercase tracking-widest">{{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}</span>
             </div>
         @endif
     </div>
@@ -300,7 +300,7 @@ $mainThumb = $getBlogThumb($post->thumbnail);
                             <span class="text-[10px] font-extrabold text-primary uppercase tracking-widest block mb-0.5">PENULIS ARTIKEL</span>
                             <h3 class="text-base sm:text-lg font-extrabold text-slate-900">{{ $post->author->name }}</h3>
                             <p class="text-slate-500 text-xs mt-1 leading-relaxed">
-                                Tim Redaksi & Kontributor Resmi {{ Setting::get('school_name', 'SMA Nusantara') }}. Menyajikan berita terbaru dan publikasi kegiatan sekolah.
+                                Tim Redaksi & Kontributor Resmi {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}. Menyajikan berita terbaru dan publikasi kegiatan sekolah.
                             </p>
                         </div>
                     </div>
@@ -353,7 +353,7 @@ $mainThumb = $getBlogThumb($post->thumbnail);
                 <div class="p-6 rounded-3xl bg-gradient-to-br from-indigo-950 via-slate-900 to-blue-950 text-white shadow-xl border border-white/10 relative overflow-hidden text-center">
                     <div class="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-2xl pointer-events-none"></div>
                     <span class="text-[10px] font-extrabold uppercase tracking-widest text-indigo-300 block mb-1">PENDAFTARAN SISWA</span>
-                    <h3 class="font-extrabold text-base leading-snug">Penerimaan Siswa Baru {{ Setting::get('school_name', 'SMA Nusantara') }}</h3>
+                    <h3 class="font-extrabold text-base leading-snug">Penerimaan Siswa Baru {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}</h3>
                     <p class="text-slate-300 text-xs mt-2 leading-relaxed">Daftarkan putra-putri Anda untuk masa depan cerah berkualifikasi unggul.</p>
                     <a href="{{ route('spmb.register') }}" class="inline-flex items-center justify-center mt-5 px-5 py-2.5 bg-white text-indigo-950 rounded-full text-xs font-extrabold hover:bg-slate-100 transition-colors shadow-md uppercase tracking-wider w-full">
                         Daftar SPMB Online →

@@ -14,7 +14,7 @@
             </div>
             <div class="min-w-0 flex-1 w-full">
                 <div class="flex flex-col sm:flex-row items-center sm:items-center gap-1.5 sm:gap-2">
-                    <h1 class="text-lg sm:text-xl font-black tracking-tight text-white break-words">{{ Setting::get('school_name', 'SMA Nusantara') }}</h1>
+                    <h1 class="text-lg sm:text-xl font-black tracking-tight text-white break-words">{{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}</h1>
                     <span class="inline-block w-fit px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase tracking-widest shrink-0">Presensi Real-Time</span>
                 </div>
                 <p class="text-slate-400 text-xs font-medium mt-1">Pencatatan Kehadiran Otomatis Berdasarkan NISN & QR Code Siswa.</p>

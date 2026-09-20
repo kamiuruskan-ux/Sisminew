@@ -1,6 +1,6 @@
 @extends('layouts.landing')
 
-@section('title', 'Berita & Artikel - SMA Nusantara')
+@section('title', 'Berita & Artikel - ' . Setting::get('school_name', 'SDIT AL-FAHMI PALU'))
 
 @section('content')
 
@@ -21,7 +21,7 @@
                 Berita & Artikel Terbaru
             </h1>
             <p class="text-slate-600 text-sm sm:text-base lg:text-lg leading-relaxed font-normal">
-                Kanal kabar resmi SMA Nusantara mencakup prestasi siswa, tips edukasi, dan pengumuman kegiatan kampus.
+                Kanal kabar resmi {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }} mencakup prestasi siswa, tips edukasi, dan pengumuman kegiatan sekolah.
             </p>
         </div>
     </div>

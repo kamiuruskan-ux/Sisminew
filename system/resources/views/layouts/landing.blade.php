@@ -281,7 +281,7 @@
                         <img src="{{ \App\Models\Setting::getLogoUrl() }}" alt="Logo" class="w-full h-full object-cover">
                     </div>
                     <div>
-                        <span class="text-base font-extrabold tracking-tight text-slate-800 block leading-none">{{ Setting::get('school_name', 'SMA NUSANTARA') }}</span>
+                        <span class="text-base font-extrabold tracking-tight text-slate-800 block leading-none">{{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}</span>
                         <span class="text-[7.5px] sm:text-[9px] font-semibold text-indigo-600 block mt-1 tracking-wider uppercase">{{ Setting::get('school_tagline', 'Berkarakter • Berprestasi • Mendunia') }}</span>
                     </div>
                 </a>
@@ -311,7 +311,7 @@
                         </button>
                         <div x-show="akademikOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-1 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100" x-cloak class="absolute top-full left-0 mt-2 w-56 bg-white border border-slate-200/80 rounded-2xl shadow-xl py-2 z-50 text-xs font-semibold backdrop-blur-xl">
                             <a href="{{ route('curriculum') }}" class="block px-4 py-2.5 text-slate-600 hover:text-primary hover:bg-primary/5 transition-colors">Kurikulum & Program</a>
-                            @if(Setting::get('is_vocational', '1') == '1')
+                            @if(Setting::get('is_vocational', '0') == '1')
                                 <a href="{{ route('majors') }}" class="block px-4 py-2.5 text-slate-600 hover:text-primary hover:bg-primary/5 transition-colors">Jurusan Unggulan</a>
                             @endif
                             <a href="{{ route('extracurricular') }}" class="block px-4 py-2.5 text-slate-600 hover:text-primary hover:bg-primary/5 transition-colors">Ekstrakurikuler</a>
@@ -453,7 +453,7 @@
                         <img src="{{ \App\Models\Setting::getLogoUrl() }}" alt="Logo" class="w-full h-full object-cover">
                     </div>
                     <div class="overflow-hidden min-w-0">
-                        <span class="text-sm font-extrabold tracking-tight text-slate-800 block truncate leading-tight">{{ Setting::get('school_name', 'SMA NUSANTARA') }}</span>
+                        <span class="text-sm font-extrabold tracking-tight text-slate-800 block truncate leading-tight">{{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}</span>
                         <span class="text-[9px] font-bold text-indigo-600 block tracking-wider uppercase truncate mt-0.5">{{ Setting::get('school_tagline', 'Berkarakter • Berprestasi • Mendunia') }}</span>
                     </div>
                 </a>
@@ -514,7 +514,7 @@
                             <svg class="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                         </a>
 
-                        @if(Setting::get('is_vocational', '1') == '1')
+                        @if(Setting::get('is_vocational', '0') == '1')
                             <a href="{{ route('majors') }}" 
                                class="flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all duration-200 group border {{ request()->routeIs('majors') ? 'bg-primary/10 text-primary border-primary/20 shadow-xs font-bold' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900 border-transparent font-medium' }}">
                                 <div class="flex items-center gap-3">
@@ -694,12 +694,12 @@
                             @endif
                         </div>
                         <div>
-                            <span class="text-base font-extrabold text-white block leading-none">{{ Setting::get('school_name', 'SMA NUSANTARA') }}</span>
-                            <span class="text-[9px] font-semibold text-slate-400 block mt-1 tracking-wider uppercase">Berkarakter • Berprestasi • Mendunia</span>
+                            <span class="text-base font-extrabold text-white block leading-none">{{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}</span>
+                            <span class="text-[9px] font-semibold text-slate-400 block mt-1 tracking-wider uppercase">{{ Setting::get('footer_tagline', Setting::get('school_tagline', 'Sekolahnya Calon Pemimpin Peradaban')) }}</span>
                         </div>
                     </div>
                     <p class="text-slate-400 text-xs leading-relaxed">
-                        {{ Setting::get('school_description', 'Mewujudkan generasi cerdas, unggul, berkarakter, dan berdaya saing global.') }}
+                        {{ Setting::get('footer_school_description', Setting::get('school_description', 'Mewujudkan generasi cerdas, mandiri, berkarakter Islami, dan berakhlak mulia.')) }}
                     </p>
                     
                     <!-- Social Media Links -->
@@ -742,7 +742,7 @@
                     <h5 class="text-white font-bold text-xs uppercase tracking-wider mb-4">Informasi & Portal</h5>
                     <ul class="space-y-2 text-xs">
                         <li><a href="{{ route('extracurricular') }}" class="hover:text-white transition-colors">Ekstrakurikuler</a></li>
-                        @if(Setting::get('is_vocational', '1') == '1')
+                        @if(Setting::get('is_vocational', '0') == '1')
                             <li><a href="{{ route('majors') }}" class="hover:text-white transition-colors">Jurusan Unggulan</a></li>
                         @endif
                         <li><a href="{{ route('privacy.policy') }}" class="hover:text-white transition-colors">Kebijakan Privasi</a></li>
@@ -765,7 +765,7 @@
                         </li>
                         <li class="flex items-center gap-2">
                             <svg class="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                            <span>{{ Setting::get('school_email', 'info@smanusantara.sch.id') }}</span>
+                            <span>{{ Setting::get('school_email', 'info@sditalfahmi-palu.com') }}</span>
                         </li>
                     </ul>
                 </div>
@@ -786,7 +786,7 @@
 
             <!-- Copyright -->
             <div class="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-3 text-center sm:text-left">
-                <p>&copy; {{ date('Y') }} {{ Setting::get('school_name', 'SMA Nusantara') }}. All rights reserved.</p>
+                <p>&copy; {{ date('Y') }} {{ Setting::get('footer_copyright_text', Setting::get('school_name', 'SDIT AL-FAHMI PALU')) }}. All rights reserved.</p>
                 <div class="flex items-center gap-5 flex-wrap justify-center sm:justify-end">
                     <a href="{{ route('privacy.policy') }}" class="hover:text-slate-300 transition-colors">Kebijakan Privasi</a>
                     <a href="{{ route('terms.conditions') }}" class="hover:text-slate-300 transition-colors">Syarat & Ketentuan</a>

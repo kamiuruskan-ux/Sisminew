@@ -720,7 +720,7 @@
                                         <span>Data Kelas</span>
                                     </a>
                                 @endif
-                                @if(Setting::get('is_vocational', '1') == '1' && auth()->user()->hasPermission('view-majors'))
+                                @if(Setting::get('is_vocational', '0') == '1' && auth()->user()->hasPermission('view-majors'))
                                     <a href="{{ route('admin.majors.index') }}"
                                        class="nav-link text-xs {{ request()->routeIs('admin.majors.*') ? 'nav-link-active' : '' }}">
                                         <span>Data Jurusan</span>

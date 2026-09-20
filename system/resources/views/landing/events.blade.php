@@ -1,6 +1,6 @@
 @extends('layouts.landing')
 
-@section('title', 'Agenda & Kegiatan Sekolah - ' . Setting::get('school_name', 'SMA Nusantara'))
+@section('title', 'Agenda & Kegiatan Sekolah - ' . Setting::get('school_name', 'SDIT AL-FAHMI PALU'))
 
 @section('content')
 
@@ -30,7 +30,7 @@
             </h1>
             
             <p class="text-slate-600 text-sm sm:text-base lg:text-lg leading-relaxed font-normal max-w-2xl mx-auto">
-                Kanal jadwal kegiatan akademik, pengumuman resmi, ujian semester, serta agenda kegiatan siswa di {{ Setting::get('school_name', 'SMA Nusantara') }}.
+                Kanal jadwal kegiatan akademik, pengumuman resmi, ujian semester, serta agenda kegiatan siswa di {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}.
             </p>
         </div>
     </div>
@@ -284,7 +284,7 @@
                 </h2>
                 
                 <p class="text-slate-300 text-xs sm:text-sm font-normal leading-relaxed">
-                    Daftarkan diri Anda di {{ Setting::get('school_name', 'SMA Nusantara') }} dan jadilah bagian dari berbagai kegiatan pembelajaran yang inspiratif.
+                    Daftarkan diri Anda di {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }} dan jadilah bagian dari berbagai kegiatan pembelajaran yang inspiratif.
                 </p>
 
                 <div class="pt-3 flex flex-wrap items-center justify-center gap-4">

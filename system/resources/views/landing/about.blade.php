@@ -1,6 +1,6 @@
 @extends('layouts.landing')
 
-@section('title', 'Profil & Tentang Kami - SMA Nusantara')
+@section('title', 'Profil & Tentang Kami - ' . Setting::get('school_name', 'SDIT AL-FAHMI PALU'))
 
 @section('content')
 
@@ -24,7 +24,7 @@
                 </span>
             </h1>
             <p class="text-slate-600 text-sm sm:text-base lg:text-lg leading-relaxed font-normal max-w-2xl">
-                SMA Nusantara hadir sebagai lembaga pendidikan menengah berkualitas tinggi yang memadukan keunggulan akademik, teknologi modern, dan penguatan budi pekerti luhur.
+                {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }} hadir sebagai lembaga pendidikan berkualitas tinggi yang memadukan keunggulan akademik, teknologi modern, dan penguatan budi pekerti luhur.
             </p>
         </div>
     </div>
@@ -41,7 +41,7 @@
             <div class="lg:col-span-5 relative" data-aos="fade-right">
                 <div class="rounded-3xl overflow-hidden shadow-card border border-slate-200/80 bg-white group">
                     <img src="{{ Setting::get('school_hero_image') ? asset(Setting::get('school_hero_image')) : (Setting::get('logo_path') ? asset(Setting::get('logo_path')) : asset('img/logo.png')) }}" 
-                         alt="Gedung {{ Setting::get('school_name', 'SMA Nusantara') }}" 
+                         alt="Gedung {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}" 
                          class="w-full h-[440px] object-cover group-hover:scale-105 transition-transform duration-700">
                 </div>
                 <div class="absolute -bottom-6 -right-6 bg-[#0B132B] text-white p-6 rounded-2xl shadow-xl border border-white/15 hidden sm:block">
@@ -65,7 +65,7 @@
                     </p>
                 @else
                     <p class="text-slate-600 text-sm sm:text-base leading-relaxed">
-                        Didirikan pada tahun {{ Setting::get('school_founded_year', '2008') }}, {{ Setting::get('school_name', 'SMA Nusantara') }} berkembang menjadi salah satu sekolah terfavorit yang berkomitmen melahirkan lulusan berdaya saing tinggi. Kami meyakini bahwa setiap siswa memiliki potensi unik yang memerlukan bimbingan terarah, lingkungan kondusif, dan sarana modern.
+                        Didirikan pada tahun {{ Setting::get('school_founded_year', '2008') }}, {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }} berkembang menjadi salah satu sekolah terfavorit yang berkomitmen melahirkan lulusan berdaya saing tinggi. Kami meyakini bahwa setiap siswa memiliki potensi unik yang memerlukan bimbingan terarah, lingkungan kondusif, dan sarana modern.
                     </p>
                     <p class="text-slate-600 text-sm sm:text-base leading-relaxed">
                         Dengan implementasi Kurikulum Merdeka yang disempurnakan dengan program pengayaan internasional, siswa kami tidak hanya siap menembus Perguruan Tinggi Negeri (PTN) terkemuka, tetapi juga siap menjadi pemimpin masa depan di tingkat global.
@@ -192,7 +192,7 @@
                     @endphp
                     <div class="relative w-48 h-48 sm:w-56 sm:h-56 rounded-full overflow-hidden border-4 border-blue-500/30 shadow-2xl shrink-0">
                         <img src="{{ $pPhotoUrl }}" 
-                             alt="Kepala Sekolah {{ Setting::get('school_name', 'SMA Nusantara') }}" 
+                             alt="Kepala Sekolah {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}" 
                              class="w-full h-full object-cover">
                     </div>
                 </div>
@@ -233,7 +233,7 @@
                 BAGAN ORGANISASI RESMI
             </div>
             <h2 class="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">Struktur Organisasi Sekolah</h2>
-            <p class="text-xs sm:text-sm text-slate-500 mt-2">Bagan hierarki tata kelola dan pimpinan SMA Nusantara Tahun Ajaran 2024/2025.</p>
+            <p class="text-xs sm:text-sm text-slate-500 mt-2">Bagan hierarki tata kelola dan pimpinan {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}.</p>
         </div>        <!-- ORG CHART IMAGE -->
         <div class="max-w-4xl mx-auto rounded-3xl overflow-hidden border border-slate-200/80 bg-white shadow-xl p-4 sm:p-6" data-aos="zoom-in">
             @if(Setting::get('school_org_chart_path'))
@@ -250,7 +250,7 @@
 </section>
 
 <!-- ==========================================
-     6. FASILITAS UNGGULAN KAMPUS
+     6. FASILITAS UNGGULAN SEKOLAH
      ========================================== -->
 <section class="py-16 lg:py-24 bg-white border-t border-slate-100">
     <div class="container-edunova">
@@ -319,9 +319,9 @@
 <section class="py-16 bg-slate-50/70">
     <div class="container-edunova">
         <div class="bg-[#0B132B] text-white rounded-3xl p-8 sm:p-12 shadow-2xl relative overflow-hidden border border-white/10 text-center max-w-4xl mx-auto" data-aos="zoom-in">
-            <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-3">Ingin Mengetahui Lebih Banyak Tentang SMA Nusantara?</h2>
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-3">Ingin Mengetahui Lebih Banyak Tentang {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}?</h2>
             <p class="text-slate-300 text-xs sm:text-sm max-w-xl mx-auto mb-6">
-                Tim layanan SPMB kami siap memberikan konsultasi gratis seputar pendaftaran, program beasiswa, dan tour kampus.
+                Tim layanan SPMB kami siap memberikan konsultasi gratis seputar pendaftaran, program beasiswa, dan kunjungan sekolah.
             </p>
             <div class="flex flex-wrap items-center justify-center gap-4">
                 <a href="{{ route('spmb.register') }}" class="px-8 py-3.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs uppercase tracking-wider shadow-glow inline-flex items-center gap-2">

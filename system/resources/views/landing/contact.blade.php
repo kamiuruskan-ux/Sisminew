@@ -1,6 +1,6 @@
 @extends('layouts.landing')
 
-@section('title', 'Hubungi & Lokasi Kampus - ' . Setting::get('school_name', 'SMA Nusantara'))
+@section('title', 'Hubungi & Lokasi Sekolah - ' . Setting::get('school_name', 'SDIT AL-FAHMI PALU'))
 
 @section('content')
 
@@ -38,7 +38,7 @@
             </h1>
 
             <p class="text-slate-600 text-sm sm:text-base lg:text-lg leading-relaxed font-normal max-w-2xl mx-auto">
-                Punya pertanyaan seputar penerimaan siswa baru, konsultasi beasiswa, atau jadwal kunjungan kampus? Tim {{ Setting::get('school_name', 'SMA Nusantara') }} siap membantu Anda.
+                Punya pertanyaan seputar penerimaan siswa baru, konsultasi beasiswa, atau jadwal kunjungan sekolah? Tim {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }} siap membantu Anda.
             </p>
         </div>
     </div>
@@ -57,9 +57,9 @@
                     <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3 sm:mb-4 border border-blue-100 shadow-xs">
                         <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                     </div>
-                    <span class="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest text-blue-600 block mb-1">KAMPUS UTAMA</span>
+                    <span class="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest text-blue-600 block mb-1">{{ strtoupper(Setting::get('school_campus_label', 'GEDUNG UTAMA')) }}</span>
                     <h4 class="text-xs sm:text-base font-extrabold text-slate-900 mb-1">Alamat Sekolah</h4>
-                    <p class="text-[11px] sm:text-xs text-slate-500 leading-relaxed line-clamp-3 sm:line-clamp-none">{{ Setting::get('school_address', 'Jl. Pendidikan No. 10, Jakarta Selatan, DKI Jakarta 12345') }}</p>
+                    <p class="text-[11px] sm:text-xs text-slate-500 leading-relaxed line-clamp-3 sm:line-clamp-none">{{ Setting::get('school_address', 'Jl. Gelatik No. 88, Birobuli Utara, Kec. Palu Selatan') }}</p>
                 </div>
             </div>
 
@@ -84,7 +84,7 @@
                     </div>
                     <span class="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest text-indigo-600 block mb-1">EMAIL INSTITUSI</span>
                     <h4 class="text-xs sm:text-base font-extrabold text-slate-900 mb-1">Email Resmi</h4>
-                    <p class="text-[11px] sm:text-xs text-slate-500 leading-relaxed truncate">{{ Setting::get('school_email', 'info@smanusantara.sch.id') }}</p>
+                    <p class="text-[11px] sm:text-xs text-slate-500 leading-relaxed truncate">{{ Setting::get('school_email', 'sdislamterpadualfahmipalu@gmail.com') }}</p>
                 </div>
             </div>
 
@@ -180,7 +180,7 @@
                     <div class="p-4 sm:p-6 border-b border-slate-100 bg-slate-50/50 flex flex-row items-center justify-between gap-2">
                         <div>
                             <span class="text-[10px] sm:text-xs font-extrabold uppercase tracking-widest text-blue-600 block mb-0.5">LOKASI FISIK</span>
-                            <h3 class="text-base sm:text-lg font-extrabold text-slate-900">Peta Google Maps Kampus</h3>
+                            <h3 class="text-base sm:text-lg font-extrabold text-slate-900">{{ Setting::get('school_map_title', 'Peta Lokasi Sekolah') }}</h3>
                         </div>
                         <a href="https://maps.google.com" target="_blank" class="px-3 sm:px-3.5 py-1.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-[10px] sm:text-[11px] font-bold shadow-sm transition-all inline-flex items-center gap-1 shrink-0">
                             Buka Maps ↗
@@ -205,7 +205,7 @@
                     <div class="p-3.5 sm:p-4 bg-slate-900 text-white flex items-center justify-between text-xs">
                         <span class="font-semibold flex items-center gap-2 text-[11px] sm:text-xs truncate">
                             <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
-                            <span class="truncate">{{ Setting::get('school_name', 'SMA Nusantara') }} - Kampus Utama</span>
+                            <span class="truncate">{{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }} – {{ Setting::get('school_campus_label', 'Gedung Utama') }}</span>
                         </span>
                         <span class="text-slate-400 text-[10px] sm:text-[11px] shrink-0 hidden sm:inline">Terverifikasi di Google Maps</span>
                     </div>
@@ -219,7 +219,7 @@
                         <h4 class="text-sm sm:text-base font-extrabold text-white">Butuh Informasi Langsung?</h4>
                         <p class="text-xs text-emerald-100 mt-0.5 leading-relaxed">Hubungi Customer Service kami via WhatsApp Live Chat.</p>
                     </div>
-                    <a href="https://wa.me/{{ preg_replace('/[^0-9]/', '', Setting::get('school_whatsapp', '081234567890')) }}?text=Halo%20Admin%20{{ urlencode(Setting::get('school_name', 'SMA Nusantara')) }},%20saya%20ingin%20bertanya" target="_blank" class="w-full sm:w-auto text-center px-5 py-2.5 rounded-full bg-white text-emerald-800 hover:bg-emerald-50 font-extrabold text-xs shadow-md transition-all shrink-0 uppercase tracking-wider inline-flex items-center justify-center gap-2">
+                    <a href="https://wa.me/{{ preg_replace('/[^0-9]/', '', Setting::get('school_whatsapp', '085117080817')) }}?text=Halo%20Admin%20{{ urlencode(Setting::get('school_name', 'SDIT AL-FAHMI PALU')) }},%20saya%20ingin%20bertanya" target="_blank" class="w-full sm:w-auto text-center px-5 py-2.5 rounded-full bg-white text-emerald-800 hover:bg-emerald-50 font-extrabold text-xs shadow-md transition-all shrink-0 uppercase tracking-wider inline-flex items-center justify-center gap-2">
                         Chat WhatsApp →
                     </a>
                 </div>
@@ -244,7 +244,7 @@
             
             <div x-data="{ open: true }" class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-sm">
                 <button @click="open = !open" class="w-full flex items-center justify-between text-left font-extrabold text-slate-900 text-xs sm:text-sm gap-2">
-                    <span>Bagaimana cara mendaftar secara online di {{ Setting::get('school_name', 'SMA Nusantara') }}?</span>
+                    <span>Bagaimana cara mendaftar secara online di {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}?</span>
                     <svg class="w-4 h-4 transition-transform shrink-0" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </button>
                 <div x-show="open" x-collapse class="mt-3 text-xs text-slate-500 leading-relaxed border-t border-slate-100 pt-3">
@@ -264,11 +264,11 @@
 
             <div x-data="{ open: false }" class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-sm">
                 <button @click="open = !open" class="w-full flex items-center justify-between text-left font-extrabold text-slate-900 text-xs sm:text-sm gap-2">
-                    <span>Kapan jam kunjungan untuk tour kampus langsung?</span>
+                    <span>{{ Setting::get('school_visit_faq_q', 'Kapan jam kunjungan untuk survey atau melihat sekolah langsung?') }}</span>
                     <svg class="w-4 h-4 transition-transform shrink-0" :class="open ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </button>
                 <div x-show="open" x-collapse class="mt-3 text-xs text-slate-500 leading-relaxed border-t border-slate-100 pt-3">
-                    Kunjungan kampus dibuka setiap hari kerja (Senin - Jumat) pukul 08:00 - 16:00 WIB. Disarankan untuk mengkonfirmasi melalui WhatsApp terlebih dahulu.
+                    {{ Setting::get('school_visit_faq_a', 'Kunjungan sekolah dibuka setiap hari kerja (Senin - Jumat) pukul 08:00 - 15:00 WITA. Disarankan untuk mengonfirmasi melalui WhatsApp terlebih dahulu.') }}
                 </div>
             </div>
 

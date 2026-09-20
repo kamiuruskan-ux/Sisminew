@@ -10,8 +10,9 @@
         'pimpinan' => 'profile_principal',
         'kop' => 'kop_surat',
         'theme', 'tema' => 'branding',
+        'content', 'konten' => 'content',
         'rekening', 'bank', 'bank_accounts' => 'bank_account',
-        default => in_array($reqTab, ['general', 'profile_principal', 'kop_surat', 'seo', 'contact', 'branding', 'wagateway', 'email', 'payment', 'bank_account']) ? $reqTab : 'general'
+        default => in_array($reqTab, ['general', 'profile_principal', 'kop_surat', 'seo', 'content', 'contact', 'branding', 'wagateway', 'email', 'payment', 'bank_account']) ? $reqTab : 'general'
     };
 @endphp
 <div class="space-y-8 pb-24" x-data="{ 
@@ -101,6 +102,16 @@
                     <div class="flex items-center space-x-3">
                         <svg class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                         <span>SEO & Sosmed</span>
+                    </div>
+                    <svg class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-x-[-4px] group-hover:translate-x-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </button>
+
+                <button type="button" @click="activeTab = 'content'" 
+                        :class="activeTab === 'content' ? 'bg-teal-50 border-teal-600 text-teal-700 font-extrabold' : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-semibold'" 
+                        class="w-full text-left px-4 py-3 rounded-2xl border-l-4 text-xs uppercase tracking-wider transition-all duration-200 flex items-center justify-between group">
+                    <div class="flex items-center space-x-3">
+                        <svg class="w-4 h-4 text-teal-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                        <span>Konten Website</span>
                     </div>
                     <svg class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-x-[-4px] group-hover:translate-x-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                 </button>
@@ -196,6 +207,13 @@
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     <span>SEO & Sosmed</span>
                 </button>
+
+                <button type="button" @click="activeTab = 'content'" 
+                        :class="activeTab === 'content' ? 'bg-teal-600 text-white shadow-md shadow-teal-600/25' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'" 
+                        class="px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all duration-200 flex items-center space-x-2 shrink-0">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                    <span>Konten Website</span>
+                </button>
                 
                 <button type="button" @click="activeTab = 'contact'" 
                         :class="activeTab === 'contact' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'" 
@@ -273,7 +291,7 @@
                                value="{{ old('seo_title', Setting::get('seo_title', Setting::get('school_name'))) }}"
                                maxlength="70"
                                class="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none transition-all font-bold text-sm text-slate-800 shadow-2xs"
-                               placeholder="Contoh: SMA Nusantara – Berkarakter, Berprestasi, Mendunia">
+                               placeholder="Contoh: SDIT AL-FAHMI PALU – Sekolahnya Calon Pemimpin Peradaban">
                         <p class="text-[10px] text-slate-400 font-medium">Maks 60–70 karakter. Akan tampil di tab browser & hasil Google.</p>
                     </div>
 
@@ -536,6 +554,333 @@
             </div>
         </div>
 
+        <!-- TAB KONTEN WEBSITE (LANDING & COPYWRITING) -->
+        <div x-show="activeTab === 'content'" x-transition class="space-y-8">
+            
+            <!-- 1. Lencana Akreditasi Sekolah (Hero Floating Badge) -->
+            <div class="premium-card overflow-hidden">
+                <div class="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                    <div class="flex items-center space-x-3.5">
+                        <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-extrabold border border-teal-100 shadow-sm">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 class="font-extrabold text-slate-900 text-base tracking-tight">Lencana Akreditasi Sekolah</h2>
+                            <p class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">Badge yang tampil mengambang pada Hero Banner beranda</p>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-extrabold bg-teal-50 text-teal-700 px-3 py-1 rounded-full uppercase border border-teal-100">Hero Badge</span>
+                </div>
+
+                <div class="p-8 space-y-6">
+                    <div class="grid md:grid-cols-12 gap-6 items-start">
+                        <div class="md:col-span-8 space-y-5">
+                            <div class="grid md:grid-cols-2 gap-5">
+                                <div class="space-y-2">
+                                    <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Nilai / Grade Akreditasi <span class="text-rose-500">*</span></label>
+                                    <input type="text" name="school_accreditation_grade" 
+                                           value="{{ old('school_accreditation_grade', Setting::get('school_accreditation_grade', 'A')) }}"
+                                           class="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all font-bold text-sm text-slate-800 shadow-2xs" 
+                                           placeholder="Contoh: A, A+, atau Unggul">
+                                    <p class="text-[10px] text-slate-400 font-medium">Teks singkat di dalam kotak biru lencana.</p>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Label Keterangan Akreditasi <span class="text-rose-500">*</span></label>
+                                    <input type="text" name="school_accreditation_label" 
+                                           value="{{ old('school_accreditation_label', Setting::get('school_accreditation_label', 'AKREDITASI UNGGUL (A)')) }}"
+                                           class="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all font-bold text-sm text-slate-800 shadow-2xs" 
+                                           placeholder="Contoh: AKREDITASI UNGGUL (A)">
+                                    <p class="text-[10px] text-slate-400 font-medium">Keterangan resmi yang tampil di samping grade.</p>
+                                </div>
+                            </div>
+
+                            <div class="pt-2">
+                                <label class="relative inline-flex items-center cursor-pointer gap-3">
+                                    <input type="checkbox" name="school_accreditation_show" value="1" class="sr-only peer" {{ Setting::get('school_accreditation_show', '1') == '1' ? 'checked' : '' }}>
+                                    <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
+                                    <span class="text-xs font-extrabold text-slate-700">Tampilkan Lencana Akreditasi di Banner Beranda</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Live Preview Box -->
+                        <div class="md:col-span-4 bg-slate-900 p-5 rounded-2xl border border-slate-800 text-white space-y-2">
+                            <span class="text-[10px] font-extrabold text-teal-400 uppercase tracking-wider block">Preview Tampilan di Hero:</span>
+                            <div class="p-3 bg-slate-950/80 backdrop-blur-md rounded-xl border border-white/10 flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-lg bg-blue-600 text-white font-extrabold text-xs flex items-center justify-center shrink-0">
+                                    {{ Setting::get('school_accreditation_grade', 'A') }}
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-[11px] font-extrabold text-white truncate">{{ Setting::get('school_accreditation_label', 'AKREDITASI UNGGUL (A)') }}</p>
+                                    <p class="text-[9px] text-slate-400 truncate">{{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Empat Keunggulan Utama (Top Feature Cards) -->
+            <div class="premium-card overflow-hidden">
+                <div class="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                    <div class="flex items-center space-x-3.5">
+                        <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-extrabold border border-teal-100 shadow-sm">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 class="font-extrabold text-slate-900 text-base tracking-tight">4 Kartu Keunggulan Utama</h2>
+                            <p class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">Poin keunggulan sekolah di bawah hero banner</p>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-extrabold bg-teal-50 text-teal-700 px-3 py-1 rounded-full uppercase border border-teal-100">4 Keunggulan</span>
+                </div>
+
+                <div class="p-8 space-y-6">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <!-- Card 1 -->
+                        <div class="p-5 bg-slate-50/70 border border-slate-200/80 rounded-2xl space-y-3">
+                            <span class="text-[10px] font-black text-teal-600 uppercase tracking-wider">Kartu 1 (Akademik)</span>
+                            <div class="space-y-1">
+                                <label class="block text-[11px] font-bold text-slate-700">Judul Keunggulan 1</label>
+                                <input type="text" name="school_feature_title_1" 
+                                       value="{{ old('school_feature_title_1', Setting::get('school_feature_title_1', 'Akademik Unggul')) }}"
+                                       class="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-xs text-slate-800 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="block text-[11px] font-bold text-slate-700">Deskripsi Singkat 1</label>
+                                <textarea name="school_feature_desc_1" rows="2" 
+                                          class="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl font-medium text-xs text-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none">{{ old('school_feature_desc_1', Setting::get('school_feature_desc_1', 'Kurikulum berkualitas untuk hasil belajar maksimal.')) }}</textarea>
+                            </div>
+                        </div>
+
+                        <!-- Card 2 -->
+                        <div class="p-5 bg-slate-50/70 border border-slate-200/80 rounded-2xl space-y-3">
+                            <span class="text-[10px] font-black text-teal-600 uppercase tracking-wider">Kartu 2 (Fasilitas)</span>
+                            <div class="space-y-1">
+                                <label class="block text-[11px] font-bold text-slate-700">Judul Keunggulan 2</label>
+                                <input type="text" name="school_feature_title_2" 
+                                       value="{{ old('school_feature_title_2', Setting::get('school_feature_title_2', 'Fasilitas Modern')) }}"
+                                       class="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-xs text-slate-800 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="block text-[11px] font-bold text-slate-700">Deskripsi Singkat 2</label>
+                                <textarea name="school_feature_desc_2" rows="2" 
+                                          class="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl font-medium text-xs text-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none">{{ old('school_feature_desc_2', Setting::get('school_feature_desc_2', 'Sarana lengkap dan teknologi pendukung pembelajaran.')) }}</textarea>
+                            </div>
+                        </div>
+
+                        <!-- Card 3 -->
+                        <div class="p-5 bg-slate-50/70 border border-slate-200/80 rounded-2xl space-y-3">
+                            <span class="text-[10px] font-black text-teal-600 uppercase tracking-wider">Kartu 3 (Karakter)</span>
+                            <div class="space-y-1">
+                                <label class="block text-[11px] font-bold text-slate-700">Judul Keunggulan 3</label>
+                                <input type="text" name="school_feature_title_3" 
+                                       value="{{ old('school_feature_title_3', Setting::get('school_feature_title_3', 'Pembinaan Karakter')) }}"
+                                       class="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-xs text-slate-800 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="block text-[11px] font-bold text-slate-700">Deskripsi Singkat 3</label>
+                                <textarea name="school_feature_desc_3" rows="2" 
+                                          class="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl font-medium text-xs text-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none">{{ old('school_feature_desc_3', Setting::get('school_feature_desc_3', 'Membentuk kepribadian unggul dan berakhlak mulia.')) }}</textarea>
+                            </div>
+                        </div>
+
+                        <!-- Card 4 -->
+                        <div class="p-5 bg-slate-50/70 border border-slate-200/80 rounded-2xl space-y-3">
+                            <span class="text-[10px] font-black text-teal-600 uppercase tracking-wider">Kartu 4 (Prestasi)</span>
+                            <div class="space-y-1">
+                                <label class="block text-[11px] font-bold text-slate-700">Judul Keunggulan 4</label>
+                                <input type="text" name="school_feature_title_4" 
+                                       value="{{ old('school_feature_title_4', Setting::get('school_feature_title_4', 'Prestasi Membanggakan')) }}"
+                                       class="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-xs text-slate-800 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="block text-[11px] font-bold text-slate-700">Deskripsi Singkat 4</label>
+                                <textarea name="school_feature_desc_4" rows="2" 
+                                          class="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl font-medium text-xs text-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none">{{ old('school_feature_desc_4', Setting::get('school_feature_desc_4', 'Beragam prestasi di tingkat nasional & internasional.')) }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Statistik & Bukti Komitmen Sekolah -->
+            <div class="premium-card overflow-hidden">
+                <div class="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                    <div class="flex items-center space-x-3.5">
+                        <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-extrabold border border-teal-100 shadow-sm">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 class="font-extrabold text-slate-900 text-base tracking-tight">Statistik &amp; Bukti Komitmen Kami</h2>
+                            <p class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">Teks pengantar dan capaian angka di section komitmen pendidikan</p>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-extrabold bg-teal-50 text-teal-700 px-3 py-1 rounded-full uppercase border border-teal-100">Statistik</span>
+                </div>
+
+                <div class="p-8 space-y-6">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="space-y-2">
+                            <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Kicker / Sub-Judul Kategori</label>
+                            <input type="text" name="school_stats_kicker" 
+                                   value="{{ old('school_stats_kicker', Setting::get('school_stats_kicker', 'BUKTI KOMITMEN KAMI DALAM PENDIDIKAN')) }}"
+                                   class="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all font-bold text-sm text-slate-800 shadow-2xs" 
+                                   placeholder="BUKTI KOMITMEN KAMI DALAM PENDIDIKAN">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Judul Utama Bagian Statistik</label>
+                            <input type="text" name="school_stats_title" 
+                                   value="{{ old('school_stats_title', Setting::get('school_stats_title', 'Angka yang Berbicara Tentang Kualitas Kami')) }}"
+                                   class="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all font-bold text-sm text-slate-800 shadow-2xs" 
+                                   placeholder="Angka yang Berbicara Tentang Kualitas Kami">
+                        </div>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="space-y-2">
+                            <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Jumlah Prestasi / Kejuaraan</label>
+                            <input type="text" name="stats_achievements" 
+                                   value="{{ old('stats_achievements', Setting::get('stats_achievements', '50+')) }}"
+                                   class="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all font-bold text-sm text-slate-800 shadow-2xs" 
+                                   placeholder="Contoh: 50+ / 100+">
+                            <p class="text-[10px] text-slate-400 font-medium">Ditampilkan pada kotak Kejuaraan &amp; Penghargaan.</p>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Tahun Dedikasi / Pengalaman</label>
+                            <input type="text" name="stats_years" 
+                                   value="{{ old('stats_years', Setting::get('stats_years', '15+')) }}"
+                                   class="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all font-bold text-sm text-slate-800 shadow-2xs" 
+                                   placeholder="Contoh: 15+ / 20+">
+                            <p class="text-[10px] text-slate-400 font-medium">Ditampilkan pada kotak Tahun Berdedikasi.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Lokasi & FAQ Kunjungan -->
+            <div class="premium-card overflow-hidden">
+                <div class="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                    <div class="flex items-center space-x-3.5">
+                        <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-extrabold border border-teal-100 shadow-sm">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 class="font-extrabold text-slate-900 text-base tracking-tight">Label Lokasi &amp; FAQ Kunjungan</h2>
+                            <p class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">Penyesuaian istilah kampus menjadi gedung sekolah dan informasi survei</p>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-extrabold bg-teal-50 text-teal-700 px-3 py-1 rounded-full uppercase border border-teal-100">Lokasi &amp; Survey</span>
+                </div>
+
+                <div class="p-8 space-y-6">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="space-y-2">
+                            <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Label Sub-Lokasi / Gedung</label>
+                            <input type="text" name="school_campus_label" 
+                                   value="{{ old('school_campus_label', Setting::get('school_campus_label', 'Gedung Utama')) }}"
+                                   class="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all font-bold text-sm text-slate-800 shadow-2xs" 
+                                   placeholder="Contoh: Gedung Utama / Gedung Pusat">
+                            <p class="text-[10px] text-slate-400 font-medium">Pengganti teks "Kampus Utama" di halaman kontak.</p>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Judul Peta Lokasi</label>
+                            <input type="text" name="school_map_title" 
+                                   value="{{ old('school_map_title', Setting::get('school_map_title', 'Peta Lokasi Sekolah')) }}"
+                                   class="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all font-bold text-sm text-slate-800 shadow-2xs" 
+                                   placeholder="Contoh: Peta Lokasi Sekolah">
+                            <p class="text-[10px] text-slate-400 font-medium">Pengganti teks "Peta Google Maps Kampus" di halaman kontak.</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Pertanyaan FAQ Kunjungan Sekolah</label>
+                        <input type="text" name="school_visit_faq_q" 
+                               value="{{ old('school_visit_faq_q', Setting::get('school_visit_faq_q', 'Kapan jam kunjungan untuk survey atau melihat sekolah langsung?')) }}"
+                               class="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all font-bold text-sm text-slate-800 shadow-2xs" 
+                               placeholder="Pertanyaan seputar jam kunjungan sekolah...">
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Jawaban FAQ Kunjungan Sekolah</label>
+                        <textarea name="school_visit_faq_a" rows="3" 
+                                  class="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all font-medium text-sm text-slate-700 shadow-2xs leading-relaxed" 
+                                  placeholder="Jawaban detail mengenai jadwal kunjungan dan kontak WA konfirmasi...">{{ old('school_visit_faq_a', Setting::get('school_visit_faq_a', 'Kunjungan sekolah dibuka setiap hari kerja (Senin - Jumat) pukul 08:00 - 15:00 WITA. Disarankan untuk mengonfirmasi melalui WhatsApp terlebih dahulu.')) }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. Header & Footer Website -->
+            <div class="premium-card overflow-hidden">
+                <div class="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                    <div class="flex items-center space-x-3.5">
+                        <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-extrabold border border-teal-100 shadow-sm">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 class="font-extrabold text-slate-900 text-base tracking-tight">Kustomisasi Header &amp; Footer</h2>
+                            <p class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">Teks tombol navigasi atas, tagline bawah, dan hak cipta</p>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-extrabold bg-teal-50 text-teal-700 px-3 py-1 rounded-full uppercase border border-teal-100">Header &amp; Footer</span>
+                </div>
+
+                <div class="p-8 space-y-6">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="space-y-2">
+                            <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Teks Tombol SPMB di Header</label>
+                            <input type="text" name="header_spmb_button_text" 
+                                   value="{{ old('header_spmb_button_text', Setting::get('header_spmb_button_text', 'Daftar SPMB')) }}"
+                                   class="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all font-bold text-sm text-slate-800 shadow-2xs" 
+                                   placeholder="Daftar SPMB">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Slogan / Tagline Footer</label>
+                            <input type="text" name="footer_tagline" 
+                                   value="{{ old('footer_tagline', Setting::get('footer_tagline', Setting::get('school_tagline', 'Sekolahnya Calon Pemimpin Peradaban'))) }}"
+                                   class="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all font-bold text-sm text-slate-800 shadow-2xs" 
+                                   placeholder="Sekolahnya Calon Pemimpin Peradaban">
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Deskripsi Singkat di Footer</label>
+                        <textarea name="footer_school_description" rows="3" 
+                                  class="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all font-medium text-sm text-slate-700 shadow-2xs leading-relaxed" 
+                                  placeholder="Mewujudkan generasi cerdas, mandiri, berkarakter Islami, dan berakhlak mulia...">{{ old('footer_school_description', Setting::get('footer_school_description', Setting::get('school_description', 'Mewujudkan generasi cerdas, mandiri, berkarakter Islami, dan berakhlak mulia.'))) }}</textarea>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Teks Copyright Footer</label>
+                        <input type="text" name="footer_copyright_text" 
+                               value="{{ old('footer_copyright_text', Setting::get('footer_copyright_text', Setting::get('school_name', 'SDIT AL-FAHMI PALU'))) }}"
+                               class="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all font-bold text-sm text-slate-800 shadow-2xs" 
+                               placeholder="SDIT AL-FAHMI PALU">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tombol Simpan di Tab Konten Website -->
+            <div class="flex justify-end pt-2">
+                <button type="submit" class="btn-primary px-10 py-4 text-xs font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-xl shadow-teal-200 flex items-center space-x-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+                    <span>Simpan Pengaturan Konten Website</span>
+                </button>
+            </div>
+
+        </div>
+
 
         <div x-show="activeTab === 'general'" x-transition class="space-y-8">
             <!-- Identitas Visual (Logo & Favicon) Card -->
@@ -661,27 +1006,41 @@
                         </div>
                     </div>
 
-                    <!-- Modul Kejuruan / Jurusan Toggle Card -->
-                    <div class="p-6 bg-slate-950 border border-slate-800 rounded-3xl text-white shadow-xl flex items-center justify-between group">
-                        <div class="space-y-1">
-                            <div class="flex items-center space-x-2">
-                                <span class="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
-                                <h4 class="font-extrabold text-white text-sm tracking-tight">Modul Kejuruan & Jurusan</h4>
-                            </div>
-                            <p class="text-xs text-indigo-200/80 font-medium">Aktifkan untuk SMK / SMA Kejuruan. Matikan untuk SD / SMP / SMA Umum.</p>
+                    <!-- Modul Kejuruan / Jurusan (Disembunyikan Sesuai Kebutuhan) -->
+                    <div x-data="{ showVocational: false, vocationalEnabled: {{ Setting::get('is_vocational', '0') == '1' ? 'true' : 'false' }} }">
+                        <input type="hidden" name="is_vocational" :value="vocationalEnabled ? '1' : '0'">
+                        
+                        <!-- Toggle Button untuk Membuka Kembali di Masa Depan -->
+                        <div class="py-1">
+                            <button type="button" @click="showVocational = !showVocational" 
+                                    class="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-indigo-600 transition-colors py-1.5 px-3 rounded-xl hover:bg-indigo-50/50">
+                                <svg class="w-3.5 h-3.5 transition-transform duration-200" :class="showVocational ? 'rotate-90' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                                <span x-text="showVocational ? 'Tutup Pengaturan Lanjutan Modul Kejuruan' : 'Pengaturan Lanjutan: Modul Kejuruan & Jurusan (Disembunyikan)'"></span>
+                            </button>
                         </div>
-                        <div x-data="{ vocationalEnabled: {{ Setting::get('is_vocational', '1') == '1' ? 'true' : 'false' }} }">
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" class="sr-only peer" :checked="vocationalEnabled" @change="vocationalEnabled = !vocationalEnabled">
-                                <input type="hidden" name="is_vocational" :value="vocationalEnabled ? '1' : '0'">
-                                <div class="w-16 h-8 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[4px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-indigo-600 shadow-inner"></div>
-                            </label>
+
+                        <!-- Card Modul Kejuruan Tersembunyi -->
+                        <div x-show="showVocational" x-cloak x-transition 
+                             class="mt-3 p-6 bg-slate-950 border border-slate-800 rounded-3xl text-white shadow-xl flex items-center justify-between group">
+                            <div class="space-y-1">
+                                <div class="flex items-center space-x-2">
+                                    <span class="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
+                                    <h4 class="font-extrabold text-white text-sm tracking-tight">Modul Kejuruan & Jurusan</h4>
+                                </div>
+                                <p class="text-xs text-indigo-200/80 font-medium">Aktifkan untuk SMK / SMA Kejuruan. Matikan untuk SD / SMP / SMA Umum.</p>
+                            </div>
+                            <div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only peer" :checked="vocationalEnabled" @change="vocationalEnabled = !vocationalEnabled">
+                                    <div class="w-16 h-8 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[4px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-indigo-600 shadow-inner"></div>
+                                </label>
+                            </div>
                         </div>
                     </div>
 
                     <div class="space-y-2">
                         <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Tagline / Slogan Sekolah</label>
-                        <input type="text" name="school_tagline" value="{{ old('school_tagline', Setting::get('school_tagline', 'Berkarakter • Berprestasi • Mendunia')) }}"
+                        <input type="text" name="school_tagline" value="{{ old('school_tagline', Setting::get('school_tagline', 'Sekolahnya Calon Pemimpin Peradaban')) }}"
                                class="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all font-bold text-sm text-slate-800 shadow-2xs">
                     </div>
 
@@ -1903,7 +2262,7 @@
                                         <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Nama Pengirim <span class="text-rose-500">*</span></label>
                                         <input type="text" name="mail_from_name" value="{{ old('mail_from_name', Setting::get('email_mail_from_name', Setting::get('school_name', 'Sekolah'))) }}"
                                                class="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all font-bold text-sm text-slate-800 shadow-2xs"
-                                               placeholder="SMA Nusantara">
+                                               placeholder="SDIT AL-FAHMI PALU">
                                     </div>
                                 </div>
                             </div>

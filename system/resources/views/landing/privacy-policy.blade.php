@@ -1,6 +1,6 @@
 @extends('layouts.landing')
 
-@section('title', 'Kebijakan Privasi - ' . Setting::get('school_name', 'SMA Nusantara'))
+@section('title', 'Kebijakan Privasi - ' . Setting::get('school_name', 'SDIT AL-FAHMI PALU'))
 
 @section('content')
 
@@ -21,7 +21,7 @@
                 Kebijakan Privasi
             </h1>
             <p class="text-slate-600 text-sm sm:text-base leading-relaxed font-normal">
-                Komitmen {{ Setting::get('school_name', 'SMA Nusantara') }} dalam melindungi, menjaga kerahasiaan, dan mengelola data pribadi calon siswa serta wali murid.
+                Komitmen {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }} dalam melindungi, menjaga kerahasiaan, dan mengelola data pribadi calon siswa serta wali murid.
             </p>
             <p class="text-xs text-slate-500 mt-4 font-medium">
                 Terakhir Diperbarui: {{ date('d F Y') }}
@@ -70,7 +70,7 @@
                     <span class="text-[10px] font-extrabold uppercase tracking-widest text-blue-400 block mb-1">BANTUAN PRIVASI</span>
                     <h4 class="text-sm font-extrabold text-white">Ada Pertanyaan Data?</h4>
                     <p class="text-xs text-slate-300 mt-1 leading-relaxed">
-                        Tim Petugas Kerahasiaan Data {{ Setting::get('school_name', 'SMA Nusantara') }} siap membantu Anda.
+                        Tim Petugas Kerahasiaan Data {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }} siap membantu Anda.
                     </p>
                     <a href="mailto:{{ Setting::get('school_email', 'info@sekolah.sch.id') }}" class="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-all">
                         Hubungi via Email ↗
@@ -88,7 +88,7 @@
                     </div>
                     <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">1. Ringkasan Kebijakan Privasi</h2>
                     <p>
-                        Kebijakan Privasi ini menjelaskan bagaimana {{ Setting::get('school_name', 'SMA Nusantara') }} ("Sekolah", "Kami") mengumpulkan, menggunakan, menyimpan, mengelola, dan melindungi data pribadi yang Anda berikan saat mengakses website resmi kami atau mendaftarkan diri sebagai calon siswa baru melalui Portal SPMB online.
+                        Kebijakan Privasi ini menjelaskan bagaimana {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }} ("Sekolah", "Kami") mengumpulkan, menggunakan, menyimpan, mengelola, dan melindungi data pribadi yang Anda berikan saat mengakses website resmi kami atau mendaftarkan diri sebagai calon siswa baru melalui Portal SPMB online.
                     </p>
                     <p>
                         Dengan mengakses website ini dan mengirimkan formulir pendaftaran, Anda menyatakan bahwa Anda telah membaca, memahami, dan menyetujui seluruh ketentuan pengolahan data pribadi dalam dokumen ini.
@@ -129,7 +129,7 @@
                     <ul class="list-disc pl-5 space-y-2 text-xs font-medium text-slate-600">
                         <li>Memproses administrasi verifikasi formulir dan kelayakan pendaftaran siswa baru.</li>
                         <li>Mengirimkan pemberitahuan resmi terkait jadwal tes seleksi, wawancara, dan pengumuman hasil kelulusan.</li>
-                        <li>Membuat akun portal siswa terdaftar apabila calon peserta didik dinyatakan diterima di {{ Setting::get('school_name', 'SMA Nusantara') }}.</li>
+                        <li>Membuat akun portal siswa terdaftar apabila calon peserta didik dinyatakan diterima di {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}.</li>
                         <li>Pelaporan data akademik internal kepada Dinas Pendidikan sesuai peraturan perundang-undangan yang berlaku.</li>
                     </ul>
                 </div>
@@ -172,7 +172,7 @@
                         Apabila Anda memiliki pertanyaan, saran, atau keluhan terkait Kebijakan Privasi ini, silakan hubungi tim administrasi kami melalui:
                     </p>
                     <div class="p-6 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2 font-medium">
-                        <p><strong class="text-slate-900 font-extrabold">Lembaga:</strong> {{ Setting::get('school_name', 'SMA Nusantara') }}</p>
+                        <p><strong class="text-slate-900 font-extrabold">Lembaga:</strong> {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}</p>
                         <p><strong class="text-slate-900 font-extrabold">Alamat:</strong> {{ Setting::get('school_address', 'Jl. Pendidikan No. 123, Jakarta') }}</p>
                         <p><strong class="text-slate-900 font-extrabold">Email Resmi:</strong> {{ Setting::get('school_email', 'info@sekolah.sch.id') }}</p>
                         <p><strong class="text-slate-900 font-extrabold">Telepon / WhatsApp:</strong> {{ Setting::get('school_phone', '0812-3456-7890') }}</p>
