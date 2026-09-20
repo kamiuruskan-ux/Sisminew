@@ -603,7 +603,7 @@
         <!-- TailAdmin Sidebar -->
         <aside 
             :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
-            class="tailadmin-sidebar fixed inset-y-0 left-0 z-50 w-72 transform transition-transform duration-300 ease-in-out lg:static lg:inset-0 shadow-2xl lg:shadow-none flex flex-col"
+            class="tailadmin-sidebar fixed inset-y-0 left-0 z-50 w-72 -translate-x-full lg:translate-x-0 transform transition-transform duration-300 ease-in-out lg:static lg:inset-0 shadow-2xl lg:shadow-none flex flex-col"
         >
             <!-- TailAdmin Brand Header -->
             <div class="h-20 flex items-center justify-between px-6 border-b border-[#E2E8F0] dark:border-[#2E3A47] bg-white dark:bg-[#1C2434]">
@@ -626,7 +626,7 @@
             </div>
 
             <!-- Admin Navigation Links -->
-            <nav class="sidebar-nav flex-1 overflow-y-auto py-5 space-y-3 px-3">
+            <nav @click.capture="if (window.innerWidth < 1024 && $event.target.closest('a')) sidebarOpen = false" class="sidebar-nav flex-1 overflow-y-auto py-5 space-y-3 px-3">
                 <!-- 1. Menu Utama -->
                 <div>
                     <p class="section-label">Utama</p>
@@ -1825,6 +1825,7 @@
                         </div>
                     </footer>
                 </main>
+            @endif
         </div>
     </div>
 
