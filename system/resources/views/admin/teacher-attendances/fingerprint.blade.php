@@ -109,7 +109,8 @@
                 this.deviceStatus = state.badge;
                 this.sslUnauthorized = (state.status === 'ssl_unauthorized');
                 this.deviceName = window.AttendanceFingerprintService.deviceName || 'HID DigitalPersona U.are.U 4500';
-                this.sensorArmed = window.AttendanceFingerprintService.isAcquiring || (state.status === 'waiting_finger' || state.status === 'reading');
+                this.sensorArmed = window.AttendanceFingerprintService.isAcquiring || 
+                                  (state.status === 'waiting_finger' || state.status === 'reading' || state.status === 'sample_acquired');
                 
                 const fmt = window.AttendanceFingerprintService.workingFormat || state.format;
                 this.activeFormatName = fmt === 2 ? 'Intermediate (Format 2)' : (fmt === 1 ? 'Raw Sensor (1)' : (fmt === 5 ? 'PNG Image (5)' : 'Intermediate (Format 2)'));
@@ -128,7 +129,8 @@
                     }
                 } else if (state.status === 'reading') {
                     this.scanStage = 'finger_detected';
-                    this.scanMessage = '🔵 Sedang membaca sidik jari...';
+                    this.scanMessage = '🔵 Jari terdeteksi! Sedang membaca sidik jari...';
+                    this.playAudio('touch');
                 } else if (state.status === 'sample_acquired') {
                     this.scanStage = 'capturing';
                     this.scanMessage = '✅ Fingerprint berhasil dibaca! Memverifikasi...';
@@ -164,7 +166,6 @@
             const ok = await window.AttendanceFingerprintService.startCapture(true);
             if (ok) {
                 this.sensorArmed = true;
-                this.playAudio('success');
                 if (this.activeTab === 'standby') {
                     this.scanMessage = '🟡 Sensor optik aktif. Tempelkan jari pada kaca scanner...';
                 } else {
@@ -224,7 +225,14 @@
             osc.connect(gain);
             gain.connect(ctx.destination);
 
-            if (type === 'success') {
+            if (type === 'touch') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(740, ctx.currentTime);
+                gain.gain.setValueAtTime(0.18, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.12);
+            } else if (type === 'success') {
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(587.33, ctx.currentTime);
                 osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1);
@@ -317,9 +325,9 @@
 
                 setTimeout(() => {
                     this.scanStage = 'idle';
-                    this.scanMessage = 'Scanner Siap. Tempelkan jari guru berikutnya...';
                     this.deviceStatus = 'Ready';
-                }, 4500);
+                    this.rearmSensor();
+                }, 4000);
             } else {
                 this.scanStage = 'error';
                 this.deviceStatus = 'Ready';
@@ -328,7 +336,7 @@
 
                 setTimeout(() => {
                     this.scanStage = 'idle';
-                    this.scanMessage = 'Scanner Siap. Tempelkan jari guru berikutnya...';
+                    this.rearmSensor();
                 }, 3500);
             }
         } catch(err) {
@@ -339,8 +347,8 @@
 
             setTimeout(() => {
                 this.scanStage = 'idle';
-                this.scanMessage = 'Scanner Siap. Tempelkan jari guru...';
                 this.deviceStatus = 'Ready';
+                this.rearmSensor();
             }, 3500);
         }
     },
@@ -372,6 +380,7 @@
             this.enrollStatus = 'error';
             this.enrollMessage = '⚠️ Pilih nama guru terlebih dahulu di dropdown sebelum menempelkan jari!';
             this.playAudio('error');
+            setTimeout(() => this.rearmSensor(), 1500);
             return;
         }
 
@@ -382,6 +391,7 @@
         if (this.enrollStep < 3) {
             this.enrollStatus = 'scanning';
             this.enrollMessage = `Scan ${this.enrollStep}/3 berhasil! Angkat dan tempelkan jari yang sama sekali lagi...`;
+            setTimeout(() => this.rearmSensor(), 1200);
         } else {
             this.enrollStatus = 'saving';
             this.enrollMessage = '3 Scan selesai! Mengekstrak & memverifikasi konsistensi template...';
@@ -416,6 +426,7 @@
                     this.enrollStep = 0;
                     this.enrollStatus = 'idle';
                     this.activeTab = 'standby';
+                    this.rearmSensor();
                 }, 3000);
             } else {
                 this.enrollStatus = 'error';
@@ -424,6 +435,7 @@
                 // Allow retry if mismatch
                 this.enrollSamples = [];
                 this.enrollStep = 0;
+                setTimeout(() => this.rearmSensor(), 2500);
             }
         } catch(err) {
             this.enrollStatus = 'error';
@@ -431,6 +443,7 @@
             this.playAudio('error');
             this.enrollSamples = [];
             this.enrollStep = 0;
+            setTimeout(() => this.rearmSensor(), 2500);
         }
     },
 
