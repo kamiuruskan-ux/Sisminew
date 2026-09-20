@@ -241,11 +241,18 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|bendahara|operator|kanti
         Route::put('student-cards/settings', [\App\Http\Controllers\Admin\StudentCardController::class, 'updateSettings'])->name('student-cards.update-settings');
         Route::get('student-cards/print', [\App\Http\Controllers\Admin\StudentCardController::class, 'print'])->name('student-cards.print');
         Route::post('student-cards/print-bulk', [\App\Http\Controllers\Admin\StudentCardController::class, 'print'])->name('student-cards.print-bulk');
+        // Alumni Directory & Graduation
+        Route::get('alumni', [\App\Http\Controllers\Admin\AlumniController::class, 'index'])->name('alumni.index');
+        Route::get('alumni/export', [\App\Http\Controllers\Admin\AlumniController::class, 'export'])->name('alumni.export');
     });
     Route::middleware('permission:edit-students')->group(function () {
         Route::post('students/{student}/toggle-status', [StudentController::class, 'toggleStatus'])->name('students.toggle-status');
         Route::get('students/{student}/edit', [StudentController::class, 'edit'])->name('students.edit');
         Route::put('students/{student}', [StudentController::class, 'update'])->name('students.update');
+
+        Route::post('alumni/graduate-class', [\App\Http\Controllers\Admin\AlumniController::class, 'graduateClass'])->name('alumni.graduate-class');
+        Route::post('alumni/graduate-selected', [\App\Http\Controllers\Admin\AlumniController::class, 'graduateSelected'])->name('alumni.graduate-selected');
+        Route::post('alumni/{student}/revert-status', [\App\Http\Controllers\Admin\AlumniController::class, 'revertStatus'])->name('alumni.revert-status');
     });
     Route::middleware('permission:delete-students')->group(function () {
         Route::delete('students/bulk-delete', [StudentController::class, 'bulkDestroy'])->name('students.bulk-destroy');

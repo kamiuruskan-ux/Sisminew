@@ -26,6 +26,8 @@ class Student extends Model
         'major_id',
         'student_status',
         'entry_year',
+        'graduation_year',
+        'alumni_notes',
         'parent_name',
         'father_name',
         'mother_name',

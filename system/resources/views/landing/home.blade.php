@@ -1,3 +1,5 @@
+@extends('layouts.landing')
+
 @section('title', Setting::get('school_name', 'SDIT AL-FAHMI PALU') . ' - ' . Setting::get('school_tagline', 'Sekolahnya Calon Pemimpin Peradaban'))
 
 @section('content')

@@ -27,12 +27,25 @@ class LandingController extends Controller
         $currentYear = (int) date('Y');
         $yearsCount = max(1, $currentYear - $foundedYear);
 
+        $actualActiveStudents = Student::where(function($q) {
+            $q->whereIn('student_status', ['active', 'Aktif'])
+              ->orWhereNull('student_status');
+        })->count();
+
+        $actualTeachers = User::whereHas('roles', function($q) {
+            $q->whereIn('name', ['guru', 'teacher', 'staff', 'pegawai', 'operator', 'kepala-sekolah']);
+        })->count();
+
+        $actualAlumniCount = Student::where('student_status', 'alumni')->count();
+        $fallbackAlumni = rtrim(\App\Support\Setting::get('stats_alumni', '2.500'), '+');
+        $displayAlumni = $actualAlumniCount > 0 ? number_format($actualAlumniCount, 0, ',', '.') : $fallbackAlumni;
+
         $stats = [
-            'students' => Student::count(),
-            'teachers' => User::role('guru')->count(),
+            'students' => $actualActiveStudents,
+            'teachers' => $actualTeachers,
             'achievements' => rtrim(\App\Support\Setting::get('stats_achievements', '150'), '+'),
             'years' => rtrim(\App\Support\Setting::get('stats_years', (string)$yearsCount), '+'),
-            'alumni' => rtrim(\App\Support\Setting::get('stats_alumni', '2.500'), '+'),
+            'alumni' => $displayAlumni,
         ];
 
         return view('landing.home', compact('sliders', 'posts', 'galleries', 'majors', 'stats', 'announcements'));
@@ -55,12 +68,25 @@ class LandingController extends Controller
         $currentYear = (int) date('Y');
         $yearsCount = max(1, $currentYear - $foundedYear);
 
+        $actualActiveStudents = Student::where(function($q) {
+            $q->whereIn('student_status', ['active', 'Aktif'])
+              ->orWhereNull('student_status');
+        })->count();
+
+        $actualTeachers = User::whereHas('roles', function($q) {
+            $q->whereIn('name', ['guru', 'teacher', 'staff', 'pegawai', 'operator', 'kepala-sekolah']);
+        })->count();
+
+        $actualAlumniCount = Student::where('student_status', 'alumni')->count();
+        $fallbackAlumni = rtrim(\App\Support\Setting::get('stats_alumni', '2.500'), '+');
+        $displayAlumni = $actualAlumniCount > 0 ? number_format($actualAlumniCount, 0, ',', '.') : $fallbackAlumni;
+
         $stats = [
-            'students' => Student::count(),
-            'teachers' => User::role('guru')->count(),
+            'students' => $actualActiveStudents,
+            'teachers' => $actualTeachers,
             'achievements' => rtrim(\App\Support\Setting::get('stats_achievements', '150'), '+'),
             'years' => rtrim(\App\Support\Setting::get('stats_years', (string)$yearsCount), '+'),
-            'alumni' => rtrim(\App\Support\Setting::get('stats_alumni', '2.500'), '+'),
+            'alumni' => $displayAlumni,
         ];
 
         return view('landing.about', compact('stats'));

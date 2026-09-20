@@ -70,6 +70,18 @@
         this.showDeleteModal = true;
     }
 }">
+    <!-- Sub-Navigasi Antara Kurikulum & Ekstrakurikuler -->
+    <div class="flex items-center gap-2 p-1.5 bg-slate-100 dark:bg-slate-800 rounded-2xl w-fit">
+        <a href="{{ route('admin.curriculum.index') }}" 
+           class="px-4 py-2 rounded-xl text-xs font-extrabold transition-all text-slate-500 hover:text-slate-800 dark:hover:text-white">
+            📘 Kurikulum &amp; Program Pendidikan
+        </a>
+        <a href="{{ route('admin.extracurriculars.index') }}" 
+           class="px-4 py-2 rounded-xl text-xs font-extrabold transition-all bg-white dark:bg-[#1A222C] text-[#3C50E0] shadow-sm">
+            🏃 Ekstrakurikuler Siswa (Ragam Kegiatan)
+        </a>
+    </div>
+
     <!-- Header Page -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

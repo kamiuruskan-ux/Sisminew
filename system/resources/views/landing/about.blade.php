@@ -87,8 +87,8 @@
                         <span class="text-xs font-semibold text-slate-500">Alumni Tersebar</span>
                     </div>
                     <div class="p-4 rounded-2xl bg-[#0B132B] text-white text-center">
-                        <span class="text-2xl sm:text-3xl font-extrabold text-blue-400 block mb-0.5">A+</span>
-                        <span class="text-xs font-semibold text-slate-300">Akreditasi Unggul</span>
+                        <span class="text-2xl sm:text-3xl font-extrabold text-blue-400 block mb-0.5">{{ Setting::get('school_accreditation_grade', 'A') }}</span>
+                        <span class="text-xs font-semibold text-slate-300">{{ Setting::get('school_accreditation_label', 'Akreditasi Unggul') }}</span>
                     </div>
                 </div>
             </div>

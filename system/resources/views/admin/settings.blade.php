@@ -743,7 +743,7 @@
                         </div>
                     </div>
 
-                    <div class="grid md:grid-cols-2 gap-6">
+                    <div class="grid md:grid-cols-3 gap-6">
                         <div class="space-y-2">
                             <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Jumlah Prestasi / Kejuaraan</label>
                             <input type="text" name="stats_achievements" 
@@ -759,6 +759,14 @@
                                    class="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all font-bold text-sm text-slate-800 shadow-2xs" 
                                    placeholder="Contoh: 15+ / 20+">
                             <p class="text-[10px] text-slate-400 font-medium">Ditampilkan pada kotak Tahun Berdedikasi.</p>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Alumni Tersebar (Historis / Default)</label>
+                            <input type="text" name="stats_alumni" 
+                                   value="{{ old('stats_alumni', Setting::get('stats_alumni', '2.500+')) }}"
+                                   class="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/90 rounded-2xl focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all font-bold text-sm text-slate-800 shadow-2xs" 
+                                   placeholder="Contoh: 2.500+">
+                            <p class="text-[10px] text-slate-400 font-medium">Digunakan di halaman Tentang Sekolah jika database alumni masih baru.</p>
                         </div>
                     </div>
                 </div>

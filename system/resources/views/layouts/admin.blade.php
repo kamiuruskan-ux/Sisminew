@@ -662,7 +662,7 @@
                         <!-- Dropdown Data Siswa & Kartu -->
                         @if(auth()->user()->hasPermission('view-students'))
                         @php
-                            $isStudentDropdownActive = request()->routeIs('admin.students.*') || request()->routeIs('admin.student-cards.*');
+                            $isStudentDropdownActive = request()->routeIs('admin.students.*') || request()->routeIs('admin.student-cards.*') || request()->routeIs('admin.alumni.*');
                         @endphp
                         <div x-data="{ open: {{ $isStudentDropdownActive ? 'true' : 'false' }} }">
                             <button type="button" @click="open = !open" 
@@ -683,6 +683,13 @@
                                 <a href="{{ route('admin.students.index') }}" 
                                    class="nav-link text-xs {{ request()->routeIs('admin.students.*') && !request()->routeIs('admin.students.face-id*') ? 'nav-link-active' : '' }}">
                                     <span>Data Siswa</span>
+                                </a>
+                                <a href="{{ route('admin.alumni.index') }}" 
+                                   class="nav-link text-xs {{ request()->routeIs('admin.alumni.*') ? 'nav-link-active' : '' }}">
+                                    <span class="flex items-center justify-between w-full">
+                                        <span>Daftar Alumni</span>
+                                        <span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">Lulus</span>
+                                    </span>
                                 </a>
                                 <a href="{{ route('admin.student-cards.index') }}" 
                                    class="nav-link text-xs {{ request()->routeIs('admin.student-cards.*') ? 'nav-link-active' : '' }}">
@@ -1200,7 +1207,13 @@
                                 @endif
                                 @if(auth()->user()->hasPermission('view-content'))
                                     <a href="{{ route('admin.sliders.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.sliders.*') ? 'nav-link-active' : '' }}">Hero Banner Slider</a>
-                                    <a href="{{ route('admin.curriculum.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.curriculum.*') || request()->routeIs('admin.extracurriculars.*') ? 'nav-link-active' : '' }}">Kurikulum &amp; Ekstrakurikuler</a>
+                                    <a href="{{ route('admin.curriculum.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.curriculum.*') ? 'nav-link-active' : '' }}">Kurikulum &amp; Program</a>
+                                    <a href="{{ route('admin.extracurriculars.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.extracurriculars.*') ? 'nav-link-active' : '' }}">
+                                        <span class="flex items-center justify-between w-full">
+                                            <span>Ekstrakurikuler Siswa</span>
+                                            <span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">Kegiatan</span>
+                                        </span>
+                                    </a>
                                 @endif
                             </div>
                         </div>
