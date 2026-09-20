@@ -20,10 +20,29 @@ class AttendanceVerificationService
             ];
         }
 
-        $validRoles = ['guru', 'teacher', 'admin', 'operator', 'tata-usaha', 'staff', 'kepala-sekolah', 'super-admin'];
-        $hasRole = $user->roles()->whereIn('slug', $validRoles)->exists();
+        // Siswa tidak diperkenankan melakukan presensi pegawai
+        if ($user->hasRole('student')) {
+            return [
+                'valid' => false,
+                'message' => 'Siswa tidak diperkenankan melakukan presensi pegawai.',
+            ];
+        }
 
-        if (!$hasRole && !in_array($user->role ?? '', $validRoles)) {
+        // Daftar role yang berhak melakukan presensi pendidik & tenaga kependidikan
+        $validRoles = [
+            'guru', 'teacher', 'guru-quran', 'guru_quran', 'guru-qur-an',
+            'kepala-sekolah', 'kepala_sekolah', 'kepsek',
+            'wakasek-kesiswaan', 'wakasek-kurikulum', 'wakasek-kehumasan', 'wakasek',
+            'admin', 'super-admin', 'operator',
+            'tata-usaha', 'tu', 'staff', 'staf', 'bendahara',
+            'guru-bk', 'bk'
+        ];
+
+        $hasRole = $user->hasRole($validRoles)
+            || in_array($user->role ?? '', $validRoles)
+            || (method_exists($user, 'roles') && $user->roles()->whereIn('slug', $validRoles)->exists());
+
+        if (!$hasRole) {
             return [
                 'valid' => false,
                 'message' => 'Hanya Guru dan Tenaga Kependidikan yang berhak melakukan presensi pegawai.',

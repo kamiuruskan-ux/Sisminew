@@ -605,7 +605,6 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::get('teacher-attendances/mobile', function () {
             return redirect()->route('admin.teacher-attendances.my-attendance');
         })->name('teacher-attendances.mobile');
-        Route::post('teacher-attendances/toggle-briefing', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'toggleBriefing'])->name('teacher-attendances.toggle-briefing');
         Route::post('teacher-attendances/update-session-times', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'updateSessionTimes'])->name('teacher-attendances.update-session-times');
 
         Route::get('teacher-attendances/scan', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'scanFace'])->name('teacher-attendances.scan');
@@ -631,10 +630,11 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
     // Fallback non-prefixed alias routes for stream and events
     Route::get('admin-stream-fallback', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'streamEvents'])->name('teacher-attendances.stream.fallback');
 
-    // Teacher Self-Service Attendance (Accessible to All Authenticated Teachers & Staff)
     Route::get('teacher-attendances/my-attendance', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'myAttendance'])->name('teacher-attendances.my-attendance');
     Route::post('teacher-attendances/self-checkin', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'selfCheckIn'])->name('teacher-attendances.self-checkin');
     Route::get('teacher-attendances/check-status', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'checkTodayStatus'])->name('teacher-attendances.check-status');
+    Route::post('teacher-attendances/toggle-briefing', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'toggleBriefing'])->name('teacher-attendances.toggle-briefing');
+    Route::post('teacher-attendances/attend-briefing', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'attendBriefing'])->name('teacher-attendances.attend-briefing');
 
     // Employee Tasks & Daily Checklist
     Route::get('employee-tasks', [\App\Http\Controllers\Admin\EmployeeTaskController::class, 'index'])->name('employee-tasks.index');

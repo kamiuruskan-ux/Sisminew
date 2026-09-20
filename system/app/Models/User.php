@@ -247,7 +247,22 @@ class User extends Authenticatable implements CanResetPassword
 
     public function isTeacher(): bool
     {
-        return $this->hasRole('guru') || $this->hasRole('teacher') || $this->hasRole('guru-quran');
+        return $this->hasRole(['guru', 'teacher', 'guru-quran', 'guru_quran', 'guru-qur-an']);
+    }
+
+    public function isEmployee(): bool
+    {
+        if ($this->isStudent()) {
+            return false;
+        }
+
+        return $this->isTeacher() || $this->hasRole([
+            'kepala-sekolah', 'kepala_sekolah', 'kepsek',
+            'wakasek-kesiswaan', 'wakasek-kurikulum', 'wakasek-kehumasan', 'wakasek',
+            'admin', 'super-admin', 'operator',
+            'tata-usaha', 'tu', 'staff', 'staf', 'bendahara',
+            'guru-bk', 'bk'
+        ]);
     }
 
     public function scopeRole($query, string $role)

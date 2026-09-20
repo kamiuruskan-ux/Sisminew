@@ -38,8 +38,11 @@ class TeacherAttendanceController extends Controller
      */
     public function registerFacePage(Request $request)
     {
-        $teachers = User::with('homeroomClasses')->whereHas('roles', function ($q) {
-            $q->whereIn('slug', ['guru', 'teacher', 'admin', 'operator', 'tata-usaha', 'staff', 'kepala-sekolah']);
+        $employeeRoles = ['guru', 'teacher', 'guru-quran', 'admin', 'operator', 'tata-usaha', 'staff', 'kepala-sekolah', 'wakasek-kesiswaan', 'wakasek-kurikulum', 'wakasek-kehumasan', 'bendahara', 'guru-bk'];
+        $teachers = User::with('homeroomClasses')->where(function ($query) use ($employeeRoles) {
+            $query->whereHas('roles', function ($q) use ($employeeRoles) {
+                $q->whereIn('slug', $employeeRoles);
+            })->orWhereIn('role', ['guru', 'teacher', 'guru-quran', 'staff', 'tata-usaha', 'kepala-sekolah']);
         })->orderBy('name')->get();
 
         $selectedTeacherId = $request->input('user_id');
@@ -74,8 +77,11 @@ class TeacherAttendanceController extends Controller
         $location = $request->input('work_location');
 
         // Query teachers / staff users
-        $teachersQuery = User::with('homeroomClasses')->whereHas('roles', function ($q) {
-            $q->whereIn('slug', ['guru', 'teacher', 'admin', 'operator', 'tata-usaha', 'staff', 'kepala-sekolah']);
+        $employeeRoles = ['guru', 'teacher', 'guru-quran', 'admin', 'operator', 'tata-usaha', 'staff', 'kepala-sekolah', 'wakasek-kesiswaan', 'wakasek-kurikulum', 'wakasek-kehumasan', 'bendahara', 'guru-bk'];
+        $teachersQuery = User::with('homeroomClasses')->where(function ($query) use ($employeeRoles) {
+            $query->whereHas('roles', function ($q) use ($employeeRoles) {
+                $q->whereIn('slug', $employeeRoles);
+            })->orWhereIn('role', ['guru', 'teacher', 'guru-quran', 'staff', 'tata-usaha', 'kepala-sekolah']);
         });
 
         if ($search) {
@@ -177,6 +183,49 @@ class TeacherAttendanceController extends Controller
             }
         } catch (\Throwable $e) {}
 
+        // Data Sesi Briefing Hari Ini
+        $briefingSession = null;
+        $todayBriefingAttendance = null;
+        $hasAttendedBriefing = false;
+        $briefingAttendeesCount = 0;
+        $canManageBriefing = $user->hasRole(['kepala-sekolah', 'kepala_sekolah', 'kepsek', 'admin', 'super-admin', 'operator']) || $user->isAdmin();
+
+        try {
+            $briefingSession = \App\Models\BriefingSession::where('date', $today)->first();
+
+            // Jika belum ada model record hari ini, cek Setting apakah sesi aktif secara global
+            if (!$briefingSession) {
+                $settingActive = Setting::get('briefing_session_active', '0') == '1';
+                $settingDate = Setting::get('briefing_opened_date', null);
+                if ($settingActive && $settingDate === $today) {
+                    $briefingSession = \App\Models\BriefingSession::firstOrCreate(
+                        ['date' => $today],
+                        [
+                            'title' => Setting::get('briefing_title', 'Briefing Rutin Harian Pegawai & Evaluasi'),
+                            'notes' => Setting::get('briefing_content', 'Bismillah. Selamat bertugas asatidzah & seluruh staf pegawai. Mohon hadir tepat waktu dan ikuti seluruh rangkaian agenda harian dengan ikhlas.'),
+                            'is_active' => true,
+                            'opened_by' => auth()->id(),
+                            'start_time' => Setting::get('briefing_time_start', Setting::get('briefing_opened_at', '07:00')),
+                            'end_time' => Setting::get('briefing_time_end', '07:45'),
+                        ]
+                    );
+                }
+            }
+
+            if ($briefingSession) {
+                $briefingAttendeesCount = \App\Models\BriefingAttendance::where('session_id', $briefingSession->id)->count();
+            }
+
+            $todayBriefingAttendance = \App\Models\BriefingAttendance::where('date', $today)
+                ->where('user_id', $user->id)
+                ->first();
+
+            $hasAttendedBriefing = ($todayBriefingAttendance !== null)
+                || ($todayAttendance && !empty($todayAttendance->notes) && str_contains($todayAttendance->notes, 'Hadir Briefing:'));
+        } catch (\Throwable $e) {
+            // Handled
+        }
+
         return view('admin.teacher-attendances.my-attendance', compact(
             'user',
             'todayAttendance',
@@ -194,7 +243,12 @@ class TeacherAttendanceController extends Controller
             'sickCount',
             'permissionCount',
             'attendanceRate',
-            'myPermits'
+            'myPermits',
+            'briefingSession',
+            'todayBriefingAttendance',
+            'hasAttendedBriefing',
+            'briefingAttendeesCount',
+            'canManageBriefing'
         ));
     }
 
@@ -858,6 +912,208 @@ class TeacherAttendanceController extends Controller
         ));
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Kendalikan status aktif Sesi Briefing (Kepala Sekolah & Admin)
+     */
+    public function toggleBriefing(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user->hasRole(['kepala-sekolah', 'kepala_sekolah', 'kepsek', 'admin', 'super-admin', 'operator']) && !$user->isAdmin()) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Hanya Kepala Sekolah dan Admin yang berhak mengelola sesi briefing.'], 403);
+            }
+            return back()->with('error', 'Hanya Kepala Sekolah dan Admin yang berhak mengelola sesi briefing.');
+        }
+
+        $validated = $request->validate([
+            'is_active' => 'nullable',
+            'active' => 'nullable',
+            'title' => 'nullable|string|max:255',
+            'notes' => 'nullable|string',
+            'content' => 'nullable|string',
+            'start_time' => 'nullable|string|max:10',
+            'end_time' => 'nullable|string|max:10',
+        ]);
+
+        $today = date('Y-m-d');
+        $nowTime = now()->setTimezone(config('app.timezone', 'Asia/Makassar'))->format('H:i');
+
+        $session = \App\Models\BriefingSession::firstOrNew(['date' => $today]);
+
+        // Cek status aktif yang diinginkan
+        if ($request->has('is_active')) {
+            $session->is_active = filter_var($request->input('is_active'), FILTER_VALIDATE_BOOLEAN);
+        } elseif ($request->has('active')) {
+            $session->is_active = filter_var($request->input('active'), FILTER_VALIDATE_BOOLEAN);
+        } else {
+            $session->is_active = !$session->is_active;
+        }
+
+        if ($request->filled('title')) {
+            $session->title = $request->input('title');
+        } elseif (!$session->title) {
+            $session->title = 'Briefing Rutin Harian Pegawai & Evaluasi';
+        }
+
+        if ($request->has('notes')) {
+            $session->notes = $request->input('notes');
+        } elseif ($request->has('content')) {
+            $session->notes = $request->input('content');
+        } elseif (!$session->notes) {
+            $session->notes = 'Bismillah. Selamat bertugas asatidzah & seluruh staf pegawai. Mohon hadir tepat waktu dan ikuti seluruh rangkaian agenda harian dengan ikhlas.';
+        }
+
+        if ($request->filled('start_time')) {
+            $session->start_time = $request->input('start_time');
+        } elseif (empty($session->start_time)) {
+            $session->start_time = $nowTime;
+        }
+
+        if ($request->filled('end_time')) {
+            $session->end_time = $request->input('end_time');
+        } elseif (empty($session->end_time)) {
+            // Default 45 menit ke depan jika baru dibuka
+            $session->end_time = now()->setTimezone(config('app.timezone', 'Asia/Makassar'))->addMinutes(45)->format('H:i');
+        }
+
+        $session->opened_by = $user->id;
+
+        if (!$session->is_active) {
+            $session->closed_at = now();
+        } else {
+            $session->closed_at = null;
+        }
+
+        $session->save();
+
+        // Sinkronkan ke Setting untuk kompabilitas modul presensi lainnya
+        Setting::set('briefing_session_active', $session->is_active ? '1' : '0');
+        Setting::set('briefing_title', $session->title);
+        Setting::set('briefing_content', $session->notes ?? '');
+        Setting::set('briefing_opened_date', $today);
+        Setting::set('briefing_opened_at', $session->start_time);
+        Setting::set('briefing_time_start', $session->start_time);
+        Setting::set('briefing_time_end', $session->end_time);
+
+        $statusMsg = $session->is_active
+            ? "Sesi briefing '{$session->title}' berhasil dibuka (Batas waktu: {$session->end_time} WITA)."
+            : "Sesi briefing telah ditutup.";
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => $statusMsg,
+                'briefing' => [
+                    'active' => $session->is_active,
+                    'title' => $session->title,
+                    'notes' => $session->notes,
+                    'start_time' => $session->start_time,
+                    'end_time' => $session->end_time,
+                    'is_open' => $session->isOpen(),
+                    'is_expired' => $session->isExpired(),
+                    'remaining_minutes' => $session->remaining_minutes,
+                ],
+            ]);
+        }
+
+        return back()->with('success', $statusMsg);
+    }
+
+    /**
+     * Pegawai melakukan presensi pada sesi briefing yang sedang dibuka
+     */
+    public function attendBriefing(Request $request)
+    {
+        $user = auth()->user();
+        $today = date('Y-m-d');
+        $now = now()->setTimezone(config('app.timezone', 'Asia/Makassar'));
+        $nowTime = $now->format('H:i:s');
+        $nowTimeShort = $now->format('H:i');
+
+        // 1. Verifikasi akun pegawai (bukan student dan status aktif)
+        $verifyService = app(\App\Services\AttendanceVerificationService::class);
+        $teacherCheck = $verifyService->validateTeacherAccount($user);
+        if (!$teacherCheck['valid']) {
+            return response()->json(['success' => false, 'message' => $teacherCheck['message']], 422);
+        }
+
+        // 2. Ambil sesi briefing hari ini
+        $session = \App\Models\BriefingSession::where('date', $today)->first();
+        if (!$session || !$session->is_active) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sesi briefing belum dibuka oleh Kepala Sekolah atau Admin hari ini.',
+            ], 422);
+        }
+
+        // 3. Periksa batas waktu tutup sesi
+        if ($session->isExpired()) {
+            return response()->json([
+                'success' => false,
+                'message' => "Batas waktu absensi briefing telah berakhir pada pukul {$session->end_time} WITA. Silakan hubungi Kepala Sekolah.",
+            ], 422);
+        }
+
+        // 4. Periksa apakah sudah pernah hadir briefing hari ini
+        $existing = \App\Models\BriefingAttendance::where('date', $today)->where('user_id', $user->id)->first();
+        if ($existing) {
+            return response()->json([
+                'success' => false,
+                'message' => "Anda sudah tercatat hadir pada Sesi Briefing pukul " . substr($existing->attended_at, 0, 5) . " WITA.",
+            ], 422);
+        }
+
+        // 5. Simpan presensi briefing
+        $lat = $request->input('latitude');
+        $long = $request->input('longitude');
+        $device = $request->input('device_info') ?? request()->userAgent();
+
+        $briefingRecord = \App\Models\BriefingAttendance::create([
+            'session_id' => $session->id,
+            'user_id' => $user->id,
+            'date' => $today,
+            'attended_at' => $nowTime,
+            'device_info' => substr($device, 0, 255),
+            'latitude' => $lat ? (float)$lat : null,
+            'longitude' => $long ? (float)$long : null,
+            'status' => 'hadir',
+            'notes' => 'Hadir via Presensi Mandiri',
+        ]);
+
+        // 6. Sinkronisasi ke catatan TeacherAttendance hari ini jika ada
+        try {
+            $todayAttendance = TeacherAttendance::firstOrNew([
+                'user_id' => $user->id,
+                'date' => $today,
+            ]);
+
+            if (empty($todayAttendance->check_in)) {
+                $todayAttendance->status = 'present';
+                $todayAttendance->work_location = 'school';
+                $todayAttendance->check_in = $nowTime;
+                $todayAttendance->recorded_by = $user->id;
+            }
+
+            $tag = "[Hadir Briefing: {$session->title} @ {$nowTimeShort}]";
+            if (empty($todayAttendance->notes)) {
+                $todayAttendance->notes = $tag;
+            } elseif (!str_contains($todayAttendance->notes, 'Hadir Briefing:')) {
+                $todayAttendance->notes .= ' ' . $tag;
+            }
+
+            $todayAttendance->save();
+        } catch (\Throwable $e) {
+            // Non-blocking
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Alhamdulillah! Kehadiran Sesi Briefing berhasil dicatat ({$nowTimeShort} WITA).",
+            'attended_at' => $nowTimeShort,
+            'session_title' => $session->title,
+        ]);
     }
 }
 
