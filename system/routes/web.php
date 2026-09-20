@@ -649,6 +649,21 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|bendahara|operator|kanti
     Route::post('employee-permits/{permit}/reject', [\App\Http\Controllers\Admin\EmployeePermitController::class, 'reject'])->name('employee-permits.reject');
     Route::delete('employee-permits/{permit}', [\App\Http\Controllers\Admin\EmployeePermitController::class, 'destroy'])->name('employee-permits.destroy');
 
+    // Kajian Pekanan Pegawai
+    Route::get('kajian-pekanan', [\App\Http\Controllers\Admin\KajianPekananController::class, 'index'])->name('kajian-pekanan.index');
+    Route::post('kajian-pekanan', [\App\Http\Controllers\Admin\KajianPekananController::class, 'store'])->name('kajian-pekanan.store');
+    Route::get('kajian-pekanan/{kajian_pekanan}', [\App\Http\Controllers\Admin\KajianPekananController::class, 'show'])->name('kajian-pekanan.show');
+    Route::put('kajian-pekanan/{kajian_pekanan}', [\App\Http\Controllers\Admin\KajianPekananController::class, 'update'])->name('kajian-pekanan.update');
+    Route::put('kajian-pekanan/{kajian_pekanan}/attendance', [\App\Http\Controllers\Admin\KajianPekananController::class, 'updateAttendance'])->name('kajian-pekanan.attendance');
+    Route::delete('kajian-pekanan/{kajian_pekanan}', [\App\Http\Controllers\Admin\KajianPekananController::class, 'destroy'])->name('kajian-pekanan.destroy');
+    Route::get('kajian-pekanan/{kajian_pekanan}/print', [\App\Http\Controllers\Admin\KajianPekananController::class, 'printReport'])->name('kajian-pekanan.print');
+
+    // Aspirasi, Kritik & Saran Sekolah
+    Route::get('feedback', [\App\Http\Controllers\Admin\FeedbackController::class, 'index'])->name('feedback.index');
+    Route::post('feedback', [\App\Http\Controllers\Admin\FeedbackController::class, 'store'])->name('feedback.store');
+    Route::patch('feedback/{feedback}/status', [\App\Http\Controllers\Admin\FeedbackController::class, 'updateStatus'])->name('feedback.status');
+    Route::delete('feedback/{feedback}', [\App\Http\Controllers\Admin\FeedbackController::class, 'destroy'])->name('feedback.destroy');
+
     // Bimbingan & Konseling (BK)
     Route::middleware('permission:view-bk|manage-bk')->group(function () {
         Route::get('bk', [\App\Http\Controllers\Admin\BkCounselingController::class, 'index'])->name('bk.index');

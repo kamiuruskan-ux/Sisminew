@@ -24,11 +24,7 @@ class QuranRaportController extends Controller
         $user = Auth::user();
         if (!$user) return [];
 
-        if ($user->hasRole('guru-quran') && !$user->hasRole(['super-admin', 'admin'])) {
-            return $user->quranClasses()->pluck('classes.id')->toArray();
-        }
-
-        return null;
+        return $user->getAssignedClassIds();
     }
 
     /**

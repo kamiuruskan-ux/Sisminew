@@ -211,7 +211,7 @@ class User extends Authenticatable implements CanResetPassword
 
     public function isTeacher(): bool
     {
-        return $this->hasRole('guru') || $this->hasRole('teacher');
+        return $this->hasRole('guru') || $this->hasRole('teacher') || $this->hasRole('guru-quran');
     }
 
     public function scopeRole($query, string $role)
@@ -229,6 +229,64 @@ class User extends Authenticatable implements CanResetPassword
     public function quranClasses(): BelongsToMany
     {
         return $this->belongsToMany(ClassModel::class, 'quran_teacher_classes', 'user_id', 'class_id')->withTimestamps();
+    }
+
+    /**
+     * Dapatkan daftar ID kelas yang ditugaskan kepada guru ini.
+     * Jika admin/super-admin: return null (seluruh kelas).
+     * Jika guru: gabungan penugasan kelas Qur'an, wali kelas, dan jadwal mata pelajaran.
+     */
+    public function getAssignedClassIds(): ?array
+    {
+        if ($this->hasRole('super-admin') || $this->hasRole('admin')) {
+            return null; // Bebas akses semua kelas
+        }
+
+        $classIds = collect();
+
+        // 1. Kelas Al-Qur'an (quran_teacher_classes)
+        try {
+            if ($this->quranClasses()->exists()) {
+                $classIds = $classIds->merge($this->quranClasses()->pluck('classes.id'));
+            }
+        } catch (\Throwable $e) {}
+
+        // 2. Wali Kelas (homeroom)
+        try {
+            $homeroomIds = ClassModel::where('homeroom_teacher_id', $this->id)->pluck('id');
+            $classIds = $classIds->merge($homeroomIds);
+        } catch (\Throwable $e) {}
+
+        // 3. Jadwal Mata Pelajaran yang diampu (Schedule)
+        try {
+            $scheduleIds = Schedule::where('teacher', 'like', "%{$this->name}%")
+                ->orWhere('teacher', (string)$this->id)
+                ->pluck('class_id');
+            $classIds = $classIds->merge($scheduleIds);
+        } catch (\Throwable $e) {}
+
+        return $classIds->unique()->filter()->values()->toArray();
+    }
+
+    public function getAssignedSubjects(): ?array
+    {
+        if ($this->hasRole('super-admin') || $this->hasRole('admin')) {
+            return null; // Bebas akses semua mapel
+        }
+
+        try {
+            $subjects = Schedule::where('teacher', 'like', "%{$this->name}%")
+                ->orWhere('teacher', (string)$this->id)
+                ->pluck('subject')
+                ->unique()
+                ->filter()
+                ->values()
+                ->toArray();
+
+            return $subjects;
+        } catch (\Throwable $e) {
+            return [];
+        }
     }
 
     public function getMasaKerjaAttribute(): string

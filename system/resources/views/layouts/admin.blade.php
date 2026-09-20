@@ -850,7 +850,6 @@
                                 </svg>
                                 <div class="flex items-center justify-between w-full">
                                     <span class="font-bold">Halaqah Al-Qur'an</span>
-                                    <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[9px] rounded">Tahfidz</span>
                                 </div>
                             </a>
                         @endif
@@ -1079,7 +1078,7 @@
                                         <span>Manajemen Presensi</span>
                                     </a>
                                 @endif
-                                @if(auth()->user()->hasPermission('view-employee-permits|approve-employee-permits|manage-attendance'))
+                                @if(auth()->user()->hasPermission('view-employee-permits|approve-employee-permits|manage-attendance') || auth()->user()->isTeacher() || auth()->user()->hasRole(['guru', 'teacher', 'guru-quran', 'staff', 'operator', 'tata-usaha']))
                                     <a href="{{ route('admin.employee-permits.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.employee-permits.*') ? 'nav-link-active font-bold text-[#3C50E0]' : '' }}">
                                         <span>Izin &amp; Cuti Pegawai</span>
                                         @if($isPermitApprover && $pendingEmployeePermitsCount > 0)
@@ -1089,6 +1088,10 @@
                                         @endif
                                     </a>
                                 @endif
+                                <a href="{{ route('admin.kajian-pekanan.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.kajian-pekanan.*') ? 'nav-link-active font-bold text-emerald-600 dark:text-emerald-400' : '' }}">
+                                    <span>Kajian Pekanan Pegawai</span>
+                                    <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[9px] rounded">Baru</span>
+                                </a>
                                 @if(auth()->user()->hasPermission('view-teacher-attendance|manage-attendance'))
                                     <a href="{{ route('admin.teacher-attendances.fingerprint') }}" class="nav-link text-xs {{ request()->routeIs('admin.teacher-attendances.fingerprint') ? 'nav-link-active' : '' }}">Scanner Sidik Jari USB</a>
                                     <a href="{{ route('admin.teacher-attendances.scan') }}" target="_blank" rel="noopener" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.teacher-attendances.scan') ? 'nav-link-active' : '' }}">
@@ -1160,15 +1163,6 @@
                                         <path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11a8.136 8.136 0 00.99 3.845"/>
                                     </svg>
                                     <span>Presensi Mandiri Saya</span>
-                                </div>
-                            </a>
-                            <a href="{{ route('admin.employee-permits.index') }}" 
-                               class="nav-link text-xs {{ request()->routeIs('admin.employee-permits.*') ? 'nav-link-active font-bold text-[#3C50E0] dark:text-indigo-400' : '' }}">
-                                <div class="flex items-center">
-                                    <svg class="nav-icon text-indigo-500 dark:text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                    </svg>
-                                    <span>Pengajuan Izin / Cuti</span>
                                 </div>
                             </a>
                         </div>
@@ -1349,6 +1343,15 @@
                             <span>Pusat Notifikasi</span>
                         </a>
                         @endif
+
+                        <!-- Kritik & Saran Sekolah -->
+                        <a href="{{ route('admin.feedback.index') }}" 
+                           class="nav-link {{ request()->routeIs('admin.feedback.*') ? 'nav-link-active font-bold text-indigo-600 dark:text-indigo-400' : '' }}">
+                            <svg class="nav-icon text-teal-500 dark:text-teal-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                            <span>Kritik &amp; Saran Sekolah</span>
+                        </a>
                     </div>
                 </div>
                 @endif

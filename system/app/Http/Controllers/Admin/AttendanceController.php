@@ -20,12 +20,16 @@ class AttendanceController extends Controller
     public function index(Request $request)
     {
         $user = auth()->user();
+        $allowedClassIds = $user->getAssignedClassIds();
+
         $query = Attendance::with(['student', 'class', 'recordedBy'])
-            ->when($user->isTeacher(), function ($q) use ($user) {
-                return $q->where('recorded_by', $user->id);
+            ->when($allowedClassIds !== null, function ($q) use ($allowedClassIds) {
+                return $q->whereIn('class_id', $allowedClassIds);
             })
-            ->when($request->class_id, function ($q) use ($request) {
-                return $q->where('class_id', $request->class_id);
+            ->when($request->class_id, function ($q) use ($request, $allowedClassIds) {
+                if ($allowedClassIds === null || in_array($request->class_id, $allowedClassIds)) {
+                    return $q->where('class_id', $request->class_id);
+                }
             })
             ->when($request->major_id, function ($q) use ($request) {
                 return $q->whereHas('student', function ($sq) use ($request) {
@@ -51,9 +55,11 @@ class AttendanceController extends Controller
             ->latest('date');
 
         $attendances = $query->paginate(20);
-        $classes = ClassModel::all();
+        $classes = $allowedClassIds !== null ? ClassModel::whereIn('id', $allowedClassIds)->get() : ClassModel::all();
         $majors = Major::all();
-        $students = Student::with(['user', 'class'])->get();
+        $students = $allowedClassIds !== null 
+            ? Student::with(['user', 'class'])->whereIn('class_id', $allowedClassIds)->get() 
+            : Student::with(['user', 'class'])->get();
 
         return view('admin.attendances.index', compact('attendances', 'classes', 'majors', 'students'));
     }
@@ -84,10 +90,18 @@ class AttendanceController extends Controller
         $status = $request->input('status');
         $type = $request->input('type', 'all');
 
+        $user = auth()->user();
+        $allowedClassIds = $user->getAssignedClassIds();
+
         $query = Attendance::with(['student.user', 'student.class.major', 'student.major', 'class', 'recordedBy'])
             ->whereBetween('date', [$startDate, $endDate])
-            ->when($classId, function ($q) use ($classId) {
-                return $q->where('class_id', $classId);
+            ->when($allowedClassIds !== null, function ($q) use ($allowedClassIds) {
+                return $q->whereIn('class_id', $allowedClassIds);
+            })
+            ->when($classId, function ($q) use ($classId, $allowedClassIds) {
+                if ($allowedClassIds === null || in_array($classId, $allowedClassIds)) {
+                    return $q->where('class_id', $classId);
+                }
             })
             ->when($majorId, function ($q) use ($majorId) {
                 return $q->whereHas('student', function ($sq) use ($majorId) {
@@ -160,9 +174,14 @@ class AttendanceController extends Controller
      */
     public function create()
     {
-        $classes = ClassModel::orderBy('name')->get();
+        $user = auth()->user();
+        $allowedClassIds = $user->getAssignedClassIds();
+
+        $classes = $allowedClassIds !== null ? ClassModel::whereIn('id', $allowedClassIds)->orderBy('name')->get() : ClassModel::orderBy('name')->get();
         $majors = \App\Models\Major::orderBy('name')->get();
-        $students = Student::with(['class', 'user', 'major'])->get();
+        $students = $allowedClassIds !== null 
+            ? Student::with(['class', 'user', 'major'])->whereIn('class_id', $allowedClassIds)->get() 
+            : Student::with(['class', 'user', 'major'])->get();
 
         return view('admin.attendances.create', compact('classes', 'majors', 'students'));
     }
@@ -172,6 +191,12 @@ class AttendanceController extends Controller
      */
     public function store(Request $request)
     {
+        $user = auth()->user();
+        $allowedClassIds = $user->getAssignedClassIds();
+        if ($allowedClassIds !== null && !in_array($request->class_id, $allowedClassIds)) {
+            abort(403, 'Anda tidak memiliki hak akses mencatat presensi untuk kelas ini.');
+        }
+
         if ($request->has('attendances') && is_array($request->attendances)) {
             $request->validate([
                 'class_id' => 'required|exists:classes,id',
@@ -238,6 +263,12 @@ class AttendanceController extends Controller
      */
     public function show(Attendance $attendance)
     {
+        $user = auth()->user();
+        $allowedClassIds = $user->getAssignedClassIds();
+        if ($allowedClassIds !== null && !in_array($attendance->class_id, $allowedClassIds)) {
+            abort(403, 'Anda tidak memiliki hak akses melihat data presensi kelas ini.');
+        }
+
         return view('admin.attendances.show', compact('attendance'));
     }
 
@@ -246,8 +277,14 @@ class AttendanceController extends Controller
      */
     public function edit(Attendance $attendance)
     {
-        $classes = ClassModel::all();
-        $students = Student::all();
+        $user = auth()->user();
+        $allowedClassIds = $user->getAssignedClassIds();
+        if ($allowedClassIds !== null && !in_array($attendance->class_id, $allowedClassIds)) {
+            abort(403, 'Anda tidak memiliki hak akses mengedit data presensi kelas ini.');
+        }
+
+        $classes = $allowedClassIds !== null ? ClassModel::whereIn('id', $allowedClassIds)->get() : ClassModel::all();
+        $students = $allowedClassIds !== null ? Student::whereIn('class_id', $allowedClassIds)->get() : Student::all();
 
         return view('admin.attendances.edit', compact('attendance', 'classes', 'students'));
     }
@@ -257,6 +294,12 @@ class AttendanceController extends Controller
      */
     public function update(Request $request, Attendance $attendance)
     {
+        $user = auth()->user();
+        $allowedClassIds = $user->getAssignedClassIds();
+        if ($allowedClassIds !== null && (!in_array($attendance->class_id, $allowedClassIds) || !in_array($request->class_id, $allowedClassIds))) {
+            abort(403, 'Anda tidak memiliki hak akses mengubah data presensi kelas ini.');
+        }
+
         $validated = $request->validate([
             'student_id' => 'required|exists:students,id',
             'class_id' => 'required|exists:classes,id',
@@ -276,6 +319,12 @@ class AttendanceController extends Controller
      */
     public function destroy(Attendance $attendance)
     {
+        $user = auth()->user();
+        $allowedClassIds = $user->getAssignedClassIds();
+        if ($allowedClassIds !== null && !in_array($attendance->class_id, $allowedClassIds)) {
+            abort(403, 'Anda tidak memiliki hak akses menghapus data presensi kelas ini.');
+        }
+
         $attendance->delete();
 
         return redirect()->route('admin.attendances.index')

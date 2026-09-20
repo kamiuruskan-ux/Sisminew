@@ -27,28 +27,28 @@ class StudentController extends Controller
     public function index(Request $request)
     {
         $user = auth()->user();
-        $classes = ClassModel::where('is_active', true)->orderBy('name')->get();
+        $allowedClassIds = $user->getAssignedClassIds();
+
+        $classesQuery = ClassModel::where('is_active', true)->orderBy('name');
+        if ($allowedClassIds !== null) {
+            $classesQuery->whereIn('id', $allowedClassIds);
+        }
+        $classes = $classesQuery->get();
         $majors = Major::where('is_active', true)->orderBy('name')->get();
 
         $query = Student::with(['user', 'class', 'major']);
 
-        if ($user->isTeacher()) {
-            $homeroomClassIds = ClassModel::where('homeroom_teacher_id', $user->id)->pluck('id');
-            if ($homeroomClassIds->isNotEmpty()) {
-                $query->whereIn('class_id', $homeroomClassIds);
-            } else {
-                $scheduleClassIds = \App\Models\Schedule::where('teacher', 'like', "%{$user->name}%")->pluck('class_id');
-                if ($scheduleClassIds->isNotEmpty()) {
-                    $query->whereIn('class_id', $scheduleClassIds);
-                }
-            }
+        if ($allowedClassIds !== null) {
+            $query->whereIn('class_id', $allowedClassIds);
         }
 
         if ($request->filled('class_id')) {
             if ($request->class_id === 'none' || $request->class_id === 'null') {
                 $query->whereNull('class_id');
             } else {
-                $query->where('class_id', $request->class_id);
+                if ($allowedClassIds === null || in_array($request->class_id, $allowedClassIds)) {
+                    $query->where('class_id', $request->class_id);
+                }
             }
         }
 
@@ -77,9 +77,14 @@ class StudentController extends Controller
 
         $students = $query->latest()->paginate(15)->withQueryString();
 
-        $totalStudents = Student::count();
-        $maleCount = Student::where('gender', 'male')->count();
-        $femaleCount = Student::where('gender', 'female')->count();
+        $statsQuery = Student::query();
+        if ($allowedClassIds !== null) {
+            $statsQuery->whereIn('class_id', $allowedClassIds);
+        }
+
+        $totalStudents = (clone $statsQuery)->count();
+        $maleCount = (clone $statsQuery)->where('gender', 'male')->count();
+        $femaleCount = (clone $statsQuery)->where('gender', 'female')->count();
 
         return view('admin.students.index', compact(
             'students',
@@ -204,6 +209,11 @@ class StudentController extends Controller
         $id = is_numeric($encodedId) ? $encodedId : decode_id($encodedId);
         $student = Student::with(['user', 'class', 'major'])->findOrFail($id);
 
+        $allowedClassIds = auth()->user()->getAssignedClassIds();
+        if ($allowedClassIds !== null && (!in_array($student->class_id, $allowedClassIds))) {
+            abort(403, 'Akses ditolak: Anda hanya dapat melihat santri pada kelas yang ditugaskan kepada Anda.');
+        }
+
         return view('admin.students.show', compact('student'));
     }
 
@@ -211,8 +221,19 @@ class StudentController extends Controller
     {
         $id = decode_id($encodedId);
         $student = Student::with(['user', 'class', 'major'])->findOrFail($id);
-        $classes = ClassModel::where('is_active', true)->get();
+
+        $allowedClassIds = auth()->user()->getAssignedClassIds();
+        if ($allowedClassIds !== null && (!in_array($student->class_id, $allowedClassIds))) {
+            abort(403, 'Akses ditolak: Anda hanya dapat mengedit santri pada kelas yang ditugaskan kepada Anda.');
+        }
+
+        $classesQuery = ClassModel::where('is_active', true)->orderBy('name');
+        if ($allowedClassIds !== null) {
+            $classesQuery->whereIn('id', $allowedClassIds);
+        }
+        $classes = $classesQuery->get();
         $majors = Major::where('is_active', true)->get();
+
         return view('admin.students.edit', compact('student', 'classes', 'majors'));
     }
 
@@ -220,6 +241,12 @@ class StudentController extends Controller
     {
         $id = decode_id($encodedId);
         $student = Student::findOrFail($id);
+
+        $allowedClassIds = auth()->user()->getAssignedClassIds();
+        if ($allowedClassIds !== null && (!in_array($student->class_id, $allowedClassIds))) {
+            abort(403, 'Akses ditolak: Anda hanya dapat memperbarui data santri pada kelas yang ditugaskan kepada Anda.');
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email,' . $student->user_id,
@@ -312,8 +339,12 @@ class StudentController extends Controller
     {
         // Jika input berupa angka murni (misal: 10), gunakan langsung. Jika string hash, decode dulu.
         $id = is_numeric($encodedId) ? $encodedId : decode_id($encodedId);
-
         $student = Student::findOrFail($id);
+
+        $allowedClassIds = auth()->user()->getAssignedClassIds();
+        if ($allowedClassIds !== null && (!in_array($student->class_id, $allowedClassIds))) {
+            abort(403, 'Akses ditolak: Anda tidak memiliki wewenang untuk menghapus santri di luar kelas binaan Anda.');
+        }
         
         // Hapus file foto jika ada
         if ($student->photo) {
@@ -342,7 +373,12 @@ class StudentController extends Controller
             return is_numeric($id) ? (int)$id : decode_id($id);
         })->filter();
 
-        $students = Student::whereIn('id', $ids)->get();
+        $allowedClassIds = auth()->user()->getAssignedClassIds();
+        $query = Student::whereIn('id', $ids);
+        if ($allowedClassIds !== null) {
+            $query->whereIn('class_id', $allowedClassIds);
+        }
+        $students = $query->get();
 
         $count = 0;
         foreach ($students as $student) {
@@ -362,21 +398,19 @@ class StudentController extends Controller
     public function bulkEdit(Request $request)
     {
         $user = auth()->user();
-        $classes = ClassModel::where('is_active', true)->orderBy('name')->get();
+        $allowedClassIds = $user->getAssignedClassIds();
+
+        $classesQuery = ClassModel::where('is_active', true)->orderBy('name');
+        if ($allowedClassIds !== null) {
+            $classesQuery->whereIn('id', $allowedClassIds);
+        }
+        $classes = $classesQuery->get();
         $majors = Major::where('is_active', true)->orderBy('name')->get();
 
         $query = Student::with(['user', 'class', 'major']);
 
-        if ($user->isTeacher()) {
-            $homeroomClassIds = ClassModel::where('homeroom_teacher_id', $user->id)->pluck('id');
-            if ($homeroomClassIds->isNotEmpty()) {
-                $query->whereIn('class_id', $homeroomClassIds);
-            } else {
-                $scheduleClassIds = \App\Models\Schedule::where('teacher', 'like', "%{$user->name}%")->pluck('class_id');
-                if ($scheduleClassIds->isNotEmpty()) {
-                    $query->whereIn('class_id', $scheduleClassIds);
-                }
-            }
+        if ($allowedClassIds !== null) {
+            $query->whereIn('class_id', $allowedClassIds);
         }
 
         if ($request->has('ids') && is_array($request->ids)) {
@@ -475,6 +509,11 @@ class StudentController extends Controller
     public function printCard($encodedId)
     {
         $student = Student::with(['user', 'class', 'major'])->findOrFail(decode_id($encodedId));
+
+        $allowedClassIds = auth()->user()->getAssignedClassIds();
+        if ($allowedClassIds !== null && (!in_array($student->class_id, $allowedClassIds))) {
+            abort(403, 'Akses ditolak: Anda tidak memiliki hak akses mencetak kartu santri di luar kelas binaan Anda.');
+        }
         
         // Generate QR code data (Pakai NISN saja)
         $qrData = $student->nisn ?? $student->user->email;
@@ -490,7 +529,13 @@ class StudentController extends Controller
      */
     public function export(Request $request)
     {
+        $user = auth()->user();
+        $allowedClassIds = $user->getAssignedClassIds();
+
         $query = Student::with(['user', 'class', 'major']);
+        if ($allowedClassIds !== null) {
+            $query->whereIn('class_id', $allowedClassIds);
+        }
 
         if ($request->filled('class_id')) {
             $query->where('class_id', $request->class_id);
@@ -1053,22 +1098,28 @@ class StudentController extends Controller
     public function faceIdIndex(Request $request)
     {
         $user = auth()->user();
-        $classes = ClassModel::where('is_active', true)->orderBy('name')->get();
+        $allowedClassIds = $user->getAssignedClassIds();
+
+        $classesQuery = ClassModel::where('is_active', true)->orderBy('name');
+        if ($allowedClassIds !== null) {
+            $classesQuery->whereIn('id', $allowedClassIds);
+        }
+        $classes = $classesQuery->get();
+
         $selectedClassId = $request->input('class_id');
         $search = $request->input('search');
         $status = $request->input('status');
 
         $query = Student::with(['user', 'class', 'major']);
 
-        if ($user->isTeacher()) {
-            $homeroomClassIds = ClassModel::where('homeroom_teacher_id', $user->id)->pluck('id');
-            if ($homeroomClassIds->isNotEmpty()) {
-                $query->whereIn('class_id', $homeroomClassIds);
-            }
+        if ($allowedClassIds !== null) {
+            $query->whereIn('class_id', $allowedClassIds);
         }
 
         if ($selectedClassId) {
-            $query->where('class_id', $selectedClassId);
+            if ($allowedClassIds === null || in_array($selectedClassId, $allowedClassIds)) {
+                $query->where('class_id', $selectedClassId);
+            }
         }
 
         if ($search) {
@@ -1099,8 +1150,8 @@ class StudentController extends Controller
 
         // Calculate summary statistics
         $baseStatsQuery = Student::query();
-        if ($user->isTeacher() && isset($homeroomClassIds) && $homeroomClassIds->isNotEmpty()) {
-            $baseStatsQuery->whereIn('class_id', $homeroomClassIds);
+        if ($allowedClassIds !== null) {
+            $baseStatsQuery->whereIn('class_id', $allowedClassIds);
         }
 
         $totalStudents = (clone $baseStatsQuery)->count();
@@ -1109,9 +1160,11 @@ class StudentController extends Controller
         $registrationPercentage = $totalStudents > 0 ? round(($registeredCount / $totalStudents) * 100, 1) : 0;
 
         // List of all students for modal search select
-        $allStudentsForSelect = Student::with(['user', 'class'])
-            ->orderBy('id', 'desc')
-            ->get()
+        $selectStudentsQuery = Student::with(['user', 'class'])->orderBy('id', 'desc');
+        if ($allowedClassIds !== null) {
+            $selectStudentsQuery->whereIn('class_id', $allowedClassIds);
+        }
+        $allStudentsForSelect = $selectStudentsQuery->get()
             ->map(function ($s) {
                 return [
                     'id' => $s->id,
@@ -1148,6 +1201,12 @@ class StudentController extends Controller
         ]);
 
         $student = Student::with('user')->findOrFail($request->student_id);
+
+        $allowedClassIds = auth()->user()->getAssignedClassIds();
+        if ($allowedClassIds !== null && (!in_array($student->class_id, $allowedClassIds))) {
+            abort(403, 'Akses ditolak: Anda hanya dapat mendaftarkan Face ID santri pada kelas yang ditugaskan kepada Anda.');
+        }
+
         $user = $student->user;
 
         if (!$user) {
@@ -1217,6 +1276,11 @@ class StudentController extends Controller
     public function destroyFaceId($id)
     {
         $student = Student::with('user')->findOrFail($id);
+
+        $allowedClassIds = auth()->user()->getAssignedClassIds();
+        if ($allowedClassIds !== null && (!in_array($student->class_id, $allowedClassIds))) {
+            abort(403, 'Akses ditolak: Anda hanya dapat menghapus Face ID santri pada kelas yang ditugaskan kepada Anda.');
+        }
 
         if ($student->user) {
             $user = $student->user;

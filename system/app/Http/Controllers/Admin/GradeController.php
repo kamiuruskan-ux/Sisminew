@@ -21,9 +21,15 @@ class GradeController extends Controller
     public function index(Request $request)
     {
         $user = auth()->user();
+        $allowedClassIds = $user->getAssignedClassIds();
+        $allowedSubjects = $user->getAssignedSubjects();
+
         $query = Grade::with(['student', 'class', 'recordedBy'])
-            ->when($user->isTeacher(), function ($q) use ($user) {
-                return $q->where('recorded_by', $user->id);
+            ->when($allowedClassIds !== null, function ($q) use ($allowedClassIds) {
+                return $q->whereIn('class_id', $allowedClassIds);
+            })
+            ->when($allowedSubjects !== null && !empty($allowedSubjects), function ($q) use ($allowedSubjects) {
+                return $q->whereIn('subject', $allowedSubjects);
             })
             ->when($request->major_id, function ($q) use ($request) {
                 return $q->whereHas('class', function ($cq) use ($request) {
@@ -45,8 +51,10 @@ class GradeController extends Controller
             ->latest();
 
         $grades = $query->paginate(20);
-        $classes = ClassModel::all();
-        $students = Student::with(['user', 'class'])->get();
+        $classes = $allowedClassIds !== null ? ClassModel::whereIn('id', $allowedClassIds)->get() : ClassModel::all();
+        $students = $allowedClassIds !== null 
+            ? Student::with(['user', 'class'])->whereIn('class_id', $allowedClassIds)->get() 
+            : Student::with(['user', 'class'])->get();
         $types = ['daily', 'mid_term', 'final_term', 'exam'];
         $subjects = $this->getSubjects();
 
@@ -58,8 +66,13 @@ class GradeController extends Controller
      */
     public function create()
     {
-        $classes = ClassModel::all();
-        $students = Student::with('class')->get();
+        $user = auth()->user();
+        $allowedClassIds = $user->getAssignedClassIds();
+
+        $classes = $allowedClassIds !== null ? ClassModel::whereIn('id', $allowedClassIds)->get() : ClassModel::all();
+        $students = $allowedClassIds !== null 
+            ? Student::with('class')->whereIn('class_id', $allowedClassIds)->get() 
+            : Student::with('class')->get();
         $types = ['daily', 'mid_term', 'final_term', 'exam'];
         $subjects = $this->getSubjects();
 
@@ -71,6 +84,12 @@ class GradeController extends Controller
      */
     public function store(Request $request)
     {
+        $user = auth()->user();
+        $allowedClassIds = $user->getAssignedClassIds();
+        if ($allowedClassIds !== null && !in_array($request->class_id, $allowedClassIds)) {
+            abort(403, 'Anda tidak memiliki hak akses menginput nilai untuk kelas ini.');
+        }
+
         $validated = $request->validate([
             'student_id' => 'required|exists:students,id',
             'class_id' => 'required|exists:classes,id',
@@ -93,6 +112,12 @@ class GradeController extends Controller
      */
     public function show(Grade $grade)
     {
+        $user = auth()->user();
+        $allowedClassIds = $user->getAssignedClassIds();
+        if ($allowedClassIds !== null && !in_array($grade->class_id, $allowedClassIds)) {
+            abort(403, 'Anda tidak memiliki hak akses melihat nilai ini.');
+        }
+
         return view('admin.grades.show', compact('grade'));
     }
 
@@ -101,8 +126,16 @@ class GradeController extends Controller
      */
     public function edit(Grade $grade)
     {
-        $classes = ClassModel::all();
-        $students = Student::all();
+        $user = auth()->user();
+        $allowedClassIds = $user->getAssignedClassIds();
+        if ($allowedClassIds !== null && !in_array($grade->class_id, $allowedClassIds)) {
+            abort(403, 'Anda tidak memiliki hak akses mengedit nilai di kelas ini.');
+        }
+
+        $classes = $allowedClassIds !== null ? ClassModel::whereIn('id', $allowedClassIds)->get() : ClassModel::all();
+        $students = $allowedClassIds !== null 
+            ? Student::whereIn('class_id', $allowedClassIds)->get() 
+            : Student::all();
         $types = ['daily', 'mid_term', 'final_term', 'exam'];
         $subjects = $this->getSubjects();
 
@@ -114,6 +147,12 @@ class GradeController extends Controller
      */
     public function update(Request $request, Grade $grade)
     {
+        $user = auth()->user();
+        $allowedClassIds = $user->getAssignedClassIds();
+        if ($allowedClassIds !== null && !in_array($grade->class_id, $allowedClassIds)) {
+            abort(403, 'Anda tidak memiliki hak akses mengubah nilai di kelas ini.');
+        }
+
         $validated = $request->validate([
             'student_id' => 'required|exists:students,id',
             'class_id' => 'required|exists:classes,id',
@@ -134,6 +173,12 @@ class GradeController extends Controller
      */
     public function destroy(Grade $grade)
     {
+        $user = auth()->user();
+        $allowedClassIds = $user->getAssignedClassIds();
+        if ($allowedClassIds !== null && !in_array($grade->class_id, $allowedClassIds)) {
+            abort(403, 'Anda tidak memiliki hak akses menghapus nilai di kelas ini.');
+        }
+
         $grade->delete();
 
         return redirect()->route('admin.grades.index')
@@ -145,8 +190,13 @@ class GradeController extends Controller
      */
     public function bulkCreate()
     {
-        $classes = ClassModel::all();
-        $students = Student::with('class')->get();
+        $user = auth()->user();
+        $allowedClassIds = $user->getAssignedClassIds();
+
+        $classes = $allowedClassIds !== null ? ClassModel::whereIn('id', $allowedClassIds)->get() : ClassModel::all();
+        $students = $allowedClassIds !== null 
+            ? Student::with('class')->whereIn('class_id', $allowedClassIds)->get() 
+            : Student::with('class')->get();
         $types = ['daily', 'mid_term', 'final_term', 'exam'];
         $subjects = $this->getSubjects();
 
@@ -158,6 +208,12 @@ class GradeController extends Controller
      */
     public function bulkStore(Request $request)
     {
+        $user = auth()->user();
+        $allowedClassIds = $user->getAssignedClassIds();
+        if ($allowedClassIds !== null && !in_array($request->class_id, $allowedClassIds)) {
+            abort(403, 'Anda tidak memiliki hak akses menginput nilai untuk kelas ini.');
+        }
+
         if ($request->has('grades') && is_array($request->grades)) {
             $filteredGrades = array_filter($request->grades, function ($item) {
                 return isset($item['score']) && $item['score'] !== null && $item['score'] !== '';
@@ -446,6 +502,14 @@ class GradeController extends Controller
      */
     private function getSubjects(): array
     {
+        $user = auth()->user();
+        if ($user) {
+            $assigned = $user->getAssignedSubjects();
+            if ($assigned !== null && !empty($assigned)) {
+                return $assigned;
+            }
+        }
+
         $subjects = \App\Models\Subject::where('is_active', true)->orderBy('order', 'asc')->orderBy('name', 'asc')->pluck('name')->toArray();
         if (empty($subjects)) {
             return [
