@@ -959,16 +959,31 @@ class StudentController extends Controller
                 }
             }
 
-            // Cari apakah Siswa sudah pernah ada di DB (berdasarkan NISN atau Email User)
+            // Cari apakah Siswa sudah pernah ada di DB (berdasarkan NISN, NIK, Email User, atau Nama)
             $existingStudent = null;
             if (!empty($nisn)) {
                 $existingStudent = Student::where('nisn', $nisn)->first();
+            }
+            if (!$existingStudent && !empty($nik)) {
+                $existingStudent = Student::where('nik', $nik)->first();
             }
             if (!$existingStudent && !empty($email)) {
                 $existingUser = User::where('email', $email)->first();
                 if ($existingUser && $existingUser->student) {
                     $existingStudent = $existingUser->student;
                 }
+            }
+            if (!$existingStudent && !empty($name)) {
+                $existingStudent = Student::whereHas('user', function($u) use ($name) {
+                    $u->where('name', $name);
+                })->first();
+            }
+
+            // Jika mode merge_only aktif dan siswa tidak ditemukan, lewati tanpa menambah siswa baru
+            if (!$existingStudent && $request->boolean('merge_only')) {
+                $skipped++;
+                $logs[] = "[SKIP] Baris {$lineNum}: {$name} dilewati (Mode Merge Aktif & Data Tidak Ditemukan).";
+                continue;
             }
 
             // Eksekusi Simpan (UPSERT: Update jika ada, Create jika baru)

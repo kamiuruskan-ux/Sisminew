@@ -92,6 +92,11 @@
             <p class="text-xs text-[#64748B] dark:text-[#8A99AD] mt-1">Kelola data lengkap guru/pendidik (NIP, No WA, Bina Kelas) serta akun administrator & staf sistem</p>
         </div>
         <div class="flex items-center flex-wrap gap-2.5">
+            <a href="{{ route('admin.users.export', request()->query()) }}"
+               class="inline-flex items-center space-x-1.5 px-3.5 py-2.5 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 hover:text-white text-emerald-700 dark:text-emerald-300 text-xs font-bold rounded-xl transition-all border border-emerald-200 dark:border-emerald-800 shadow-sm" title="Export Data Guru & Pegawai ke Excel (.xlsx)">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                <span>Export Excel</span>
+            </a>
             <a href="{{ route('admin.users.template') }}"
                class="inline-flex items-center space-x-1.5 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all border border-slate-200 dark:border-slate-700 shadow-sm">
                 <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -530,6 +535,16 @@
                     <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">Pilih Berkas Excel / CSV</label>
                     <input type="file" name="file" accept=".xlsx,.xls,.csv" required
                            class="w-full text-xs text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-slate-300 dark:border-slate-600 rounded-2xl p-2 cursor-pointer">
+                </div>
+
+                <div class="p-3 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-800/60">
+                    <label class="flex items-start gap-2.5 cursor-pointer">
+                        <input type="checkbox" name="merge_only" value="1" class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 dark:border-slate-700 mt-0.5">
+                        <div class="text-[11px]">
+                            <span class="font-bold text-amber-900 dark:text-amber-200">Mode Merge / Pembaruan Saja</span>
+                            <p class="text-amber-700 dark:text-amber-300 text-[10px] mt-0.5">Hanya perbarui data guru/pegawai yang sudah terdaftar di sistem (berdasarkan NIP / Email / Nama) tanpa menambahkan user baru.</p>
+                        </div>
+                    </label>
                 </div>
 
                 <div class="flex items-center justify-end gap-3 pt-2">

@@ -15,6 +15,7 @@
 
     // Import Modal State
     showImportModal: false,
+    mergeOnly: false,
     importStep: 'idle', // 'idle', 'processing', 'completed'
     importProgress: 0,
     importStatusText: 'Menyiapkan berkas...',
@@ -84,6 +85,7 @@
 
         const formData = new FormData();
         formData.append('file', this.selectedFile);
+        formData.append('merge_only', this.mergeOnly ? '1' : '0');
         formData.append('_token', '{{ csrf_token() }}');
 
         try {
@@ -252,6 +254,17 @@
                                 <p class="text-[11px] text-[#64748B] dark:text-[#8A99AD] mt-1" x-text="selectedFile ? (selectedFile.size / 1024).toFixed(1) + ' KB' : 'Mendukung format .XLSX, .XLS, .CSV (Maksimal 10MB)'"></p>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Merge Mode Toggle -->
+                    <div class="p-3.5 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-800/60">
+                        <label class="flex items-start gap-2.5 cursor-pointer">
+                            <input type="checkbox" x-model="mergeOnly" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-700 mt-0.5">
+                            <div class="text-[11px]">
+                                <span class="font-bold text-amber-900 dark:text-amber-200">Mode Merge / Pembaruan Saja</span>
+                                <p class="text-amber-700 dark:text-amber-300 text-[10px] mt-0.5">Hanya perbarui data siswa yang sudah terdaftar di sistem (berdasarkan NISN, NIK, Email, atau Nama) tanpa menambahkan siswa baru.</p>
+                            </div>
+                        </label>
                     </div>
 
                     <div class="flex items-center justify-end space-x-3">

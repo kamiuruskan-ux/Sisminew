@@ -428,6 +428,129 @@ class UserController extends Controller
     }
 
     /**
+     * Export Teacher & Staff Data to Excel (.xlsx) for manual editing & re-import
+     */
+    public function export(Request $request)
+    {
+        $activeTab = $request->input('tab', 'guru');
+        $query = User::whereDoesntHave('roles', function ($q) {
+            $q->whereIn('slug', ['student', 'siswa', 'calon-siswa', 'kantin', 'canteen']);
+        })->with(['roles', 'homeroomClasses']);
+
+        if ($activeTab === 'guru') {
+            $query->whereHas('roles', function ($q) {
+                $q->whereIn('slug', [
+                    'guru', 'teacher', 'guru-quran', 'admin', 'operator', 
+                    'tata-usaha', 'staff', 'kepala-sekolah', 'wakasek-kesiswaan', 
+                    'wakasek-kurikulum', 'wakasek-kehumasan', 'bendahara', 'guru-bk'
+                ]);
+            });
+        }
+
+        if ($request->filled('role')) {
+            $roleParam = $request->role;
+            $query->where(function ($q) use ($roleParam) {
+                $q->whereHas('roles', fn($r) => $r->where('slug', $roleParam))
+                  ->orWhere('jabatan', 'like', "%{$roleParam}%");
+            });
+        }
+
+        if ($request->filled('jabatan')) {
+            $query->where('jabatan', $request->jabatan);
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%")
+                  ->orWhere('nip', 'like', "%{$search}%")
+                  ->orWhere('jabatan', 'like', "%{$search}%");
+            });
+        }
+
+        $users = $query->orderBy('name', 'asc')->get();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Data Guru & Pegawai');
+
+        // Column Headers matching the Import template
+        $headers = [
+            'A1' => 'Nama Lengkap*',
+            'B1' => 'NIP / NRH',
+            'C1' => 'Email (Username Login)*',
+            'D1' => 'Password (Kata Sandi)*',
+            'E1' => 'No. WhatsApp / HP',
+            'F1' => 'Jenis Kelamin (L/P)',
+            'G1' => 'Peran / Jabatan',
+            'H1' => 'Wali Kelas (Opsional)',
+            'I1' => 'TMT (YYYY-MM-DD)',
+            'J1' => 'Pendidikan Terakhir',
+        ];
+
+        foreach ($headers as $cell => $value) {
+            $sheet->setCellValue($cell, $value);
+        }
+
+        $headerStyle = [
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 11],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E40AF']], // Royal Blue
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ];
+        $sheet->getStyle('A1:J1')->applyFromArray($headerStyle);
+        $sheet->getRowDimension(1)->setRowHeight(28);
+
+        $row = 2;
+        foreach ($users as $user) {
+            $sheet->setCellValue('A' . $row, $user->name);
+            $sheet->setCellValueExplicit('B' . $row, (string)($user->nip ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $sheet->setCellValue('C' . $row, $user->email);
+            $sheet->setCellValue('D' . $row, ''); // Kosongkan password agar tidak terekspos, jika tidak diedit password lama tetap aman
+            $sheet->setCellValueExplicit('E' . $row, (string)($user->phone ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            
+            // Gender
+            $genderStr = 'L';
+            if (isset($user->gender)) {
+                $genderStr = ($user->gender === 'female' || $user->gender === 'P' || $user->gender === 'perempuan') ? 'P' : 'L';
+            }
+            $sheet->setCellValue('F' . $row, $genderStr);
+
+            // Peran / Jabatan
+            $jabatanStr = $user->jabatan ?: ($user->roles->first()?->name ?? 'Guru');
+            $sheet->setCellValue('G' . $row, $jabatanStr);
+
+            // Wali Kelas
+            $homeroomStr = $user->homeroomClasses ? $user->homeroomClasses->pluck('name')->implode(', ') : '';
+            $sheet->setCellValue('H' . $row, $homeroomStr);
+
+            // TMT
+            $tmtStr = $user->tmt ? \Carbon\Carbon::parse($user->tmt)->format('Y-m-d') : '';
+            $sheet->setCellValue('I' . $row, $tmtStr);
+
+            // Pendidikan Terakhir
+            $sheet->setCellValue('J' . $row, $user->last_education ?? '');
+
+            $row++;
+        }
+
+        foreach (range('A', 'J') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $filename = 'Export_Data_Guru_Pegawai_' . date('Y-m-d_H-i') . '.xlsx';
+
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
+
+        $writer = new Xlsx($spreadsheet);
+        $writer->save('php://output');
+        exit;
+    }
+
+    /**
      * Download Excel template for mass importing teachers and staff
      */
     public function downloadTemplate()
@@ -687,7 +810,7 @@ class UserController extends Controller
 
             DB::beginTransaction();
             try {
-                // Temukan user: PRIORITASKAN NIP DAHULU (agar akun sebelumnya bisa dikoreksi email & role-nya), lalu Email
+                // Temukan user: PRIORITASKAN NIP DAHULU, lalu Email, lalu Nama
                 $existingUser = null;
                 if (!empty($nip)) {
                     $existingUser = User::where('nip', $nip)->first();
@@ -695,19 +818,29 @@ class UserController extends Controller
                 if (!$existingUser && !empty($email)) {
                     $existingUser = User::where('email', $email)->first();
                 }
+                if (!$existingUser && !empty($name)) {
+                    $existingUser = User::where('name', $name)->first();
+                }
+
+                // Jika user mengaktifkan mode merge_only dan data tidak ditemukan, lewati tanpa membuat user baru
+                if (!$existingUser && $request->boolean('merge_only')) {
+                    $skipped++;
+                    DB::commit();
+                    continue;
+                }
 
                 if ($existingUser) {
                     $updateData = [
                         'name' => $name,
-                        'email' => $email,
                         'status' => 'active',
                     ];
+                    if (!empty($email)) $updateData['email'] = $email;
                     if (!empty($nip)) $updateData['nip'] = $nip;
                     if (!empty($roleInput)) $updateData['jabatan'] = $roleInput;
                     if (!empty($phone)) $updateData['phone'] = $phone;
                     if (!empty($tmt)) $updateData['tmt'] = $tmt;
                     if (!empty($lastEduInput)) $updateData['last_education'] = $lastEduInput;
-                    if (!empty($pass)) {
+                    if (!empty($pass) && $pass !== 'guru123') {
                         $updateData['password'] = Hash::make($pass);
                     }
                     $existingUser->update($updateData);

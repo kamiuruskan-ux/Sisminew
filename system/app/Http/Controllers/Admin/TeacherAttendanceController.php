@@ -694,43 +694,7 @@ class TeacherAttendanceController extends Controller
         ]);
     }
 
-    /**
-     * Live Briefing Session Toggle & Content Manager (for Principal / Admin)
-     */
-    public function toggleBriefing(Request $request)
-    {
-        $user = auth()->user();
-        if (!$user->hasRole('kepala-sekolah') && !$user->hasRole('admin') && !$user->hasRole('super-admin')) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Hanya Kepala Sekolah atau Administrator yang berwenang membuka sesi briefing.'
-            ], 403);
-        }
 
-        $active = $request->boolean('active');
-        Setting::set('briefing_session_active', $active ? '1' : '0');
-
-        if ($request->filled('title')) {
-            Setting::set('briefing_title', trim($request->title));
-        }
-        if ($request->filled('content')) {
-            Setting::set('briefing_content', trim($request->content));
-        }
-        if ($active) {
-            Setting::set('briefing_opened_at', date('H:i'));
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => $active ? 'Sesi Briefing Kepala Sekolah Resmi Dibuka!' : 'Sesi Briefing Ditutup.',
-            'briefing' => [
-                'active' => (bool) Setting::get('briefing_session_active', '0'),
-                'title' => Setting::get('briefing_title', 'Briefing Pagi Dewan Guru & Asatidzah'),
-                'content' => Setting::get('briefing_content', 'Penguatan kedisiplinan santri dan pembiasaan adab islami.'),
-                'opened_at' => Setting::get('briefing_opened_at', date('H:i')),
-            ]
-        ]);
-    }
 
     /**
      * Quick Update for Attendance Session Times (Pagi, Siang, Pulang & Override)

@@ -181,6 +181,7 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::post('users', [UserController::class, 'store'])->name('users.store');
     });
     Route::middleware('permission:view-users')->group(function () {
+        Route::get('users/export', [UserController::class, 'export'])->name('users.export');
         Route::get('users', [UserController::class, 'index'])->name('users.index');
         Route::get('users/{user}', [UserController::class, 'show'])->name('users.show');
     });
@@ -534,6 +535,8 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::put('lms/live-classes/{liveClass}/status', [\App\Http\Controllers\Admin\LmsChapterController::class, 'updateLiveStatus'])->name('lms.live-classes.status');
     });
     Route::middleware('permission:manage-learning')->group(function () {
+        Route::post('schedules/bulk-delete', [ScheduleController::class, 'bulkDestroy'])->name('schedules.bulk-destroy');
+        Route::delete('schedules/bulk-delete', [ScheduleController::class, 'bulkDestroy']);
         Route::post('schedules', [ScheduleController::class, 'store'])->name('schedules.store');
         Route::get('schedules/{schedule}/edit', [ScheduleController::class, 'edit'])->name('schedules.edit');
         Route::put('schedules/{schedule}', [ScheduleController::class, 'update'])->name('schedules.update');

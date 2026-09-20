@@ -22,9 +22,19 @@ class Schedule extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
-        'start_time' => 'datetime:H:i',
-        'end_time' => 'datetime:H:i',
     ];
+
+    public function getStartTimeAttribute($value)
+    {
+        if (!$value) return '';
+        return substr((string)$value, 0, 5);
+    }
+
+    public function getEndTimeAttribute($value)
+    {
+        if (!$value) return '';
+        return substr((string)$value, 0, 5);
+    }
 
     public function class(): BelongsTo
     {

@@ -45,19 +45,48 @@ class ScheduleController extends Controller
             });
         }
 
+        if ($request->filled('teacher')) {
+            $query->where('teacher', 'like', "%{$request->teacher}%");
+        }
+
+        if ($request->filled('room')) {
+            $query->where('room', $request->room);
+        }
+
         $totalSchedules = (clone $query)->count();
         $activeSchedules = (clone $query)->where('is_active', true)->count();
         $totalRooms = (clone $query)->distinct('room')->count('room');
 
-        $schedules = $query->orderBy('day')->orderBy('start_time')->paginate(20)->withQueryString();
+        // Sorting
+        $sort = $request->input('sort', 'day_asc');
+        if ($sort === 'teacher_asc') {
+            $query->orderBy('teacher', 'asc')->orderBy('day')->orderBy('start_time', 'asc');
+        } elseif ($sort === 'class_asc') {
+            $query->join('classes as c_sort', 'schedules.class_id', '=', 'c_sort.id')
+                  ->select('schedules.*')
+                  ->orderBy('c_sort.name', 'asc')
+                  ->orderBy('schedules.day')
+                  ->orderBy('schedules.start_time', 'asc');
+        } elseif ($sort === 'latest') {
+            $query->orderBy('schedules.created_at', 'desc');
+        } else {
+            // Urutan Hari Senin - Ahad lalu Jam Mulai
+            $query->orderByRaw("FIELD(day, 'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday')")
+                  ->orderBy('start_time', 'asc');
+        }
+
+        $perPage = in_array((int)$request->input('per_page'), [10, 20, 50, 100]) ? (int)$request->input('per_page') : 20;
+        $schedules = $query->paginate($perPage)->withQueryString();
 
         $classes = ClassModel::orderBy('name')->get();
         $days = daftar_hari_indo();
         $subjectsList = \App\Models\Subject::where('is_active', true)->orderBy('order', 'asc')->orderBy('name', 'asc')->get();
 
         $teachers = User::whereHas('roles', function ($q) {
-            $q->whereIn('slug', ['guru', 'teacher', 'admin', 'operator', 'tata-usaha', 'staff', 'kepala-sekolah']);
+            $q->whereIn('slug', ['guru', 'teacher', 'guru-quran', 'admin', 'operator', 'tata-usaha', 'staff', 'kepala-sekolah']);
         })->orderBy('name')->get();
+
+        $roomsList = Schedule::whereNotNull('room')->where('room', '!=', '')->distinct()->pluck('room')->sort()->values();
 
         return view('admin.schedules.index', compact(
             'schedules',
@@ -65,9 +94,12 @@ class ScheduleController extends Controller
             'days',
             'subjectsList',
             'teachers',
+            'roomsList',
             'totalSchedules',
             'activeSchedules',
-            'totalRooms'
+            'totalRooms',
+            'perPage',
+            'sort'
         ));
     }
 
@@ -90,6 +122,13 @@ class ScheduleController extends Controller
      */
     public function store(Request $request)
     {
+        if ($request->filled('start_time')) {
+            $request->merge(['start_time' => substr($request->start_time, 0, 5)]);
+        }
+        if ($request->filled('end_time')) {
+            $request->merge(['end_time' => substr($request->end_time, 0, 5)]);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'subject' => 'required|string|max:255',
@@ -135,6 +174,13 @@ class ScheduleController extends Controller
      */
     public function update(Request $request, Schedule $schedule)
     {
+        if ($request->filled('start_time')) {
+            $request->merge(['start_time' => substr($request->start_time, 0, 5)]);
+        }
+        if ($request->filled('end_time')) {
+            $request->merge(['end_time' => substr($request->end_time, 0, 5)]);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'subject' => 'required|string|max:255',
@@ -160,7 +206,40 @@ class ScheduleController extends Controller
     {
         $schedule->delete();
 
+        if (request()->wantsJson() || request()->ajax()) {
+            return response()->json(['success' => true, 'message' => 'Jadwal berhasil dihapus!']);
+        }
+
         return redirect()->route('admin.schedules.index')
             ->with('success', 'Jadwal berhasil dihapus!');
+    }
+
+    /**
+     * Hapus massal jadwal pelajaran yang dipilih
+     */
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'required',
+        ]);
+
+        $ids = collect($request->ids)->map(function ($id) {
+            return is_numeric($id) ? (int)$id : decode_id($id);
+        })->filter();
+
+        $count = Schedule::whereIn('id', $ids)->delete();
+
+        $msg = "Berhasil menghapus {$count} sesi jadwal pelajaran terpilih.";
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => $msg,
+                'count' => $count,
+            ]);
+        }
+
+        return redirect()->route('admin.schedules.index')->with('success', $msg);
     }
 }
