@@ -75,7 +75,23 @@ class StudentController extends Controller
             });
         }
 
-        $students = $query->latest()->paginate(15)->withQueryString();
+        // Sort filter (Nama A-Z, Z-A, Terbaru)
+        $sort = $request->input('sort', 'latest');
+        if ($sort === 'name_asc') {
+            $query->join('users as u_sort', 'students.user_id', '=', 'u_sort.id')
+                  ->select('students.*')
+                  ->orderBy('u_sort.name', 'asc');
+        } elseif ($sort === 'name_desc') {
+            $query->join('users as u_sort', 'students.user_id', '=', 'u_sort.id')
+                  ->select('students.*')
+                  ->orderBy('u_sort.name', 'desc');
+        } else {
+            $query->orderBy('students.created_at', 'desc');
+        }
+
+        // Per page: 10, 20, 50, 100 (default: 10)
+        $perPage = in_array((int)$request->input('per_page'), [10, 20, 50, 100]) ? (int)$request->input('per_page') : 10;
+        $students = $query->paginate($perPage)->withQueryString();
 
         $statsQuery = Student::query();
         if ($allowedClassIds !== null) {

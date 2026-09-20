@@ -23,6 +23,8 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $activeTab = $request->input('tab', 'guru');
+        $perPage = in_array((int)$request->input('per_page'), [10, 20, 50, 100]) ? (int)$request->input('per_page') : 10;
+        $sort = $request->input('sort', 'name_asc');
 
         // Base query excluding students and canteen users
         $query = User::whereDoesntHave('roles', function ($q) {
@@ -34,15 +36,23 @@ class UserController extends Controller
                 $q->whereIn('slug', [
                     'guru', 'teacher', 'guru-quran', 'admin', 'operator', 
                     'tata-usaha', 'staff', 'kepala-sekolah', 'wakasek-kesiswaan', 
-                    'wakasek-kurikulum', 'wakasek-kehumasan'
+                    'wakasek-kurikulum', 'wakasek-kehumasan', 'bendahara', 'guru-bk'
                 ]);
             });
         }
 
+        // Filter per Role / Jabatan
         if ($request->filled('role')) {
-            $query->whereHas('roles', function ($q) use ($request) {
-                $q->where('slug', $request->role);
+            $roleParam = $request->role;
+            $query->where(function ($q) use ($roleParam) {
+                $q->whereHas('roles', function ($r) use ($roleParam) {
+                    $r->where('slug', $roleParam);
+                })->orWhere('jabatan', 'like', "%{$roleParam}%");
             });
+        }
+
+        if ($request->filled('jabatan')) {
+            $query->where('jabatan', $request->jabatan);
         }
 
         if ($request->filled('search')) {
@@ -51,14 +61,29 @@ class UserController extends Controller
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%")
                   ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhere('nip', 'like', "%{$search}%");
+                  ->orWhere('nip', 'like', "%{$search}%")
+                  ->orWhere('jabatan', 'like', "%{$search}%");
             });
         }
 
-        $users = $query->latest()->paginate(15)->withQueryString();
+        // Sorting per urutan nama
+        if ($sort === 'name_desc') {
+            $query->orderBy('name', 'desc');
+        } elseif ($sort === 'latest') {
+            $query->latest();
+        } else {
+            // Default: name_asc (A-Z)
+            $query->orderBy('name', 'asc');
+        }
+
+        $users = $query->paginate($perPage)->withQueryString();
 
         $teachersCount = User::whereHas('roles', function ($q) {
-            $q->whereIn('slug', ['guru', 'teacher', 'admin', 'operator', 'tata-usaha', 'staff', 'kepala-sekolah']);
+            $q->whereIn('slug', [
+                'guru', 'teacher', 'guru-quran', 'admin', 'operator', 
+                'tata-usaha', 'staff', 'kepala-sekolah', 'wakasek-kesiswaan', 
+                'wakasek-kurikulum', 'wakasek-kehumasan', 'bendahara', 'guru-bk'
+            ]);
         })->count();
 
         $allUsersCount = User::whereDoesntHave('roles', function ($q) {
@@ -67,7 +92,23 @@ class UserController extends Controller
 
         $roles = Role::whereNotIn('slug', ['student', 'siswa', 'calon-siswa', 'kantin', 'canteen'])->get();
 
-        return view('admin.users.index', compact('users', 'roles', 'activeTab', 'teachersCount', 'allUsersCount'));
+        // Daftar jabatan unik untuk filter
+        $jabatanList = collect();
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'jabatan')) {
+                $jabatanList = User::whereNotNull('jabatan')
+                    ->where('jabatan', '!=', '')
+                    ->distinct()
+                    ->pluck('jabatan')
+                    ->sort()
+                    ->values();
+            }
+        } catch (\Throwable $e) {}
+
+        return view('admin.users.index', compact(
+            'users', 'roles', 'activeTab', 'teachersCount', 'allUsersCount', 
+            'perPage', 'sort', 'jabatanList'
+        ));
     }
 
     public function create()
@@ -272,7 +313,15 @@ class UserController extends Controller
     {
         $id = is_numeric($encodedId) ? $encodedId : decode_id($encodedId);
         $user = User::findOrFail($id);
+
+        if ($user->id === auth()->id()) {
+            return back()->with('error', 'Anda tidak dapat menghapus akun Anda sendiri.');
+        }
         
+        // Detach classes
+        ClassModel::where('homeroom_teacher_id', $user->id)->update(['homeroom_teacher_id' => null]);
+        ClassModel::where('quran_teacher_id', $user->id)->update(['quran_teacher_id' => null]);
+
         // Delete avatar
         if ($user->avatar) {
             delete_public_file($user->avatar, 'img/avatars');
@@ -281,6 +330,64 @@ class UserController extends Controller
         $user->delete();
 
         return back()->with('success', 'User berhasil dihapus.');
+    }
+
+    /**
+     * Hapus massal data user / guru yang dicentang
+     */
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'required',
+        ]);
+
+        $ids = collect($request->ids)->map(function ($id) {
+            return is_numeric($id) ? (int)$id : decode_id($id);
+        })->filter();
+
+        // Jangan izinkan menghapus diri sendiri
+        $ids = $ids->reject(function ($id) {
+            return $id == auth()->id();
+        });
+
+        if ($ids->isEmpty()) {
+            return back()->with('error', 'Tidak ada data user valid yang dapat dihapus.');
+        }
+
+        $users = User::whereIn('id', $ids)->get();
+        $count = 0;
+
+        foreach ($users as $user) {
+            // Lindungi super-admin utama
+            if ($user->hasRole('super-admin') && User::whereHas('roles', fn($q) => $q->where('slug', 'super-admin'))->count() <= 1) {
+                continue;
+            }
+
+            // Lepas penugasan kelas binaan
+            ClassModel::where('homeroom_teacher_id', $user->id)->update(['homeroom_teacher_id' => null]);
+            ClassModel::where('quran_teacher_id', $user->id)->update(['quran_teacher_id' => null]);
+
+            // Hapus avatar jika ada
+            if ($user->avatar) {
+                delete_public_file($user->avatar, 'img/avatars');
+            }
+
+            $user->delete();
+            $count++;
+        }
+
+        $message = "Berhasil menghapus {$count} data user / guru terpilih.";
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'count' => $count,
+            ]);
+        }
+
+        return back()->with('success', $message);
     }
 
     /**
@@ -439,15 +546,15 @@ class UserController extends Controller
 
         $columnAliases = [
             'name'           => ['nama_lengkap', 'nama', 'nama guru', 'nama pegawai', 'name', 'nama lengkap'],
-            'nip'            => ['nip', 'nrh', 'no_nip', 'nomor induk pegawai', 'nip / nrh', 'nip/nrh'],
-            'email'          => ['email', 'e-mail', 'surel', 'username', 'email / username'],
-            'password'       => ['password', 'kata sandi', 'pass', 'sandi', 'pin'],
-            'phone'          => ['no_hp', 'no hp', 'nohp', 'telepon', 'phone', 'no wa', 'whatsapp', 'no_whatsapp'],
-            'gender'         => ['jenis_kelamin', 'jenis kelamin', 'jk', 'gender', 'l/p', 'l_p'],
-            'role'           => ['peran', 'jabatan', 'role', 'posisi', 'peran / jabatan'],
-            'homeroom'       => ['wali_kelas', 'wali kelas', 'bina_kelas', 'kelas', 'rombel', 'tingkat kelas bimbingan khusus wali kelas'],
-            'tmt'            => ['tmt', 'terhitung_mulai_tanggal', 'terhitung mulai tanggal', 'tgl_tmt', 'tanggal_tmt', 'tmt (yyyy-mm-dd)', 'tmtyyyymmdd'],
-            'last_education' => ['pendidikan_terakhir', 'pendidikan terakhir', 'pendidikan', 'ijazah_terakhir', 'ijazah terakhir', 'jenjang_pendidikan'],
+            'nip'            => ['nip', 'nrh', 'no_nip', 'nomor induk pegawai', 'nip / nrh', 'nip/nrh', 'nipnrh'],
+            'email'          => ['email', 'e-mail', 'surel', 'username', 'email / username', 'email username login', 'email (username login)*', 'emailusernamelogin', 'usernamelogin'],
+            'password'       => ['password', 'kata sandi', 'pass', 'sandi', 'pin', 'password (kata sandi)*', 'passwordkatasandi'],
+            'phone'          => ['no_hp', 'no hp', 'nohp', 'telepon', 'phone', 'no wa', 'whatsapp', 'no_whatsapp', 'no. whatsapp / hp', 'nowhatsapphp'],
+            'gender'         => ['jenis_kelamin', 'jenis kelamin', 'jk', 'gender', 'l/p', 'l_p', 'jenis kelamin (l/p)', 'jeniskelaminlp'],
+            'role'           => ['peran', 'jabatan', 'role', 'posisi', 'peran / jabatan', 'peranjabatan'],
+            'homeroom'       => ['wali_kelas', 'wali kelas', 'bina_kelas', 'kelas', 'rombel', 'wali kelas (opsional)', 'walikelasopsional'],
+            'tmt'            => ['tmt', 'terhitung_mulai_tanggal', 'terhitung mulai tanggal', 'tgl_tmt', 'tanggal_tmt', 'tmt (yyyy-mm-dd)', 'tmtyyyymmdd', 'tmt yyyy-mm-dd'],
+            'last_education' => ['pendidikan_terakhir', 'pendidikan terakhir', 'pendidikan', 'ijazah_terakhir', 'ijazah terakhir', 'jenjang_pendidikan', 'pendidikanterakhir'],
         ];
 
         $normalize = function ($str) {
@@ -470,10 +577,30 @@ class UserController extends Controller
 
                 foreach ($columnAliases as $field => $aliases) {
                     if (isset($currentMatches[$field])) continue;
+
                     foreach ($aliases as $alias) {
                         if ($cellNorm === $normalize($alias)) {
                             $currentMatches[$field] = $colLetter;
                             break;
+                        }
+                    }
+
+                    // Fallback fuzzy contains
+                    if (!isset($currentMatches[$field])) {
+                        if ($field === 'email' && (str_contains($cellNorm, 'email') || str_contains($cellNorm, 'username') || str_contains($cellNorm, 'surel'))) {
+                            $currentMatches[$field] = $colLetter;
+                        } elseif ($field === 'tmt' && (str_contains($cellNorm, 'tmt') || str_contains($cellNorm, 'terhitung'))) {
+                            $currentMatches[$field] = $colLetter;
+                        } elseif ($field === 'role' && (str_contains($cellNorm, 'peran') || str_contains($cellNorm, 'jabatan') || str_contains($cellNorm, 'posisi'))) {
+                            $currentMatches[$field] = $colLetter;
+                        } elseif ($field === 'last_education' && (str_contains($cellNorm, 'pendidikan') || str_contains($cellNorm, 'ijazah'))) {
+                            $currentMatches[$field] = $colLetter;
+                        } elseif ($field === 'password' && (str_contains($cellNorm, 'password') || str_contains($cellNorm, 'sandi'))) {
+                            $currentMatches[$field] = $colLetter;
+                        } elseif ($field === 'nip' && (str_contains($cellNorm, 'nip') || str_contains($cellNorm, 'nrh'))) {
+                            $currentMatches[$field] = $colLetter;
+                        } elseif ($field === 'name' && (str_contains($cellNorm, 'nama') || str_contains($cellNorm, 'name'))) {
+                            $currentMatches[$field] = $colLetter;
                         }
                     }
                 }
@@ -527,16 +654,16 @@ class UserController extends Controller
             $tmtInput = $getVal('tmt');
             $lastEduInput = $getVal('last_education');
 
-            // Format TMT if provided
-            $tmt = null;
-            if (!empty($tmtInput)) {
-                try {
-                    $tmt = \Carbon\Carbon::parse($tmtInput)->format('Y-m-d');
-                } catch (\Throwable $e) {}
-            }
+            // Parse TMT secara fleksibel (serial Excel, YYYY/MM/DD, YYYY-MM-DD, dll.)
+            $tmt = $this->parseFlexibleDate($tmtInput);
 
-            // Fallback email if empty
-            if (empty($email)) {
+            // Sanitasi dan format Email/Username
+            if (!empty($email)) {
+                $email = strtolower(trim($email));
+                if (!str_contains($email, '@')) {
+                    $email = $email . '@alfahmi.com';
+                }
+            } else {
                 if (!empty($nip)) {
                     $cleanNip = preg_replace('/[^0-9]/', '', $nip);
                     $email = ($cleanNip ?: 'guru') . '@sekolah.sch.id';
@@ -545,18 +672,14 @@ class UserController extends Controller
                     $email = ($slugName ? substr($slugName, 0, 15) : 'guru') . '_' . rand(100, 999) . '@sekolah.sch.id';
                 }
             }
-            $email = strtolower(trim($email));
 
             // Default password if empty
             $rawPass = !empty($pass) ? $pass : 'guru123';
 
-            // Resolve role
+            // Smart Detect Role berdasarkan Jabatan pada template Excel
             $targetRole = null;
             if (!empty($roleInput)) {
-                $cleanRole = $normalize($roleInput);
-                $targetRole = $allRoles->first(function ($r) use ($cleanRole, $normalize) {
-                    return $normalize($r->slug) === $cleanRole || $normalize($r->name) === $cleanRole;
-                });
+                $targetRole = $this->smartDetectRole($roleInput, $allRoles);
             }
             if (!$targetRole) {
                 $targetRole = $defaultRole;
@@ -564,21 +687,23 @@ class UserController extends Controller
 
             DB::beginTransaction();
             try {
-                // Find existing user by email or NIP
+                // Temukan user: PRIORITASKAN NIP DAHULU (agar akun sebelumnya bisa dikoreksi email & role-nya), lalu Email
                 $existingUser = null;
-                if (!empty($email)) {
-                    $existingUser = User::where('email', $email)->first();
-                }
-                if (!$existingUser && !empty($nip)) {
+                if (!empty($nip)) {
                     $existingUser = User::where('nip', $nip)->first();
+                }
+                if (!$existingUser && !empty($email)) {
+                    $existingUser = User::where('email', $email)->first();
                 }
 
                 if ($existingUser) {
                     $updateData = [
                         'name' => $name,
+                        'email' => $email,
                         'status' => 'active',
                     ];
                     if (!empty($nip)) $updateData['nip'] = $nip;
+                    if (!empty($roleInput)) $updateData['jabatan'] = $roleInput;
                     if (!empty($phone)) $updateData['phone'] = $phone;
                     if (!empty($tmt)) $updateData['tmt'] = $tmt;
                     if (!empty($lastEduInput)) $updateData['last_education'] = $lastEduInput;
@@ -597,6 +722,7 @@ class UserController extends Controller
                         'name' => $name,
                         'email' => $email,
                         'nip' => $nip,
+                        'jabatan' => $roleInput ?: null,
                         'phone' => $phone,
                         'tmt' => $tmt,
                         'last_education' => $lastEduInput ?: null,
@@ -610,7 +736,7 @@ class UserController extends Controller
                     $createdCount++;
                 }
 
-                // Homeroom assignment if specified
+                // Penugasan Wali Kelas jika tercantum
                 if (!empty($homeroomInput)) {
                     $cleanHome = $normalize($homeroomInput);
                     $matchedClass = $allClasses->first(function ($c) use ($cleanHome, $normalize) {
@@ -643,5 +769,113 @@ class UserController extends Controller
         }
 
         return redirect()->route('admin.users.index')->with('success', $msg);
+    }
+
+    /**
+     * Smart detector to resolve role based on jabatan text from Excel
+     */
+    protected function smartDetectRole(string $input, $allRoles): ?Role
+    {
+        $raw = strtolower(trim($input));
+        $norm = preg_replace('/[^a-z0-9]/', '', $raw);
+
+        // 1. Kepala Sekolah
+        if (str_contains($raw, 'kepala sekolah') || str_contains($raw, 'kepsek') || str_contains($raw, 'headmaster')) {
+            return $allRoles->firstWhere('slug', 'kepala-sekolah') ?? $allRoles->firstWhere('slug', 'kepala_sekolah');
+        }
+
+        // 2. Guru Al-Qur'an / Tahfidz / Halaqah
+        if (str_contains($raw, 'quran') || str_contains($raw, 'qur\'an') || str_contains($raw, 'tahfidz') || str_contains($raw, 'tahfiz') || str_contains($raw, 'halaqah') || str_contains($raw, 'tilawati') || str_contains($raw, 'ummi')) {
+            return $allRoles->firstWhere('slug', 'guru-quran') ?? $allRoles->firstWhere('slug', 'guru_quran');
+        }
+
+        // 3. Guru BK / Konseling
+        if (str_contains($raw, 'bimbingan konseling') || str_contains($raw, 'guru bk') || str_contains($raw, 'konselor') || $norm === 'bk' || $norm === 'gurubk') {
+            return $allRoles->firstWhere('slug', 'guru-bk') ?? $allRoles->firstWhere('slug', 'bk');
+        }
+
+        // 4. Bendahara / Keuangan
+        if (str_contains($raw, 'bendahara') || str_contains($raw, 'keuangan') || str_contains($raw, 'finance') || str_contains($raw, 'kasir')) {
+            return $allRoles->firstWhere('slug', 'bendahara');
+        }
+
+        // 5. Kehumasan / Humas
+        if (str_contains($raw, 'humas') || str_contains($raw, 'kehumasan') || str_contains($raw, 'public relation')) {
+            return $allRoles->firstWhere('slug', 'wakasek-kehumasan') 
+                ?? $allRoles->firstWhere('slug', 'staff') 
+                ?? $allRoles->firstWhere('slug', 'tata-usaha');
+        }
+
+        // 6. Kurikulum
+        if (str_contains($raw, 'kurikulum')) {
+            return $allRoles->firstWhere('slug', 'wakasek-kurikulum') ?? $allRoles->firstWhere('slug', 'guru');
+        }
+
+        // 7. Kesiswaan
+        if (str_contains($raw, 'kesiswaan')) {
+            return $allRoles->firstWhere('slug', 'wakasek-kesiswaan') ?? $allRoles->firstWhere('slug', 'guru');
+        }
+
+        // 8. Staf Admin / Tata Usaha / Operator
+        if (str_contains($raw, 'tata usaha') || str_contains($raw, 'administrasi') || str_contains($raw, 'staf admin') || str_contains($raw, 'staff admin') || $norm === 'tu') {
+            return $allRoles->firstWhere('slug', 'tata-usaha') ?? $allRoles->firstWhere('slug', 'staff') ?? $allRoles->firstWhere('slug', 'operator');
+        }
+        if (str_contains($raw, 'operator')) {
+            return $allRoles->firstWhere('slug', 'operator') ?? $allRoles->firstWhere('slug', 'admin');
+        }
+
+        // 9. Staf umum / security / kebersihan
+        if (str_contains($raw, 'staf') || str_contains($raw, 'staff') || str_contains($raw, 'security') || str_contains($raw, 'satpam') || str_contains($raw, 'kebersihan')) {
+            return $allRoles->firstWhere('slug', 'staff') ?? $allRoles->firstWhere('slug', 'tata-usaha');
+        }
+
+        // 10. Guru / Wali Kelas / Guru Bidang Studi
+        if (str_contains($raw, 'guru') || str_contains($raw, 'wali kelas') || str_contains($raw, 'bidang studi') || str_contains($raw, 'mapel') || str_contains($raw, 'pendidik') || str_contains($raw, 'pengajar')) {
+            return $allRoles->firstWhere('slug', 'guru') ?? $allRoles->firstWhere('slug', 'teacher');
+        }
+
+        // Fallback: match by slug or name in roles
+        $directMatch = $allRoles->first(function ($r) use ($norm) {
+            $rSlug = preg_replace('/[^a-z0-9]/', '', strtolower($r->slug));
+            $rName = preg_replace('/[^a-z0-9]/', '', strtolower($r->name));
+            return $rSlug === $norm || $rName === $norm;
+        });
+
+        if ($directMatch) {
+            return $directMatch;
+        }
+
+        return $allRoles->firstWhere('slug', 'guru') ?? $allRoles->firstWhere('slug', 'teacher');
+    }
+
+    /**
+     * Flexible date parser for Excel dates (serial numbers, YYYY/MM/DD, DD/MM/YYYY, etc.)
+     */
+    protected function parseFlexibleDate($val): ?string
+    {
+        if (empty($val)) return null;
+
+        // If numeric (Excel serial date)
+        if (is_numeric($val) && (float)$val > 1000) {
+            try {
+                return \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($val)->format('Y-m-d');
+            } catch (\Throwable $e) {}
+        }
+
+        $str = trim((string)$val);
+        $str = str_replace(['/', '.'], '-', $str);
+
+        try {
+            return \Carbon\Carbon::parse($str)->format('Y-m-d');
+        } catch (\Throwable $e) {}
+
+        if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $str, $m)) {
+            return sprintf('%04d-%02d-%02d', (int)$m[1], (int)$m[2], (int)$m[3]);
+        }
+        if (preg_match('/^(\d{1,2})-(\d{1,2})-(\d{4})$/', $str, $m)) {
+            return sprintf('%04d-%02d-%02d', (int)$m[3], (int)$m[2], (int)$m[1]);
+        }
+
+        return null;
     }
 }

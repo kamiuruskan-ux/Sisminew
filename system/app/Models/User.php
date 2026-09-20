@@ -21,6 +21,7 @@ class User extends Authenticatable implements CanResetPassword
         'password',
         'phone',
         'nip',
+        'jabatan',
         'tmt',
         'last_education',
         'avatar',
@@ -381,6 +382,11 @@ class User extends Authenticatable implements CanResetPassword
                 if (!\Illuminate\Support\Facades\Schema::hasColumn('users', 'last_education')) {
                     \Illuminate\Support\Facades\Schema::table('users', function ($table) {
                         $table->string('last_education', 100)->nullable()->after('tmt');
+                    });
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('users', 'jabatan')) {
+                    \Illuminate\Support\Facades\Schema::table('users', function ($table) {
+                        $table->string('jabatan', 150)->nullable()->after('nip');
                     });
                 }
             }

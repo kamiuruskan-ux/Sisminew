@@ -453,10 +453,10 @@
     </div>
 
     <!-- TailAdmin Filter & Search Panel (Real-Time Auto Submit) -->
-    <div class="tailadmin-card p-6">
-        <form method="GET" action="{{ route('admin.students.index') }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="tailadmin-card p-5">
+        <form method="GET" action="{{ route('admin.students.index') }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
             <!-- Search Keyword -->
-            <div>
+            <div class="xl:col-span-2">
                 <label class="block text-[11px] font-bold text-[#64748B] dark:text-[#8A99AD] uppercase tracking-wider mb-1.5">Cari Siswa</label>
                 <div class="relative">
                     <input type="text" 
@@ -494,9 +494,30 @@
             <div>
                 <label class="block text-[11px] font-bold text-[#64748B] dark:text-[#8A99AD] uppercase tracking-wider mb-1.5">Jenis Kelamin</label>
                 <select name="gender" @change="$el.closest('form').submit()" class="w-full bg-[#F8FAFC] dark:bg-[#1A222C] border border-[#E2E8F0] dark:border-[#2E3A47] text-[#1C2434] dark:text-white text-xs rounded-xl p-2.5 focus:outline-none focus:border-[#3C50E0]">
-                    <option value="">Semua Jenis Kelamin</option>
+                    <option value="">Semua Gender</option>
                     <option value="male" {{ request('gender') === 'male' ? 'selected' : '' }}>Laki-laki</option>
                     <option value="female" {{ request('gender') === 'female' ? 'selected' : '' }}>Perempuan</option>
+                </select>
+            </div>
+
+            <!-- Sort By Name / Latest -->
+            <div>
+                <label class="block text-[11px] font-bold text-[#64748B] dark:text-[#8A99AD] uppercase tracking-wider mb-1.5">Urutan</label>
+                <select name="sort" @change="$el.closest('form').submit()" class="w-full bg-[#F8FAFC] dark:bg-[#1A222C] border border-[#E2E8F0] dark:border-[#2E3A47] text-[#1C2434] dark:text-white text-xs rounded-xl p-2.5 focus:outline-none focus:border-[#3C50E0] font-semibold">
+                    <option value="latest" {{ request('sort', 'latest') === 'latest' ? 'selected' : '' }}>Terbaru</option>
+                    <option value="name_asc" {{ request('sort') === 'name_asc' ? 'selected' : '' }}>Nama (A - Z)</option>
+                    <option value="name_desc" {{ request('sort') === 'name_desc' ? 'selected' : '' }}>Nama (Z - A)</option>
+                </select>
+            </div>
+
+            <!-- Per Page (10, 20, 50, 100) -->
+            <div>
+                <label class="block text-[11px] font-bold text-[#64748B] dark:text-[#8A99AD] uppercase tracking-wider mb-1.5">Tampilkan</label>
+                <select name="per_page" @change="$el.closest('form').submit()" class="w-full bg-[#F8FAFC] dark:bg-[#1A222C] border border-[#E2E8F0] dark:border-[#2E3A47] text-[#1C2434] dark:text-white text-xs rounded-xl p-2.5 focus:outline-none focus:border-[#3C50E0] font-semibold">
+                    <option value="10" {{ request('per_page', '10') == '10' ? 'selected' : '' }}>10 Baris</option>
+                    <option value="20" {{ request('per_page') == '20' ? 'selected' : '' }}>20 Baris</option>
+                    <option value="50" {{ request('per_page') == '50' ? 'selected' : '' }}>50 Baris</option>
+                    <option value="100" {{ request('per_page') == '100' ? 'selected' : '' }}>100 Baris</option>
                 </select>
             </div>
         </form>

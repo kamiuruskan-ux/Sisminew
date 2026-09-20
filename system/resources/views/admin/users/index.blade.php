@@ -5,14 +5,40 @@
 
 @section('content')
 <div class="space-y-6" x-data="{
+    selected: [],
+    selectAll: false,
     showDeleteModal: false,
     deleteTarget: null,
     deleteFormAction: '',
+    isBulkDelete: false,
     showImportModal: false,
     toast: { show: false, message: '', type: 'success' },
+
+    toggleSelectAll() {
+        if (this.selectAll) {
+            this.selected = [{{ implode(',', $users->pluck('id')->toArray()) }}];
+        } else {
+            this.selected = [];
+        }
+    },
+    
+    updateSelectAll() {
+        const allIds = [{{ implode(',', $users->pluck('id')->toArray()) }}];
+        this.selectAll = allIds.length > 0 && allIds.every(id => this.selected.includes(id));
+    },
+
     confirmDelete(encodedId, userName) {
+        this.isBulkDelete = false;
         this.deleteTarget = { id: encodedId, name: userName };
         this.deleteFormAction = '{{ url('admin/users') }}/' + encodedId;
+        this.showDeleteModal = true;
+    },
+
+    confirmBulkDelete() {
+        if (this.selected.length === 0) return;
+        this.isBulkDelete = true;
+        this.deleteTarget = { id: null, name: this.selected.length + ' data user terpilih' };
+        this.deleteFormAction = '{{ route('admin.users.bulk-destroy') }}';
         this.showDeleteModal = true;
     }
 }"
@@ -51,7 +77,13 @@
         <button @click="toast.show = false" class="text-white/80 hover:text-white font-bold text-lg leading-none">&times;</button>
     </div>
 
-    @include('components.delete-modal', ['title' => 'Hapus Data User', 'message' => 'Apakah Anda yakin ingin menghapus user <strong x-text="deleteTarget?.name"></strong>? Tindakan ini tidak dapat dibatalkan.'])
+    @component('components.delete-modal', ['title' => 'Hapus Data User', 'message' => 'Apakah Anda yakin ingin menghapus <strong x-text="deleteTarget?.name"></strong>? Tindakan ini tidak dapat dibatalkan.'])
+        <template x-if="isBulkDelete">
+            <template x-for="id in selected" :key="id">
+                <input type="hidden" name="ids[]" :value="id">
+            </template>
+        </template>
+    @endcomponent
 
     <!-- TailAdmin Top Header -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -107,33 +139,71 @@
     </div>
 
     <!-- Filter & Search Bar (Real-Time Auto Submit) -->
-    <div class="tailadmin-card p-4">
-        <form method="GET" action="{{ route('admin.users.index') }}" class="flex flex-col sm:flex-row items-center justify-between gap-3">
+    <div class="tailadmin-card p-5">
+        <form method="GET" action="{{ route('admin.users.index') }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
             <input type="hidden" name="tab" value="{{ $activeTab }}">
-            <div class="flex items-center gap-3 w-full sm:w-auto">
-                <!-- Role Filter -->
-                <select name="role" @change="$el.closest('form').submit()" class="text-xs py-2.5 px-3.5 rounded-xl border-[#E2E8F0] dark:border-[#2E3A47] bg-white dark:bg-[#1A222C] text-[#1C2434] dark:text-[#DEE4EE] font-semibold">
-                    <option value="">Semua Role / Jabatan</option>
-                    @foreach($roles as $role)
-                        <option value="{{ $role->slug }}" {{ request('role') == $role->slug ? 'selected' : '' }}>{{ $role->name }}</option>
-                    @endforeach
-                </select>
-            </div>
             
-            <div class="flex items-center gap-2 w-full sm:w-96">
-                <div class="relative w-full">
+            <!-- Search Keyword -->
+            <div class="xl:col-span-2">
+                <label class="block text-[11px] font-bold text-[#64748B] dark:text-[#8A99AD] uppercase tracking-wider mb-1.5">Cari User / Guru</label>
+                <div class="relative">
                     <input type="text" 
                            name="search" 
                            value="{{ request('search') }}" 
                            placeholder="Cari nama, NIP, email, WA..." 
                            @input.debounce.400ms="$el.closest('form').submit()"
                            x-init="if ('{{ request('search') }}') { $el.focus(); $el.setSelectionRange($el.value.length, $el.value.length); }"
-                           class="w-full text-xs py-2.5 pl-9 pr-8 rounded-xl border-[#E2E8F0] dark:border-[#2E3A47] bg-slate-50 dark:bg-[#1A222C] focus:bg-white text-[#1C2434] dark:text-[#DEE4EE]">
-                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                           class="w-full bg-[#F8FAFC] dark:bg-[#1A222C] border border-[#E2E8F0] dark:border-[#2E3A47] text-[#1C2434] dark:text-white text-xs rounded-xl pl-10 pr-8 py-2.5 focus:outline-none focus:border-[#3C50E0]">
+                    <svg class="w-4 h-4 text-[#64748B] dark:text-[#8A99AD] absolute left-3.5 top-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
                     @if(request('search'))
-                        <a href="{{ route('admin.users.index', array_merge(request()->except('search'), ['tab' => $activeTab])) }}" class="absolute right-2.5 top-2 text-slate-400 hover:text-rose-500 font-bold text-sm" title="Hapus Pencarian">&times;</a>
+                        <a href="{{ route('admin.users.index', array_merge(request()->except('search'), ['tab' => $activeTab])) }}" class="absolute right-3 top-2.5 text-[#64748B] hover:text-rose-500 transition font-bold text-sm" title="Hapus Pencarian">&times;</a>
                     @endif
                 </div>
+            </div>
+
+            <!-- Role Filter -->
+            <div>
+                <label class="block text-[11px] font-bold text-[#64748B] dark:text-[#8A99AD] uppercase tracking-wider mb-1.5">Role Sistem</label>
+                <select name="role" @change="$el.closest('form').submit()" class="w-full bg-[#F8FAFC] dark:bg-[#1A222C] border border-[#E2E8F0] dark:border-[#2E3A47] text-[#1C2434] dark:text-white text-xs rounded-xl p-2.5 focus:outline-none focus:border-[#3C50E0] font-semibold">
+                    <option value="">Semua Role</option>
+                    @foreach($roles as $role)
+                        <option value="{{ $role->slug }}" {{ request('role') == $role->slug ? 'selected' : '' }}>{{ $role->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <!-- Jabatan Filter -->
+            <div>
+                <label class="block text-[11px] font-bold text-[#64748B] dark:text-[#8A99AD] uppercase tracking-wider mb-1.5">Jabatan / Posisi</label>
+                <select name="jabatan" @change="$el.closest('form').submit()" class="w-full bg-[#F8FAFC] dark:bg-[#1A222C] border border-[#E2E8F0] dark:border-[#2E3A47] text-[#1C2434] dark:text-white text-xs rounded-xl p-2.5 focus:outline-none focus:border-[#3C50E0] font-semibold">
+                    <option value="">Semua Jabatan</option>
+                    @foreach($jabatanList as $jbt)
+                        <option value="{{ $jbt }}" {{ request('jabatan') == $jbt ? 'selected' : '' }}>{{ $jbt }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <!-- Sort Filter -->
+            <div>
+                <label class="block text-[11px] font-bold text-[#64748B] dark:text-[#8A99AD] uppercase tracking-wider mb-1.5">Urutan</label>
+                <select name="sort" @change="$el.closest('form').submit()" class="w-full bg-[#F8FAFC] dark:bg-[#1A222C] border border-[#E2E8F0] dark:border-[#2E3A47] text-[#1C2434] dark:text-white text-xs rounded-xl p-2.5 focus:outline-none focus:border-[#3C50E0] font-semibold">
+                    <option value="name_asc" {{ request('sort', $sort) === 'name_asc' ? 'selected' : '' }}>Nama (A - Z)</option>
+                    <option value="name_desc" {{ request('sort', $sort) === 'name_desc' ? 'selected' : '' }}>Nama (Z - A)</option>
+                    <option value="latest" {{ request('sort', $sort) === 'latest' ? 'selected' : '' }}>Terbaru</option>
+                </select>
+            </div>
+
+            <!-- Per Page Filter -->
+            <div>
+                <label class="block text-[11px] font-bold text-[#64748B] dark:text-[#8A99AD] uppercase tracking-wider mb-1.5">Tampilkan</label>
+                <select name="per_page" @change="$el.closest('form').submit()" class="w-full bg-[#F8FAFC] dark:bg-[#1A222C] border border-[#E2E8F0] dark:border-[#2E3A47] text-[#1C2434] dark:text-white text-xs rounded-xl p-2.5 focus:outline-none focus:border-[#3C50E0] font-semibold">
+                    <option value="10" {{ request('per_page', $perPage) == '10' ? 'selected' : '' }}>10 Baris</option>
+                    <option value="20" {{ request('per_page', $perPage) == '20' ? 'selected' : '' }}>20 Baris</option>
+                    <option value="50" {{ request('per_page', $perPage) == '50' ? 'selected' : '' }}>50 Baris</option>
+                    <option value="100" {{ request('per_page', $perPage) == '100' ? 'selected' : '' }}>100 Baris</option>
+                </select>
             </div>
         </form>
     </div>
@@ -147,10 +217,29 @@
             <span class="text-xs text-[#64748B] dark:text-[#8A99AD] font-mono">Total {{ $users->total() }} Data</span>
         </div>
 
+        <!-- Bulk Action Banner Bar -->
+        <div x-show="selected.length > 0" x-cloak x-transition class="flex items-center justify-between px-6 py-3 bg-indigo-50 dark:bg-indigo-950/40 border-b border-indigo-200 dark:border-indigo-800">
+            <div class="flex items-center space-x-2 text-indigo-700 dark:text-indigo-300 font-bold text-xs">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span x-text="selected.length + ' data user / guru dipilih'"></span>
+            </div>
+            <div class="flex items-center space-x-2">
+                @permission('delete-users')
+                <button type="button" @click="confirmBulkDelete()" class="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center space-x-1.5 cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    <span>Hapus Terpilih</span>
+                </button>
+                @endpermission
+            </div>
+        </div>
+
         <div class="overflow-x-auto">
             <table class="w-full text-left text-xs">
                 <thead class="bg-[#F1F5F9] dark:bg-[#1A222C] text-[#64748B] dark:text-[#8A99AD] uppercase tracking-wider font-bold border-b border-[#E2E8F0] dark:border-[#2E3A47]">
                     <tr>
+                        <th class="px-4 py-3.5 w-10 text-center">
+                            <input type="checkbox" x-model="selectAll" @change="toggleSelectAll()" class="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-[#3C50E0] focus:ring-[#3C50E0] cursor-pointer" title="Pilih Semua">
+                        </th>
                         <th class="px-6 py-3.5">Pendidik / User</th>
                         <th class="px-6 py-3.5">No. WhatsApp / HP</th>
                         <th class="px-6 py-3.5">Role / Jabatan</th>
@@ -163,7 +252,10 @@
                 </thead>
                 <tbody class="divide-y divide-[#E2E8F0] dark:divide-[#2E3A47] text-[#1C2434] dark:text-[#DEE4EE]">
                     @forelse($users as $user)
-                        <tr class="hover:bg-[#F1F5F9]/60 dark:hover:bg-[#1A222C]/50 transition-colors">
+                        <tr class="hover:bg-[#F1F5F9]/60 dark:hover:bg-[#1A222C]/50 transition-colors" :class="{ 'bg-rose-50/30 dark:bg-rose-950/20': selected.includes({{ $user->id }}) }">
+                            <td class="px-4 py-4 text-center">
+                                <input type="checkbox" :value="{{ $user->id }}" x-model="selected" @change="updateSelectAll()" class="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-[#3C50E0] focus:ring-[#3C50E0] cursor-pointer">
+                            </td>
                             <!-- User Profile & NIP -->
                             <td class="px-6 py-4">
                                 <div class="flex items-center space-x-3.5">
@@ -207,16 +299,24 @@
 
                             <!-- Role / Jabatan -->
                             <td class="px-6 py-4">
-                                <div class="flex flex-wrap gap-1">
-                                    @foreach($user->roles as $role)
-                                        <span class="px-2.5 py-0.5 text-[10px] font-extrabold rounded-full uppercase tracking-wider
-                                            @if($role->slug == 'super-admin' || $role->slug == 'admin') bg-[#3C50E0] text-white
-                                            @elseif($role->slug == 'guru-quran') bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800
-                                            @elseif($role->slug == 'guru' || $role->slug == 'teacher') bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800
-                                            @else bg-slate-100 dark:bg-[#1A222C] text-[#1C2434] dark:text-white border border-[#E2E8F0] dark:border-[#2E3A47] @endif">
-                                            {{ $role->name }}
-                                        </span>
-                                    @endforeach
+                                <div class="space-y-1">
+                                    <div class="flex flex-wrap gap-1">
+                                        @foreach($user->roles as $role)
+                                            <span class="px-2.5 py-0.5 text-[10px] font-extrabold rounded-full uppercase tracking-wider
+                                                @if($role->slug == 'super-admin' || $role->slug == 'admin') bg-[#3C50E0] text-white
+                                                @elseif($role->slug == 'guru-quran') bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800
+                                                @elseif($role->slug == 'guru' || $role->slug == 'teacher') bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800
+                                                @else bg-slate-100 dark:bg-[#1A222C] text-[#1C2434] dark:text-white border border-[#E2E8F0] dark:border-[#2E3A47] @endif">
+                                                {{ $role->name }}
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                    @if($user->jabatan)
+                                        <div class="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 mt-0.5">
+                                            <span class="text-[9px] text-slate-400 font-semibold uppercase">Jabatan:</span>
+                                            <span>{{ $user->jabatan }}</span>
+                                        </div>
+                                    @endif
                                 </div>
                             </td>
 
@@ -366,7 +466,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-6 py-12 text-center text-[#64748B] dark:text-[#8A99AD] text-xs font-semibold">
+                            <td colspan="9" class="px-6 py-12 text-center text-[#64748B] dark:text-[#8A99AD] text-xs font-semibold">
                                 Belum ada data user terdaftar pada tab ini.
                             </td>
                         </tr>

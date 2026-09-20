@@ -192,6 +192,8 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::post('users/{encodedId}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
     });
     Route::middleware('permission:delete-users')->group(function () {
+        Route::post('users/bulk-destroy', [UserController::class, 'bulkDestroy'])->name('users.bulk-destroy');
+        Route::delete('users/bulk-destroy', [UserController::class, 'bulkDestroy']);
         Route::delete('users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
     });
     
