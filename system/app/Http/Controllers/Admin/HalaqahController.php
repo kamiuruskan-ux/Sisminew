@@ -134,10 +134,8 @@ class HalaqahController extends Controller
         $isAdmin = $user->hasRole(['super-admin', 'admin', 'kepala-sekolah']);
         
         // Daftar Guru Al-Qur'an (untuk dropdown Admin / selector kelompok)
-        $quranTeachers = User::where(function ($q) {
-            $q->whereHas('roles', function ($rq) {
-                $rq->whereIn('slug', ['guru-quran', 'guru_quran', 'guru', 'teacher']);
-            })->orWhereIn('role', ['guru-quran', 'guru_quran', 'guru', 'teacher']);
+        $quranTeachers = User::whereHas('roles', function ($rq) {
+            $rq->whereIn('slug', ['guru-quran', 'guru_quran', 'guru', 'teacher']);
         })->orderBy('name', 'asc')->get();
 
         // Tentukan Guru Pembimbing aktif
