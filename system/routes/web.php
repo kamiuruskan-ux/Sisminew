@@ -57,9 +57,13 @@ use App\Http\Controllers\Student\ProfileController;
 use App\Http\Controllers\Student\ScheduleController as StudentScheduleController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\SecurityCaptchaController;
-use App\Http\Controllers\Admin\SecurityController;
 use App\Http\Controllers\Admin\GuideController;
+use App\Http\Controllers\PwaController;
 use Illuminate\Support\Facades\Route;
+
+// PWA Dynamic Manifest
+Route::get('/manifest.json', [PwaController::class, 'manifest'])->name('pwa.manifest');
+
 
 /*
 |--------------------------------------------------------------------------

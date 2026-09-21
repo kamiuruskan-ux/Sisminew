@@ -273,8 +273,8 @@ class AttendanceSessionService
         }
 
         return [
-            'status' => 'very_late',
-            'status_label' => "Sangat Terlambat ({$delayMinutes} mnt)",
+            'status' => 'late',
+            'status_label' => "Terlambat ({$delayMinutes} mnt)",
             'delay_minutes' => $delayMinutes,
         ];
     }

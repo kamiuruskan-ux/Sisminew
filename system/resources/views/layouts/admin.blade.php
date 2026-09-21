@@ -26,6 +26,9 @@
     <link rel="shortcut icon" type="image/png" href="{{ \App\Models\Setting::getFaviconUrl() }}">
     <link rel="apple-touch-icon" href="{{ \App\Models\Setting::getFaviconUrl() }}">
 
+    <!-- PWA Install Support -->
+    @include('components.pwa-install')
+
     <!-- TailwindCSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -1475,6 +1478,16 @@
                     </div>
                 </div>
 
+                <!-- Install App Sidebar Button -->
+                <button type="button" 
+                        onclick="triggerPwaInstall()" 
+                        class="w-full flex items-center justify-center space-x-2 px-3 py-2 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-600 hover:text-white rounded-xl transition-all duration-200 border border-indigo-200 dark:border-indigo-800 font-bold text-xs group shadow-2xs mb-2 cursor-pointer">
+                    <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    <span>Install Aplikasi</span>
+                </button>
+
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
                     <button type="submit" class="w-full flex items-center justify-center space-x-2 px-3 py-2.5 bg-rose-500/10 text-rose-600 dark:text-rose-300 hover:bg-rose-600 hover:text-white rounded-xl transition-all duration-200 border border-rose-500/20 font-bold text-[10px] uppercase tracking-widest group shadow-xs">
@@ -1552,6 +1565,17 @@
                         </svg>
                         <span>Website</span>
                     </a>
+
+                    <!-- Install App Button -->
+                    <button type="button" 
+                            onclick="triggerPwaInstall()" 
+                            class="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-600 hover:text-white text-indigo-700 dark:text-indigo-300 rounded-xl text-xs font-bold transition-all border border-indigo-200 dark:border-indigo-800 shadow-2xs cursor-pointer group" 
+                            title="Pasang aplikasi di HP atau Komputer Anda">
+                        <svg class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                        </svg>
+                        <span class="hidden md:inline">Install App</span>
+                    </button>
 
                     <!-- Notification Dropdown -->
                     <div class="relative" x-data="{ notifOpen: false }" @click.outside="notifOpen = false">

@@ -42,7 +42,9 @@ class TeacherAttendanceController extends Controller
         $teachers = User::with('homeroomClasses')->where(function ($query) use ($employeeRoles) {
             $query->whereHas('roles', function ($q) use ($employeeRoles) {
                 $q->whereIn('slug', $employeeRoles);
-            })->orWhereIn('role', ['guru', 'teacher', 'guru-quran', 'staff', 'tata-usaha', 'kepala-sekolah']);
+            })->orWhere(function ($q) {
+                $q->whereNotNull('jabatan')->where('jabatan', '!=', '');
+            });
         })->orderBy('name')->get();
 
         $selectedTeacherId = $request->input('user_id');
@@ -81,7 +83,9 @@ class TeacherAttendanceController extends Controller
         $teachersQuery = User::with('homeroomClasses')->where(function ($query) use ($employeeRoles) {
             $query->whereHas('roles', function ($q) use ($employeeRoles) {
                 $q->whereIn('slug', $employeeRoles);
-            })->orWhereIn('role', ['guru', 'teacher', 'guru-quran', 'staff', 'tata-usaha', 'kepala-sekolah']);
+            })->orWhere(function ($q) {
+                $q->whereNotNull('jabatan')->where('jabatan', '!=', '');
+            });
         });
 
         if ($search) {
@@ -150,6 +154,12 @@ class TeacherAttendanceController extends Controller
         $schoolAddress = Setting::get('school_address', 'Jl. Gelatik No. 12, Kel. Birobuli Utara, Kec. Palu Selatan, Kota Palu, Sulawesi Tengah');
         $timezoneLabel = Setting::get('school_timezone_label', 'WITA');
 
+        // Self-heal: Pastikan semua data presensi yang sudah check_in tapi berstatus very_late atau absent diperbarui menjadi late
+        TeacherAttendance::where('user_id', $user->id)
+            ->whereNotNull('check_in')
+            ->whereIn('status', ['very_late', 'absent'])
+            ->update(['status' => 'late']);
+
         // Recent personal attendance history (last 14 days)
         $recentAttendances = TeacherAttendance::where('user_id', $user->id)
             ->orderBy('date', 'desc')
@@ -165,7 +175,7 @@ class TeacherAttendanceController extends Controller
             ->get();
 
         $presentCount = $monthAttendances->where('status', 'present')->count();
-        $lateCount = $monthAttendances->where('status', 'late')->count();
+        $lateCount = $monthAttendances->whereIn('status', ['late', 'very_late'])->count();
         $sickCount = $monthAttendances->where('status', 'sick')->count();
         $permissionCount = $monthAttendances->where('status', 'permission')->count();
         $totalRecorded = max(1, $monthAttendances->count());

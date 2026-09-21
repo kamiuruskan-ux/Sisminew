@@ -525,8 +525,10 @@
                             <td class="px-6 py-4">
                                 @if($att->status === 'present')
                                     <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">Tepat Waktu</span>
-                                @elseif($att->status === 'late')
-                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">Terlambat</span>
+                                @elseif($att->status === 'late' || $att->status === 'very_late' || (!empty($att->check_in) && !in_array($att->status, ['sick', 'permission'])))
+                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                                        Terlambat {{ $att->delay_minutes ? "({$att->delay_minutes} mnt)" : '' }}
+                                    </span>
                                 @elseif($att->status === 'sick')
                                     <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">Sakit</span>
                                 @elseif($att->status === 'permission')
