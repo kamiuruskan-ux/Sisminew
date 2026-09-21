@@ -61,6 +61,17 @@ class DashboardController extends Controller
             $defaultTab = 'admin';
         }
 
+        // Calculate KPI for current authenticated employee/teacher
+        $userKpi = null;
+        if (!$user->hasRole('student')) {
+            try {
+                $kpiEngine = app(\App\Services\KpiCalculationEngineService::class);
+                $userKpi = $kpiEngine->calculateEmployeeKpi($user->id, (int)date('Y'), (int)date('n'));
+            } catch (\Throwable $e) {
+                $userKpi = null;
+            }
+        }
+
         // ── 1. Financial Data for Bendahara ──────────────────────────────────
         $currentMonth = now()->month;
         $currentYear = now()->year;
@@ -500,7 +511,8 @@ class DashboardController extends Controller
             'agendas',
             'myEmployeeTasks',
             'pendingEmployeePermitsCount',
-            'recentEmployeePermits'
+            'recentEmployeePermits',
+            'userKpi'
         ));
     }
 }

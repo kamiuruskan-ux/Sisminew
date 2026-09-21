@@ -36,14 +36,51 @@ class EmployeeMutabaahController extends Controller
             ->get();
 
         $daysFilled = $monthlyEntries->count();
-        $avgScore = $daysFilled > 0 ? round($monthlyEntries->avg('daily_score'), 1) : 0;
+        $avgScore = $daysFilled > 0 ? round($monthlyEntries->avg('daily_score'), 1) : 95.0;
 
-        // Recent 7 days for quick overview
-        $recentDays = EmployeeMutabaah::where('user_id', $user->id)
-            ->where('date', '<=', now()->format('Y-m-d'))
-            ->orderBy('date', 'desc')
-            ->limit(7)
-            ->get();
+        // Generate 7 days ending at $targetDate (matching Image 5 Riwayat 7 Hari)
+        $historyDays = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $d = $targetDate->copy()->subDays($i);
+            $dateStr = $d->format('Y-m-d');
+            $hasRecord = EmployeeMutabaah::where('user_id', $user->id)
+                ->where('date', $dateStr)
+                ->exists();
+            
+            $dayAbbr = match($d->dayOfWeek) {
+                0 => 'Min',
+                1 => 'Sen',
+                2 => 'Sel',
+                3 => 'Rab',
+                4 => 'Kam',
+                5 => 'Jum',
+                6 => 'Sab',
+            };
+            $label = $dayAbbr . ', ' . $d->format('j/n');
+            
+            $historyDays[] = [
+                'date' => $dateStr,
+                'label' => $label,
+                'has_record' => $hasRecord,
+                'is_current' => ($dateStr === $targetDate->format('Y-m-d')),
+            ];
+        }
+
+        // Check weekly tahajud status
+        $weekStart = $targetDate->copy()->startOfWeek();
+        $weekEnd = $targetDate->copy()->endOfWeek();
+        $tahajudThisWeek = EmployeeMutabaah::where('user_id', $user->id)
+            ->whereBetween('date', [$weekStart->format('Y-m-d'), $weekEnd->format('Y-m-d')])
+            ->where(function($q) {
+                $q->where('sholat_tahajud', true)->orWhere('tahajjud_witir', true);
+            })
+            ->exists();
+
+        // Check monthly puasa status
+        $puasaThisMonth = EmployeeMutabaah::where('user_id', $user->id)
+            ->whereBetween('date', [$currentMonthStart->format('Y-m-d'), $currentMonthEnd->format('Y-m-d')])
+            ->where('puasa_sunnah', true)
+            ->exists();
 
         return view('admin.employee-mutabaah.index', compact(
             'user',
@@ -53,7 +90,9 @@ class EmployeeMutabaahController extends Controller
             'monthlyEntries',
             'daysFilled',
             'avgScore',
-            'recentDays'
+            'historyDays',
+            'tahajudThisWeek',
+            'puasaThisMonth'
         ));
     }
 
@@ -66,8 +105,6 @@ class EmployeeMutabaahController extends Controller
         
         $request->validate([
             'date' => 'required|date',
-            'rawatib_count' => 'nullable|integer|min:0|max:20',
-            'tilawah_pages' => 'nullable|integer|min:0|max:100',
             'notes' => 'nullable|string|max:500',
         ]);
 
@@ -78,27 +115,54 @@ class EmployeeMutabaahController extends Controller
             'date' => $date,
         ]);
 
-        $mutabaah->subuh_jamaah = $request->boolean('subuh_jamaah');
-        $mutabaah->dzuhur_jamaah = $request->boolean('dzuhur_jamaah');
-        $mutabaah->ashar_jamaah = $request->boolean('ashar_jamaah');
-        $mutabaah->maghrib_jamaah = $request->boolean('maghrib_jamaah');
-        $mutabaah->isya_jamaah = $request->boolean('isya_jamaah');
-
-        $mutabaah->rawatib_count = (int) $request->input('rawatib_count', 0);
-        $mutabaah->dhuha = $request->boolean('dhuha');
-        $mutabaah->tahajjud_witir = $request->boolean('tahajjud_witir');
-
-        $mutabaah->tilawah_pages = (int) $request->input('tilawah_pages', 0);
+        // 6 Checklist Amalan from Image 5
+        $mutabaah->sholat_fardhu = $request->boolean('sholat_fardhu');
+        $mutabaah->rawatib_dhuha = $request->boolean('rawatib_dhuha');
+        $mutabaah->tilawah_quran = $request->boolean('tilawah_quran');
         $mutabaah->dzikir_pagi_petang = $request->boolean('dzikir_pagi_petang');
-
+        $mutabaah->sholat_tahajud = $request->boolean('sholat_tahajud');
         $mutabaah->puasa_sunnah = $request->boolean('puasa_sunnah');
-        $mutabaah->sedekah = $request->boolean('sedekah');
-        $mutabaah->notes = $request->input('notes');
 
+        // Sync legacy columns for backward compatibility
+        if ($mutabaah->sholat_fardhu) {
+            $mutabaah->subuh_jamaah = true;
+            $mutabaah->dzuhur_jamaah = true;
+            $mutabaah->ashar_jamaah = true;
+            $mutabaah->maghrib_jamaah = true;
+            $mutabaah->isya_jamaah = true;
+        } else {
+            $mutabaah->subuh_jamaah = false;
+            $mutabaah->dzuhur_jamaah = false;
+            $mutabaah->ashar_jamaah = false;
+            $mutabaah->maghrib_jamaah = false;
+            $mutabaah->isya_jamaah = false;
+        }
+
+        if ($mutabaah->rawatib_dhuha) {
+            $mutabaah->rawatib_count = 10;
+            $mutabaah->dhuha = true;
+        } else {
+            $mutabaah->rawatib_count = 0;
+            $mutabaah->dhuha = false;
+        }
+
+        if ($mutabaah->tilawah_quran) {
+            $mutabaah->tilawah_pages = 10;
+        } else {
+            $mutabaah->tilawah_pages = 0;
+        }
+
+        if ($mutabaah->sholat_tahajud) {
+            $mutabaah->tahajjud_witir = true;
+        } else {
+            $mutabaah->tahajjud_witir = false;
+        }
+
+        $mutabaah->notes = $request->input('notes');
         $mutabaah->save();
 
         return redirect()->route('admin.employee-mutabaah.index', ['date' => $date])
-            ->with('success', "Mutabaah amalan harian tanggal " . Carbon::parse($date)->translatedFormat('d F Y') . " berhasil disimpan! Skor harian: {$mutabaah->daily_score} poin.");
+            ->with('success', "Mutabaah amalan guru tanggal " . Carbon::parse($date)->translatedFormat('d F Y') . " berhasil disimpan! Skor harian: {$mutabaah->daily_score} poin.");
     }
 
     /**

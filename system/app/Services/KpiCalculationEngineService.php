@@ -349,32 +349,44 @@ class KpiCalculationEngineService
             $teachingAgendaCount = 0;
         }
         $expectedAgendas = max(4, round($effectiveWorkdays * 0.7)); // Est. 70% of days have teaching load
-        $scoreInd25 = round(min(100, ($teachingAgendaCount / $expectedAgendas) * 100), 2);
-        $detailInd25 = "Terekam {$teachingAgendaCount} jurnal pembelajaran aktif bulan ini";
+        $scoreInd25 = $teachingAgendaCount > 0 
+            ? round(min(100, ($teachingAgendaCount / $expectedAgendas) * 100), 2)
+            : 95.0;
+        $detailInd25 = $teachingAgendaCount > 0 
+            ? "Terekam {$teachingAgendaCount} jurnal pembelajaran aktif bulan ini"
+            : "Baseline jurnal pembelajaran standar (95 pts)";
 
-        // Indicator 4.1: Kajian Pekanan Pegawai & Agenda Yayasan
-        $totalStudies = 0;
+        // Indicator 4.1: Kajian Pekanan Pegawai (Laporan Individu)
         $attendedStudies = 0;
         try {
-            $totalStudies = EmployeeStudySession::whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])->count();
-            if ($totalStudies > 0) {
-                $attendedStudies = EmployeeStudyAttendance::where('user_id', $userId)
-                    ->where('status', 'hadir')
-                    ->whereHas('session', function ($q) use ($startDate, $endDate) {
-                        $q->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')]);
-                    })->count();
-                $scoreInd41 = round(min(100, ($attendedStudies / $totalStudies) * 100), 2);
+            // Count individual studies reported by the employee
+            $userKajianCount = EmployeeStudySession::where('created_by', $userId)
+                ->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+                ->count();
+            
+            // Also check attendance table if exists
+            $attendanceCount = EmployeeStudyAttendance::where('user_id', $userId)
+                ->where('status', 'hadir')
+                ->whereHas('session', function ($q) use ($startDate, $endDate) {
+                    $q->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')]);
+                })->count();
+
+            $attendedStudies = max($userKajianCount, $attendanceCount);
+            if ($attendedStudies > 0) {
+                $scoreInd41 = round(min(100, max(95, ($attendedStudies / 4) * 100)), 2);
+                $detailInd41 = "Telah melaporkan {$attendedStudies} kegiatan kajian pekanan mandiri";
             } else {
-                $scoreInd41 = 100;
+                $scoreInd41 = 95.0;
+                $detailInd41 = "Baseline keikutsertaan kajian pekanan standar (95 pts)";
             }
         } catch (\Throwable $e) {
-            $scoreInd41 = 90;
+            $scoreInd41 = 95.0;
+            $detailInd41 = "Baseline keikutsertaan kajian pekanan standar (95 pts)";
         }
-        $detailInd41 = $totalStudies > 0 ? "Hadir {$attendedStudies} dari {$totalStudies} agenda kajian pekanan" : "Seluruh agenda terlaksana baik";
 
         // Indicator 4.2.1: Mutabaah Ibadah Harian Pegawai
         $mutabaahDaysCount = 0;
-        $avgMutabaahScore = 0;
+        $avgMutabaahScore = 95.0;
         try {
             $mutabaahRecords = EmployeeMutabaah::where('user_id', $userId)
                 ->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
@@ -383,13 +395,13 @@ class KpiCalculationEngineService
             if ($mutabaahDaysCount > 0) {
                 $avgMutabaahScore = round($mutabaahRecords->avg('daily_score'), 2);
             } else {
-                $avgMutabaahScore = 80.0; // Baseline fallback if not filled yet
+                $avgMutabaahScore = 95.0; // Default baseline 95
             }
         } catch (\Throwable $e) {
-            $avgMutabaahScore = 80.0;
+            $avgMutabaahScore = 95.0;
         }
         $scoreInd421 = $avgMutabaahScore;
-        $detailInd421 = $mutabaahDaysCount > 0 ? "Rerata amalan harian terisi {$mutabaahDaysCount} hari: {$avgMutabaahScore} poin" : "Rerata amalan yaumiyah standar";
+        $detailInd421 = $mutabaahDaysCount > 0 ? "Rerata amalan harian terisi {$mutabaahDaysCount} hari: {$avgMutabaahScore} poin" : "Baseline amalan yaumiyah standar (95 pts)";
 
         // Load existing saved evaluation if exists
         $existingEval = KpiEvaluation::with('items')->where([
@@ -435,8 +447,8 @@ class KpiCalculationEngineService
             'notes' => $savedItems['1.4']->notes ?? 'Presensi briefing pagi terpadu',
         ];
 
-        // Comp 2 (Pedagogik)
-        $comp2Defaults = ['2.1.1' => 85, '2.1.2' => 84, '2.1.3' => 82, '2.2' => 85, '2.3' => 83, '2.4' => 86];
+        // Comp 2 (Pedagogik) - Default: 95
+        $comp2Defaults = ['2.1.1' => 95, '2.1.2' => 95, '2.1.3' => 95, '2.2' => 95, '2.3' => 95, '2.4' => 95];
         foreach ($comp2Defaults as $code => $defVal) {
             $computedItems[$code] = [
                 'score' => isset($savedItems[$code]) ? (float)$savedItems[$code]->score : $defVal,
@@ -452,8 +464,8 @@ class KpiCalculationEngineService
             'notes' => $savedItems['2.5']->notes ?? 'Ketertiban entri modul agenda mengajar',
         ];
 
-        // Comp 3 (Profesional)
-        $comp3Defaults = ['3.1' => 82, '3.2' => 85, '3.3' => 80, '3.4' => 80, '3.5' => 85];
+        // Comp 3 (Profesional) - Default: 95
+        $comp3Defaults = ['3.1' => 95, '3.2' => 95, '3.3' => 95, '3.4' => 95, '3.5' => 95];
         foreach ($comp3Defaults as $code => $defVal) {
             $computedItems[$code] = [
                 'score' => isset($savedItems[$code]) ? (float)$savedItems[$code]->score : $defVal,
@@ -463,12 +475,12 @@ class KpiCalculationEngineService
             ];
         }
 
-        // Comp 4 (Kepribadian & Tarbiyah)
+        // Comp 4 (Kepribadian & Tarbiyah) - Default: 95
         $computedItems['4.1'] = [
             'score' => $scoreInd41,
             'source_type' => 'auto',
             'source_detail' => $detailInd41,
-            'notes' => $savedItems['4.1']->notes ?? 'Presensi kehadiran kajian pekanan pegawai',
+            'notes' => $savedItems['4.1']->notes ?? 'Laporan kajian pekanan pegawai mandiri',
         ];
         $computedItems['4.2.1'] = [
             'score' => $scoreInd421,
@@ -477,20 +489,20 @@ class KpiCalculationEngineService
             'notes' => $savedItems['4.2.1']->notes ?? 'Jurnal mutabaah amalan yaumiyah',
         ];
         $computedItems['4.2.2'] = [
-            'score' => isset($savedItems['4.2.2']) ? (float)$savedItems['4.2.2']->score : 86,
+            'score' => isset($savedItems['4.2.2']) ? (float)$savedItems['4.2.2']->score : 95,
             'source_type' => 'hybrid',
             'source_detail' => 'Penilaian Halaqah Quran & Tahsin Guru',
             'notes' => $savedItems['4.2.2']->notes ?? 'Halaqah Qur\'an guru pekanan',
         ];
         $computedItems['4.2.3'] = [
-            'score' => isset($savedItems['4.2.3']) ? (float)$savedItems['4.2.3']->score : 88,
+            'score' => isset($savedItems['4.2.3']) ? (float)$savedItems['4.2.3']->score : 95,
             'source_type' => 'hybrid',
             'source_detail' => 'Survei Karakter Guru dari Siswa/Wali',
             'notes' => $savedItems['4.2.3']->notes ?? 'Keteladanan adab & akhlak terpuji',
         ];
 
-        // Comp 5 (Sosial & Kolaborasi)
-        $comp5Defaults = ['5.1' => 86, '5.2' => 88, '5.3' => 85];
+        // Comp 5 (Sosial & Kolaborasi) - Default: 95
+        $comp5Defaults = ['5.1' => 95, '5.2' => 95, '5.3' => 95];
         foreach ($comp5Defaults as $code => $defVal) {
             $computedItems[$code] = [
                 'score' => isset($savedItems[$code]) ? (float)$savedItems[$code]->score : $defVal,
@@ -538,12 +550,14 @@ class KpiCalculationEngineService
 
         // Determine Predicate
         $predicate = $this->determinePredicate($rawFinalScore);
+        $predicateLabel = $this->getPredicateLabel($predicate);
         $isCapped = false;
 
         // Gate Rule: If attendance < 85%, capped at max 'C'
         if (!$gatePassed) {
             if (in_array($predicate, ['A', 'B'])) {
                 $predicate = 'C';
+                $predicateLabel = $this->getPredicateLabel('C');
                 $isCapped = true;
             }
         }
@@ -566,6 +580,7 @@ class KpiCalculationEngineService
             'score_comp_5' => $comp5Score,
             'final_score' => $rawFinalScore,
             'predicate' => $predicate,
+            'predicate_label' => $predicateLabel,
             'weights' => [
                 'comp_1' => $w1,
                 'comp_2' => $w2,
@@ -594,5 +609,19 @@ class KpiCalculationEngineService
         } else {
             return 'D';
         }
+    }
+
+    /**
+     * Map Letter Predicate to Human Readable Description
+     */
+    public function getPredicateLabel(string $predicate): string
+    {
+        return match ($predicate) {
+            'A' => 'Mumtaz / Sangat Baik',
+            'B' => 'Jayyid / Baik',
+            'C' => 'Maqbul / Cukup',
+            'D' => 'Dhaif / Kurang',
+            default => 'Cukup',
+        };
     }
 }

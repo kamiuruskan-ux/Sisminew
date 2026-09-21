@@ -273,7 +273,7 @@
                 <span style="font-size: 7pt; text-transform: uppercase; font-weight: 700; color: #cbd5e1;">Skor Akhir KPI</span>
                 <div class="big-num">{{ $kpi['final_score'] }}</div>
                 <div class="pred-badge">PREDIKAT {{ $kpi['predicate'] }}</div>
-                <span style="font-size: 6.5pt; margin-top: 2px; color: #94a3b8;">{{ $kpi['predicate_label'] }}</span>
+                <span style="font-size: 6.5pt; margin-top: 2px; color: #94a3b8;">{{ $kpi['predicate_label'] ?? 'Cukup' }}</span>
             </div>
             <div class="summary-pillars">
                 <div class="pillar-card">

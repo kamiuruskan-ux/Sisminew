@@ -26,6 +26,26 @@ class KpiController extends Controller
     }
 
     /**
+     * Check if authenticated user is supervisor/admin who can view & evaluate all teachers
+     */
+    protected function isSupervisor(): bool
+    {
+        $user = auth()->user();
+        if (!$user) return false;
+
+        return $user->hasRole([
+            'super-admin', 
+            'admin', 
+            'operator', 
+            'kepala-sekolah', 
+            'wakasek-kurikulum', 
+            'wakasek-kesiswaan', 
+            'wakasek-kehumasan',
+            'yayasan'
+        ]);
+    }
+
+    /**
      * Dashboard KPI Guru & Pegawai
      */
     public function index(Request $request)
@@ -34,6 +54,17 @@ class KpiController extends Controller
         $month = (int) $request->input('month', date('n'));
         $search = trim($request->input('search', ''));
         $roleFilter = $request->input('role', '');
+
+        $authUser = auth()->user();
+
+        // Access Control: Only teachers can see their own KPI, supervisors can see all
+        if (!$this->isSupervisor()) {
+            return redirect()->route('admin.kpi.raport', [
+                'userId' => $authUser->id,
+                'year' => $year,
+                'month' => $month,
+            ]);
+        }
 
         // Fetch teachers and staff members
         $employeeRoles = ['guru', 'teacher', 'guru-quran', 'admin', 'operator', 'tata-usaha', 'staff', 'kepala-sekolah', 'wakasek-kesiswaan', 'wakasek-kurikulum', 'wakasek-kehumasan', 'bendahara', 'guru-bk'];
@@ -135,6 +166,10 @@ class KpiController extends Controller
      */
     public function getEvaluationData($userId, Request $request)
     {
+        if (!$this->isSupervisor()) {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak: Hanya untuk pimpinan/evaluator.'], 403);
+        }
+
         $year = (int) $request->input('year', date('Y'));
         $month = (int) $request->input('month', date('n'));
         $user = User::findOrFail($userId);
@@ -161,6 +196,10 @@ class KpiController extends Controller
      */
     public function saveEvaluation(Request $request)
     {
+        if (!$this->isSupervisor()) {
+            return response()->json(['success' => false, 'message' => 'Akses evaluasi hanya untuk pimpinan/kepala sekolah.'], 403);
+        }
+
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'period_year' => 'required|integer',
@@ -203,7 +242,7 @@ class KpiController extends Controller
                 foreach ($compDef['indicators'] as $indCode => $indDef) {
                     $score = isset($submittedItems[$indCode]['score']) 
                         ? (float) $submittedItems[$indCode]['score']
-                        : (float) ($calculated['items'][$indCode]['score'] ?? 80);
+                        : (float) ($calculated['items'][$indCode]['score'] ?? 95);
                     
                     $score = max(0, min(100, $score));
                     $notes = $submittedItems[$indCode]['notes'] ?? ($calculated['items'][$indCode]['notes'] ?? null);
@@ -272,6 +311,10 @@ class KpiController extends Controller
      */
     public function updateSettings(Request $request)
     {
+        if (!$this->isSupervisor()) {
+            abort(403, 'Akses konfigurasi KPI hanya untuk Administrator.');
+        }
+
         $request->validate([
             'weight_comp_1' => 'required|numeric|min:0|max:100',
             'weight_comp_2' => 'required|numeric|min:0|max:100',
@@ -298,6 +341,11 @@ class KpiController extends Controller
      */
     public function showRaport($userId, Request $request)
     {
+        $authUser = auth()->user();
+        if (!$this->isSupervisor() && (int)$userId !== (int)$authUser->id) {
+            abort(403, 'Akses Ditolak: Anda hanya berhak melihat Rapor KPI Anda sendiri.');
+        }
+
         $year = (int) $request->input('year', date('Y'));
         $month = (int) $request->input('month', date('n'));
         $user = User::with('roles')->findOrFail($userId);
@@ -314,6 +362,11 @@ class KpiController extends Controller
      */
     public function printRaport($userId, Request $request)
     {
+        $authUser = auth()->user();
+        if (!$this->isSupervisor() && (int)$userId !== (int)$authUser->id) {
+            abort(403, 'Akses Ditolak: Anda hanya berhak mencetak Rapor KPI Anda sendiri.');
+        }
+
         $year = (int) $request->input('year', date('Y'));
         $month = (int) $request->input('month', date('n'));
         $user = User::with('roles')->findOrFail($userId);
@@ -336,6 +389,9 @@ class KpiController extends Controller
      */
     public function exportExcel(Request $request)
     {
+        if (!$this->isSupervisor()) {
+            abort(403, 'Akses Ditolak: Ekspor data KPI seluruh guru hanya untuk pimpinan/evaluator.');
+        }
         $year = (int) $request->input('year', date('Y'));
         $month = (int) $request->input('month', date('n'));
 

@@ -75,7 +75,7 @@
                             };
                         @endphp
                         <span class="inline-block px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider {{ $badgeStyle }}">
-                            Predikat {{ $kpi['predicate'] }} ({{ $kpi['predicate_label'] }})
+                            Predikat {{ $kpi['predicate'] }} ({{ $kpi['predicate_label'] ?? 'Cukup' }})
                         </span>
                     </div>
                 </div>

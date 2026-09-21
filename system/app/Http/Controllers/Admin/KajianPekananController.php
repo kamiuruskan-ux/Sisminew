@@ -16,14 +16,45 @@ use Illuminate\Support\Facades\File;
 class KajianPekananController extends Controller
 {
     /**
+     * Check if user is supervisor / admin
+     */
+    protected function isSupervisor(): bool
+    {
+        $user = auth()->user();
+        if (!$user) return false;
+
+        return $user->hasRole([
+            'super-admin', 
+            'admin', 
+            'operator', 
+            'kepala-sekolah', 
+            'wakasek-kurikulum', 
+            'wakasek-kesiswaan', 
+            'wakasek-kehumasan',
+            'yayasan'
+        ]);
+    }
+
+    /**
      * Tampilkan daftar kegiatan kajian pekanan pegawai
+     * Laporan Individu Pegawai (Self-Service)
      */
     public function index(Request $request)
     {
+        $user = auth()->user();
+        $isSupervisor = $this->isSupervisor();
         $search = $request->input('search');
         $month = $request->input('month');
+        $teacherFilter = $request->input('teacher_id');
 
         $query = EmployeeStudySession::with(['creator', 'attendances.user'])
+            ->when(!$isSupervisor, function ($q) use ($user) {
+                // Regular employees only see their own reported kajian
+                $q->where('created_by', $user->id);
+            })
+            ->when($isSupervisor && $teacherFilter, function ($q) use ($teacherFilter) {
+                $q->where('created_by', $teacherFilter);
+            })
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($sub) use ($search) {
                     $sub->where('title', 'like', "%{$search}%")
@@ -38,20 +69,48 @@ class KajianPekananController extends Controller
             })
             ->orderBy('date', 'desc');
 
-        $sessions = $query->paginate(10)->withQueryString();
+        $sessions = $query->paginate(12)->withQueryString();
 
-        // Statistik Keseluruhan
-        $totalSessions = EmployeeStudySession::count();
-        $totalAttendancesRecorded = EmployeeStudyAttendance::where('status', 'hadir')->count();
-        $totalEmployees = User::whereDoesntHave('roles', function ($q) {
-            $q->where('slug', 'student');
-        })->count();
+        // Statistik
+        $currentMonthStart = now()->startOfMonth();
+        $currentMonthEnd = now()->endOfMonth();
 
-        return view('admin.kajian-pekanan.index', compact('sessions', 'totalSessions', 'totalAttendancesRecorded', 'totalEmployees', 'search', 'month'));
+        if ($isSupervisor) {
+            $totalSessions = EmployeeStudySession::count();
+            $monthSessions = EmployeeStudySession::whereBetween('date', [$currentMonthStart, $currentMonthEnd])->count();
+            $totalEmployees = User::whereDoesntHave('roles', function ($q) {
+                $q->where('slug', 'student');
+            })->count();
+            $teachers = User::whereDoesntHave('roles', function ($q) {
+                $q->where('slug', 'student');
+            })->orderBy('name')->get();
+        } else {
+            $totalSessions = EmployeeStudySession::where('created_by', $user->id)->count();
+            $monthSessions = EmployeeStudySession::where('created_by', $user->id)
+                ->whereBetween('date', [$currentMonthStart, $currentMonthEnd])
+                ->count();
+            $totalEmployees = 1;
+            $teachers = collect([$user]);
+        }
+
+        $totalAttendancesRecorded = $totalSessions;
+
+        return view('admin.kajian-pekanan.index', compact(
+            'sessions', 
+            'totalSessions', 
+            'monthSessions',
+            'totalAttendancesRecorded', 
+            'totalEmployees', 
+            'teachers',
+            'isSupervisor',
+            'teacherFilter',
+            'search', 
+            'month'
+        ));
     }
 
     /**
-     * Simpan data sesi kajian pekanan baru
+     * Simpan data laporan kajian pekanan individu pegawai
      */
     public function store(Request $request)
     {
@@ -86,26 +145,20 @@ class KajianPekananController extends Controller
             'created_by' => Auth::id(),
         ]);
 
-        // Otomatis inisialisasi presensi untuk semua pegawai jika belum ada
-        $employees = User::whereDoesntHave('roles', function ($q) {
-            $q->where('slug', 'student');
-        })->get();
+        // Laporan individu: hanya catat kehadiran diri sendiri (tidak checkin guru lain)
+        EmployeeStudyAttendance::firstOrCreate(
+            [
+                'session_id' => $session->id,
+                'user_id' => Auth::id(),
+            ],
+            [
+                'status' => 'hadir',
+                'notes' => 'Laporan mandiri keikutsertaan kajian pekanan',
+            ]
+        );
 
-        foreach ($employees as $emp) {
-            EmployeeStudyAttendance::firstOrCreate(
-                [
-                    'session_id' => $session->id,
-                    'user_id' => $emp->id,
-                ],
-                [
-                    'status' => 'hadir', // Default hadir untuk kemudahan penginputan
-                    'notes' => null,
-                ]
-            );
-        }
-
-        return redirect()->route('admin.kajian-pekanan.show', $session->id)
-            ->with('success', 'Kegiatan kajian pekanan berhasil dijadwalkan! Silakan sesuaikan daftar kehadiran pegawai.');
+        return redirect()->route('admin.kajian-pekanan.index')
+            ->with('success', 'Laporan kegiatan kajian pekanan Anda berhasil disimpan dan diintegrasikan ke nilai KPI Pilar 4!');
     }
 
     /**
@@ -116,35 +169,30 @@ class KajianPekananController extends Controller
         $session = $kajian_pekanan;
         $session->load('creator');
 
-        // Pastikan semua pegawai memiliki baris presensi untuk sesi ini
-        $employees = User::with('roles')->whereDoesntHave('roles', function ($q) {
-            $q->where('slug', 'student');
-        })->orderBy('name', 'asc')->get();
-
-        $existingAttendances = EmployeeStudyAttendance::where('session_id', $session->id)
-            ->get()
-            ->keyBy('user_id');
-
-        // Inisialisasi jika ada pegawai baru yang belum ada di daftar sesi
-        foreach ($employees as $emp) {
-            if (!$existingAttendances->has($emp->id)) {
-                $newAtt = EmployeeStudyAttendance::create([
-                    'session_id' => $session->id,
-                    'user_id' => $emp->id,
-                    'status' => 'hadir',
-                    'notes' => null,
-                ]);
-                $existingAttendances->put($emp->id, $newAtt);
-            }
+        $user = auth()->user();
+        if (!$this->isSupervisor() && $session->created_by != $user->id) {
+            abort(403, 'Anda hanya dapat melihat laporan kajian pekanan yang Anda laporkan sendiri.');
         }
 
+        // Laporan individu: hanya tampilkan data presensi pelapor / sesi ini
+        $attendances = EmployeeStudyAttendance::with('user.roles')
+            ->where('session_id', $session->id)
+            ->get();
+
+        $employees = $attendances->map(fn($att) => $att->user)->filter();
+        if ($employees->isEmpty() && $session->creator) {
+            $employees = collect([$session->creator]);
+        }
+
+        $existingAttendances = $attendances->keyBy('user_id');
+
         // Summary counts
-        $hadirCount = $session->hadir_count;
-        $izinCount = $session->izin_count;
-        $sakitCount = $session->sakit_count;
-        $alpaCount = $session->alpa_count;
-        $totalCount = $employees->count();
-        $persentase = $totalCount > 0 ? round(($hadirCount / $totalCount) * 100, 1) : 0;
+        $hadirCount = $attendances->where('status', 'hadir')->count();
+        $izinCount = $attendances->where('status', 'izin')->count();
+        $sakitCount = $attendances->where('status', 'sakit')->count();
+        $alpaCount = $attendances->where('status', 'alpa')->count();
+        $totalCount = max(1, $attendances->count());
+        $persentase = round(($hadirCount / $totalCount) * 100, 1);
 
         return view('admin.kajian-pekanan.show', compact(
             'session', 'employees', 'existingAttendances',

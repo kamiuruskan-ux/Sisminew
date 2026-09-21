@@ -9,6 +9,9 @@
     <!-- TailAdmin Unified Global Adaptive Hero Banner -->
     @include('components.dashboard.hero-banner')
 
+    <!-- KPI Score Card Pegawai -->
+    @include('components.dashboard.kpi-scorecard')
+
     <!-- ═════════════════════════════════════════════════════════════════════ -->
     <!-- DASHBOARD VIEW AUTO INCLUSION BASED ON ASSIGNED ROLE -->
     <!-- ═════════════════════════════════════════════════════════════════════ -->
