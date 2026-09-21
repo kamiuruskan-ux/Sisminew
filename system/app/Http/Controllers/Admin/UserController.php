@@ -320,7 +320,9 @@ class UserController extends Controller
         
         // Detach classes
         ClassModel::where('homeroom_teacher_id', $user->id)->update(['homeroom_teacher_id' => null]);
-        ClassModel::where('quran_teacher_id', $user->id)->update(['quran_teacher_id' => null]);
+        if (\Illuminate\Support\Facades\Schema::hasColumn('classes', 'quran_teacher_id')) {
+            ClassModel::where('quran_teacher_id', $user->id)->update(['quran_teacher_id' => null]);
+        }
 
         // Delete avatar
         if ($user->avatar) {
@@ -366,7 +368,9 @@ class UserController extends Controller
 
             // Lepas penugasan kelas binaan
             ClassModel::where('homeroom_teacher_id', $user->id)->update(['homeroom_teacher_id' => null]);
-            ClassModel::where('quran_teacher_id', $user->id)->update(['quran_teacher_id' => null]);
+            if (\Illuminate\Support\Facades\Schema::hasColumn('classes', 'quran_teacher_id')) {
+                ClassModel::where('quran_teacher_id', $user->id)->update(['quran_teacher_id' => null]);
+            }
 
             // Hapus avatar jika ada
             if ($user->avatar) {
