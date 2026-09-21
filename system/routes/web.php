@@ -492,6 +492,8 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::post('halaqah/store-mass', [\App\Http\Controllers\Admin\HalaqahController::class, 'storeMass'])->name('halaqah.store-mass');
         Route::delete('halaqah/{id}', [\App\Http\Controllers\Admin\HalaqahController::class, 'destroy'])->name('halaqah.destroy');
         Route::get('halaqah/export-excel', [\App\Http\Controllers\Admin\HalaqahController::class, 'exportExcel'])->name('halaqah.export-excel');
+        Route::get('halaqah/group-students', [\App\Http\Controllers\Admin\HalaqahController::class, 'getGroupStudents'])->name('halaqah.group-students');
+        Route::post('halaqah/save-group', [\App\Http\Controllers\Admin\HalaqahController::class, 'saveGroup'])->name('halaqah.save-group');
 
         // Modul E-Raport Khusus Pembelajaran Al-Qur'an (Terpisah Sendiri)
         Route::get('quran-raport', [\App\Http\Controllers\Admin\QuranRaportController::class, 'index'])->name('quran-raport.index');

@@ -138,6 +138,11 @@ class Student extends Model
         return $this->hasMany(HalaqahRecord::class, 'student_id')->latest('assessment_date');
     }
 
+    public function halaqahMember(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(QuranHalaqahMember::class, 'student_id');
+    }
+
 
     public function getAttendancePercentageAttribute(): ?float
     {

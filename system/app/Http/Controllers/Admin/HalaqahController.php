@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
 use App\Models\ClassModel;
 use App\Models\HalaqahRecord;
+use App\Models\QuranHalaqahMember;
 use App\Models\Student;
 use App\Models\User;
 use Carbon\Carbon;
@@ -19,7 +20,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 class HalaqahController extends Controller
 {
     /**
-     * Pastikan tabel halaqah_records sudah dibuat jika migrasi belum dijalankan via CLI
+     * Pastikan tabel halaqah_records dan quran_halaqah_members sudah dibuat jika migrasi belum dijalankan via CLI
      */
     public function __construct()
     {
@@ -58,79 +59,175 @@ class HalaqahController extends Controller
                     $table->index(['class_id', 'assessment_date']);
                 });
             }
+
+            if (!Schema::hasTable('quran_halaqah_members')) {
+                Schema::create('quran_halaqah_members', function ($table) {
+                    $table->id();
+                    $table->unsignedBigInteger('teacher_id');
+                    $table->unsignedBigInteger('student_id');
+                    $table->unsignedBigInteger('academic_year_id')->nullable();
+                    $table->integer('grade')->nullable();
+                    $table->string('group_name', 100)->nullable();
+                    $table->timestamps();
+
+                    $table->index(['teacher_id', 'grade']);
+                    $table->index('student_id');
+                    $table->index('grade');
+                });
+            }
         } catch (\Throwable $e) {
             // Abaikan jika tabel sudah terbuat
         }
     }
 
     /**
-     * Dapatkan daftar ID kelas yang boleh diakses user saat ini.
-     * Jika role guru-quran: hanya kelas yang ditugaskan di quran_teacher_classes.
-     * Jika super-admin/admin: return null (seluruh kelas).
+     * Dapatkan daftar seluruh tingkat kelas aktif yang ada di sekolah (misal: 1, 2, 3, 4, 5, 6)
      */
-    private function getAllowedClassIds(): ?array
+    public function getAvailableGrades(): array
     {
-        $user = Auth::user();
-        if (!$user) return [];
+        try {
+            $allClasses = ClassModel::where('is_active', true)->get();
+            $grades = $allClasses->map(function ($c) {
+                if (!empty($c->grade) && is_numeric($c->grade)) {
+                    return (int) $c->grade;
+                }
+                if (preg_match('/^(\d+)/', trim($c->name), $matches)) {
+                    return (int) $matches[1];
+                }
+                return null;
+            })->filter()->unique()->sort()->values()->toArray();
 
-        return $user->getAssignedClassIds();
+            return !empty($grades) ? $grades : [1, 2, 3, 4, 5, 6];
+        } catch (\Throwable $e) {
+            return [1, 2, 3, 4, 5, 6];
+        }
     }
 
     /**
-     * Halaman Utama Halaqah (Tab Input Evaluasi, Tab Laporan & Grafik, Tab Rekap Kehadiran)
+     * Dapatkan ID seluruh rombel kelas untuk tingkat kelas tertentu
+     */
+    public function getClassIdsByGrade(int $grade): array
+    {
+        try {
+            return ClassModel::where(function ($q) use ($grade) {
+                $q->where('grade', $grade)
+                  ->orWhere('name', 'like', "{$grade} %")
+                  ->orWhere('name', 'like', "Kelas {$grade}%")
+                  ->orWhere('name', 'like', "{$grade}-%")
+                  ->orWhere('name', 'like', "{$grade}.%");
+            })->pluck('id')->toArray();
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Halaman Utama Halaqah Al-Qur'an (Tahsin & Tahfidz Eksklusif Berbasis Tingkat Kelas & Kelompok)
      */
     public function index(Request $request)
     {
         $user = Auth::user();
-        if (!$user || !$user->hasRole(['super-admin', 'admin', 'kepala-sekolah', 'guru-quran'])) {
-            abort(403, 'Akses menu Halaqah Al-Qur\'an hanya terkhusus untuk Guru Al-Qur\'an dan Pimpinan Sekolah.');
+        if (!$user || !$user->hasRole(['super-admin', 'admin', 'kepala-sekolah', 'guru-quran', 'guru', 'teacher'])) {
+            abort(403, 'Akses menu Halaqah Al-Qur\'an hanya terkhusus untuk Guru Al-Qur\'an dan Manajemen Sekolah.');
         }
 
-        $allowedClassIds = $this->getAllowedClassIds();
+        $isAdmin = $user->hasRole(['super-admin', 'admin', 'kepala-sekolah']);
+        
+        // Daftar Guru Al-Qur'an (untuk dropdown Admin / selector kelompok)
+        $quranTeachers = User::where(function ($q) {
+            $q->whereHas('roles', function ($rq) {
+                $rq->whereIn('slug', ['guru-quran', 'guru_quran', 'guru', 'teacher']);
+            })->orWhereIn('role', ['guru-quran', 'guru_quran', 'guru', 'teacher']);
+        })->orderBy('name', 'asc')->get();
 
-        $classesQuery = ClassModel::withCount('students')->orderBy('name', 'asc');
-        if ($allowedClassIds !== null) {
-            $classesQuery->whereIn('id', $allowedClassIds);
+        // Tentukan Guru Pembimbing aktif
+        $activeTeacherId = $user->id;
+        if ($isAdmin && $request->filled('teacher_id')) {
+            $activeTeacherId = (int) $request->teacher_id;
         }
-        $classes = $classesQuery->get();
+
+        $activeTeacher = User::find($activeTeacherId) ?? $user;
+
+        // Daftar Tingkat Kelas yang tersedia
+        $availableGrades = $this->getAvailableGrades();
+
+        // Tentukan Tingkat Kelas terpilih
+        $selectedGrade = $request->get('grade');
+        if (!$selectedGrade && $request->filled('class_id')) {
+            // Backward-compatibility: jika ada parameter class_id lama
+            $cls = ClassModel::find($request->class_id);
+            if ($cls) {
+                $selectedGrade = !empty($cls->grade) ? (int)$cls->grade : (preg_match('/^(\d+)/', $cls->name, $m) ? (int)$m[1] : null);
+            }
+        }
+
+        if (!$selectedGrade) {
+            // Prioritaskan tingkat kelas yang sudah memiliki santri di kelompok guru ini
+            $firstAssignedGrade = QuranHalaqahMember::where('teacher_id', $activeTeacherId)
+                ->whereIn('grade', $availableGrades)
+                ->value('grade');
+            $selectedGrade = $firstAssignedGrade ?: ($availableGrades[0] ?? 1);
+        }
+        $selectedGrade = (int) $selectedGrade;
+
+        // Hitung jumlah santri halaqah per tingkat kelas untuk guru aktif
+        $gradeCounts = [];
+        foreach ($availableGrades as $g) {
+            $gradeClassIds = $this->getClassIdsByGrade($g);
+            $count = QuranHalaqahMember::where('teacher_id', $activeTeacherId)
+                ->where(function ($q) use ($g, $gradeClassIds) {
+                    $q->where('grade', $g)
+                      ->orWhereHas('student', function ($sq) use ($gradeClassIds) {
+                          $sq->whereIn('class_id', $gradeClassIds);
+                      });
+                })->count();
+            $gradeCounts[$g] = $count;
+        }
 
         $academicYears = AcademicYear::orderBy('start_year', 'desc')->get();
         $activeAcademicYear = AcademicYear::getActive() ?? $academicYears->first();
         
-        $selectedClassId = $request->get('class_id');
-        if (!$selectedClassId && $allowedClassIds !== null && count($allowedClassIds) > 0) {
-            $selectedClassId = $classes->first()?->id;
-        }
-
-        if ($selectedClassId && $allowedClassIds !== null && !in_array($selectedClassId, $allowedClassIds)) {
-            $selectedClassId = $classes->first()?->id;
-        }
-
         $selectedDate = $request->get('date', Carbon::today()->format('Y-m-d'));
         $tab = $request->get('tab', 'input'); // 'input', 'reports', 'attendance'
         $mode = $request->get('mode', 'individual'); // 'individual', 'mass'
 
-        // Data Santri jika kelas dipilih
+        // Ambil santri yang HANYA terdaftar di kelompok halaqah guru ini pada tingkat kelas terpilih
+        $selectedGradeClassIds = $this->getClassIdsByGrade($selectedGrade);
+        
+        $halaqahStudentIds = QuranHalaqahMember::where('teacher_id', $activeTeacherId)
+            ->where(function ($q) use ($selectedGrade, $selectedGradeClassIds) {
+                $q->where('grade', $selectedGrade)
+                  ->orWhereHas('student', function ($sq) use ($selectedGradeClassIds) {
+                      $sq->whereIn('class_id', $selectedGradeClassIds);
+                  });
+            })
+            ->pluck('student_id')
+            ->toArray();
+
+        // Jika santri ditemukan, ambil data Student lengkap beserta user dan kelas rombelnya
         $students = [];
-        if ($selectedClassId) {
-            $students = Student::with('user')
-                ->where('class_id', $selectedClassId)
+        if (!empty($halaqahStudentIds)) {
+            $students = Student::with(['user', 'class'])
+                ->whereIn('id', $halaqahStudentIds)
                 ->orderBy('nisn', 'asc')
                 ->get();
         }
 
-        // Catatan Riwayat Pembelajaran (Sebelah kanan tampilan individu)
+        // Catatan Riwayat Pembelajaran (Halaqah Records)
         $historyQuery = HalaqahRecord::with(['student.user', 'class', 'teacher'])
             ->latest('assessment_date')
             ->latest('id');
 
-        if ($allowedClassIds !== null) {
-            $historyQuery->whereIn('class_id', $allowedClassIds);
+        // Filter riwayat berdasarkan guru (kecuali admin memilih 'all')
+        if (!$isAdmin || $request->filled('teacher_id')) {
+            $historyQuery->where('teacher_id', $activeTeacherId);
         }
 
-        if ($selectedClassId) {
-            $historyQuery->where('class_id', $selectedClassId);
+        // Filter riwayat berdasarkan tingkat kelas terpilih
+        if (!empty($selectedGradeClassIds)) {
+            $historyQuery->whereIn('class_id', $selectedGradeClassIds);
         }
+
         if ($request->filled('filter_student_id')) {
             $historyQuery->where('student_id', $request->filter_student_id);
         }
@@ -139,20 +236,18 @@ class HalaqahController extends Controller
         }
 
         $records = $historyQuery->paginate(15)->withQueryString();
-        $totalRecordsCount = $allowedClassIds !== null 
-            ? HalaqahRecord::whereIn('class_id', $allowedClassIds)->count()
-            : HalaqahRecord::count();
+        $totalRecordsCount = (clone $historyQuery)->count();
 
         // ── Data Agregasi untuk Tab 2: Laporan & Grafik Statistik ──
         $month = $request->get('month', Carbon::now()->month);
         $year = $request->get('year', Carbon::now()->year);
 
         $statsQuery = HalaqahRecord::query();
-        if ($allowedClassIds !== null) {
-            $statsQuery->whereIn('class_id', $allowedClassIds);
+        if (!$isAdmin || $request->filled('teacher_id')) {
+            $statsQuery->where('teacher_id', $activeTeacherId);
         }
-        if ($selectedClassId) {
-            $statsQuery->where('class_id', $selectedClassId);
+        if (!empty($selectedGradeClassIds)) {
+            $statsQuery->whereIn('class_id', $selectedGradeClassIds);
         }
         if ($request->filled('filter_student_id')) {
             $statsQuery->where('student_id', $request->filter_student_id);
@@ -183,7 +278,7 @@ class HalaqahController extends Controller
             $jilidStats[$jld] = (clone $statsQuery)->where('program_type', 'tahsin')->where('jilid_level', $jld)->count();
         }
 
-        // Sebaran Juz Tahfidz (30, 29, 1, 2, Lainnya)
+        // Sebaran Juz Tahfidz
         $juzStats = [
             'Juz 30' => (clone $statsQuery)->where('program_type', 'tahfidz')->where('juz_number', 30)->count(),
             'Juz 29' => (clone $statsQuery)->where('program_type', 'tahfidz')->where('juz_number', 29)->count(),
@@ -202,11 +297,20 @@ class HalaqahController extends Controller
 
         $surahOptions = \App\Helpers\QuranHelper::getDropdownOptions();
 
+        // Rombel kelas untuk tingkat yang dipilih (untuk filter asal kelas pada modal kelompok)
+        $classesInSelectedGrade = ClassModel::whereIn('id', $selectedGradeClassIds)->orderBy('name', 'asc')->get();
+
         return view('admin.halaqah.index', compact(
-            'classes',
+            'availableGrades',
+            'selectedGrade',
+            'gradeCounts',
+            'quranTeachers',
+            'activeTeacherId',
+            'activeTeacher',
+            'isAdmin',
+            'classesInSelectedGrade',
             'academicYears',
             'activeAcademicYear',
-            'selectedClassId',
             'selectedDate',
             'tab',
             'mode',
@@ -228,7 +332,7 @@ class HalaqahController extends Controller
     }
 
     /**
-     * Simpan Penilaian Individu
+     * Simpan Penilaian Individu Santri
      */
     public function storeIndividual(Request $request)
     {
@@ -240,16 +344,9 @@ class HalaqahController extends Controller
             'score_adab' => 'nullable|numeric|min:0|max:100',
         ]);
 
-        $student = Student::findOrFail($request->student_id);
-
-        $allowedClassIds = $this->getAllowedClassIds();
-        if ($allowedClassIds !== null && !in_array($student->class_id, $allowedClassIds)) {
-            return redirect()->route('admin.halaqah.index')
-                ->with('error', 'Akses ditolak: Anda hanya dapat menginput santri pada kelas yang ditugaskan kepada Anda.');
-        }
+        $student = Student::with('class')->findOrFail($request->student_id);
 
         $activeYear = AcademicYear::getActive();
-
         $cognitive = (float) $request->score_cognitive;
         $adab = (float) ($request->score_adab ?? 85);
         $predicate = HalaqahRecord::calculatePredicate($cognitive);
@@ -276,8 +373,11 @@ class HalaqahController extends Controller
             'teacher_notes' => $request->teacher_notes,
         ]);
 
+        // Dapatkan tingkat kelas santri untuk redirect
+        $studentGrade = $student->class?->grade ?: (preg_match('/^(\d+)/', $student->class?->name ?? '', $m) ? (int)$m[1] : 1);
+
         return redirect()->route('admin.halaqah.index', [
-            'class_id' => $student->class_id,
+            'grade' => $request->get('grade', $studentGrade),
             'date' => $request->assessment_date,
             'tab' => 'input',
             'mode' => 'individual'
@@ -285,43 +385,36 @@ class HalaqahController extends Controller
     }
 
     /**
-     * Simpan Penilaian Massal Sekelas Sekaligus
+     * Simpan Penilaian Massal Seluruh Santri di Kelompok Halaqah
      */
     public function storeMass(Request $request)
     {
         $request->validate([
             'assessment_date' => 'required|date',
-            'class_id' => 'required|exists:classes,id',
             'items' => 'required|array',
         ]);
 
-        $classId = $request->class_id;
-
-        $allowedClassIds = $this->getAllowedClassIds();
-        if ($allowedClassIds !== null && !in_array($classId, $allowedClassIds)) {
-            return redirect()->route('admin.halaqah.index')
-                ->with('error', 'Akses ditolak: Anda hanya dapat menginput nilai pada kelas yang ditugaskan kepada Anda.');
-        }
-
         $assessmentDate = $request->assessment_date;
+        $grade = $request->get('grade', 1);
         $activeYear = AcademicYear::getActive();
         $savedCount = 0;
 
-        DB::transaction(function () use ($request, $classId, $assessmentDate, $activeYear, &$savedCount) {
+        DB::transaction(function () use ($request, $assessmentDate, $activeYear, &$savedCount) {
             foreach ($request->items as $studentId => $item) {
-                // Lewati jika kehadiran tidak dipilih atau tidak aktif
+                $student = Student::find($studentId);
+                if (!$student) continue;
+
                 $attendance = $item['attendance_status'] ?? 'hadir';
                 $programType = $item['program_type'] ?? 'tahsin';
                 $cognitive = isset($item['score_cognitive']) ? (float) $item['score_cognitive'] : 0;
                 $adab = isset($item['score_adab']) ? (float) $item['score_adab'] : 85;
 
-                // Hitung predikat
                 $predicate = HalaqahRecord::calculatePredicate($cognitive);
 
                 HalaqahRecord::create([
-                    'student_id' => $studentId,
+                    'student_id' => $student->id,
                     'teacher_id' => Auth::id(),
-                    'class_id' => $classId,
+                    'class_id' => $student->class_id,
                     'academic_year_id' => $activeYear?->id,
                     'assessment_date' => $assessmentDate,
                     'attendance_status' => $attendance,
@@ -345,11 +438,137 @@ class HalaqahController extends Controller
         });
 
         return redirect()->route('admin.halaqah.index', [
-            'class_id' => $classId,
+            'grade' => $grade,
             'date' => $assessmentDate,
             'tab' => 'input',
             'mode' => 'mass'
-        ])->with('success', "Penilaian Massal untuk {$savedCount} santri berhasil disimpan!");
+        ])->with('success', "Penilaian Massal untuk {$savedCount} santri kelompok Anda berhasil disimpan!");
+    }
+
+    /**
+     * API JSON: Dapatkan data santri untuk modal/antarmuka Atur Kelompok Halaqah
+     */
+    public function getGroupStudents(Request $request)
+    {
+        $user = Auth::user();
+        $grade = (int) $request->get('grade', 1);
+        $teacherId = (int) ($request->get('teacher_id') ?: $user->id);
+
+        if (!$user->hasRole(['super-admin', 'admin', 'kepala-sekolah'])) {
+            $teacherId = $user->id;
+        }
+
+        $classIds = $this->getClassIdsByGrade($grade);
+        $classes = ClassModel::whereIn('id', $classIds)->orderBy('name', 'asc')->get(['id', 'name']);
+
+        // Ambil semua santri di tingkat kelas ini
+        $allStudents = Student::with(['user', 'class'])
+            ->whereIn('class_id', $classIds)
+            ->where(function ($q) {
+                $q->whereIn('student_status', ['active', 'Aktif'])->orWhereNull('student_status');
+            })
+            ->orderBy('nisn', 'asc')
+            ->get();
+
+        // Ambil data keanggotaan halaqah di tingkat kelas ini
+        $memberships = QuranHalaqahMember::with('teacher')
+            ->where('grade', $grade)
+            ->orWhereIn('student_id', $allStudents->pluck('id'))
+            ->get()
+            ->keyBy('student_id');
+
+        $studentData = $allStudents->map(function ($st) use ($memberships, $teacherId) {
+            $membership = $memberships->get($st->id);
+            $assignedTeacherId = $membership ? $membership->teacher_id : null;
+            $isInMyGroup = ($assignedTeacherId === $teacherId);
+            $assignedTeacherName = $membership && $membership->teacher ? $membership->teacher->name : null;
+
+            return [
+                'id' => $st->id,
+                'name' => $st->user?->name ?? 'Santri',
+                'nisn' => $st->nisn ?? $st->nis ?? '-',
+                'class_id' => $st->class_id,
+                'class_name' => $st->class?->name ?? '-',
+                'gender' => $st->gender ?? 'male',
+                'photo' => $st->photo_url ?? null,
+                'is_in_my_group' => $isInMyGroup,
+                'assigned_teacher_id' => $assignedTeacherId,
+                'assigned_teacher_name' => $assignedTeacherName,
+            ];
+        });
+
+        return response()->json([
+            'grade' => $grade,
+            'teacher_id' => $teacherId,
+            'classes' => $classes,
+            'students' => $studentData,
+            'total_students' => $studentData->count(),
+            'my_group_count' => $studentData->where('is_in_my_group', true)->count(),
+        ]);
+    }
+
+    /**
+     * Simpan Pengelompokan Santri Halaqah (Bisa diatur Admin atau Guru Langsung Sekali Saja & Diedit Kemudian)
+     */
+    public function saveGroup(Request $request)
+    {
+        $user = Auth::user();
+        $grade = (int) $request->input('grade');
+        $teacherId = (int) ($request->input('teacher_id') ?: $user->id);
+
+        if (!$user->hasRole(['super-admin', 'admin', 'kepala-sekolah'])) {
+            $teacherId = $user->id;
+        }
+
+        $studentIds = $request->input('student_ids', []);
+        if (!is_array($studentIds)) {
+            $studentIds = [];
+        }
+        $studentIds = array_map('intval', $studentIds);
+
+        $activeYear = AcademicYear::getActive();
+        $classIdsInGrade = $this->getClassIdsByGrade($grade);
+        $allStudentIdsInGrade = Student::whereIn('class_id', $classIdsInGrade)->pluck('id');
+
+        DB::transaction(function () use ($teacherId, $grade, $studentIds, $allStudentIdsInGrade, $activeYear) {
+            // Lepas santri di tingkat ini yang sebelumnya ada di kelompok guru ini tapi sekarang di-uncheck
+            QuranHalaqahMember::where('teacher_id', $teacherId)
+                ->where(function ($q) use ($grade, $allStudentIdsInGrade) {
+                    $q->where('grade', $grade)
+                      ->orWhereIn('student_id', $allStudentIdsInGrade);
+                })
+                ->whereNotIn('student_id', $studentIds)
+                ->delete();
+
+            // Simpan / pindahkan santri yang dicentang ke kelompok guru ini (sifatnya eksklusif: 1 santri = 1 guru halaqah)
+            foreach ($studentIds as $sid) {
+                QuranHalaqahMember::updateOrCreate(
+                    ['student_id' => $sid],
+                    [
+                        'teacher_id' => $teacherId,
+                        'academic_year_id' => $activeYear?->id,
+                        'grade' => $grade,
+                        'group_name' => "Halaqah Tingkat {$grade}",
+                    ]
+                );
+            }
+        });
+
+        $count = count($studentIds);
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Alhamdulillah! Kelompok Halaqah Tingkat {$grade} berhasil disimpan ({$count} santri).",
+                'count' => $count,
+                'grade' => $grade,
+            ]);
+        }
+
+        return redirect()->route('admin.halaqah.index', [
+            'grade' => $grade,
+            'tab' => 'input',
+        ])->with('success', "Alhamdulillah! Kelompok Halaqah Tingkat {$grade} berhasil disimpan ({$count} santri).");
     }
 
     /**
@@ -358,10 +577,11 @@ class HalaqahController extends Controller
     public function destroy($id)
     {
         $record = HalaqahRecord::findOrFail($id);
+        $user = Auth::user();
 
-        $allowedClassIds = $this->getAllowedClassIds();
-        if ($allowedClassIds !== null && !in_array($record->class_id, $allowedClassIds)) {
-            return back()->with('error', 'Akses ditolak: Anda tidak memiliki izin untuk menghapus catatan halaqah pada kelas ini.');
+        // Guru Al-Qur'an hanya boleh menghapus catatannya sendiri kecuali admin
+        if (!$user->hasRole(['super-admin', 'admin', 'kepala-sekolah']) && $record->teacher_id !== $user->id) {
+            return back()->with('error', 'Akses ditolak: Anda hanya dapat menghapus catatan halaqah bimbingan Anda sendiri.');
         }
 
         $record->delete();
@@ -374,15 +594,24 @@ class HalaqahController extends Controller
      */
     public function exportExcel(Request $request)
     {
+        $user = Auth::user();
+        $isAdmin = $user->hasRole(['super-admin', 'admin', 'kepala-sekolah']);
+        
         $query = HalaqahRecord::with(['student.user', 'class', 'teacher'])
             ->latest('assessment_date');
 
-        $allowedClassIds = $this->getAllowedClassIds();
-        if ($allowedClassIds !== null) {
-            $query->whereIn('class_id', $allowedClassIds);
+        if (!$isAdmin || $request->filled('teacher_id')) {
+            $teacherId = $request->filled('teacher_id') ? $request->teacher_id : $user->id;
+            $query->where('teacher_id', $teacherId);
         }
 
-        if ($request->filled('class_id')) {
+        if ($request->filled('grade')) {
+            $grade = (int) $request->grade;
+            $gradeClassIds = $this->getClassIdsByGrade($grade);
+            if (!empty($gradeClassIds)) {
+                $query->whereIn('class_id', $gradeClassIds);
+            }
+        } elseif ($request->filled('class_id')) {
             $query->where('class_id', $request->class_id);
         }
 
@@ -393,7 +622,7 @@ class HalaqahController extends Controller
         $sheet->setTitle("Rekap Halaqah Qur'an");
 
         // Header
-        $headers = ['No', 'Tanggal', 'NISN', 'Nama Santri', 'Kelas', 'Kehadiran', 'Program', 'Materi / Detail', 'Nilai Kognitif', 'Nilai Adab', 'Predikat', 'Ustadz Pembimbing', 'Catatan'];
+        $headers = ['No', 'Tanggal', 'NISN', 'Nama Santri', 'Kelas Asal', 'Kehadiran', 'Program', 'Materi / Detail', 'Nilai Kognitif', 'Nilai Adab', 'Predikat', 'Ustadz Pembimbing', 'Catatan'];
         $col = 'A';
         foreach ($headers as $h) {
             $sheet->setCellValue($col . '1', $h);

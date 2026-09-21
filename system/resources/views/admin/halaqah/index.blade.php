@@ -26,6 +26,7 @@
         if (sc >= 70) return 'Jayyid (70-79)';
         return 'Maqbul (< 70)';
     },
+
     // Template massal default
     massProgram: 'tahsin',
     massTahsinType: 'jilid',
@@ -43,25 +44,144 @@
         document.querySelectorAll('.mass-cognitive-input').forEach(el => el.value = this.massCognitive);
         document.querySelectorAll('.mass-adab-input').forEach(el => el.value = this.massAdab);
         document.querySelectorAll('.mass-notes-input').forEach(el => el.value = this.massNotes);
+    },
+
+    // ── Manajemen Kelompok Halaqah (Modal Interaktif) ──
+    isGroupModalOpen: false,
+    modalGrade: {{ $selectedGrade }},
+    modalTeacherId: {{ $activeTeacherId }},
+    modalTeacherName: '{{ addslashes($activeTeacher->name ?? "Guru Al-Qur\'an") }}',
+    allGroupStudents: [],
+    modalClasses: [],
+    selectedStudentIds: [],
+    loadingGroupStudents: false,
+    savingGroup: false,
+    searchQuery: '',
+    filterClassId: '',
+    filterStatus: 'all', // 'all', 'my_group', 'unassigned', 'other_group'
+
+    openGroupModal(grade) {
+        this.modalGrade = grade || this.modalGrade;
+        this.isGroupModalOpen = true;
+        this.fetchGroupStudents();
+    },
+    closeGroupModal() {
+        this.isGroupModalOpen = false;
+    },
+    switchModalGrade(g) {
+        this.modalGrade = g;
+        this.fetchGroupStudents();
+    },
+    switchModalTeacher(tid, tname) {
+        this.modalTeacherId = tid;
+        this.modalTeacherName = tname;
+        this.fetchGroupStudents();
+    },
+    async fetchGroupStudents() {
+        this.loadingGroupStudents = true;
+        try {
+            const url = `{{ route('admin.halaqah.group-students') }}?grade=${this.modalGrade}&teacher_id=${this.modalTeacherId}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            this.modalClasses = data.classes || [];
+            this.allGroupStudents = data.students || [];
+            this.selectedStudentIds = this.allGroupStudents
+                .filter(s => s.is_in_my_group)
+                .map(s => s.id);
+        } catch (err) {
+            console.error('Gagal memuat data kelompok santri:', err);
+        } finally {
+            this.loadingGroupStudents = false;
+        }
+    },
+    get filteredGroupStudents() {
+        let list = this.allGroupStudents;
+        if (this.searchQuery.trim() !== '') {
+            const q = this.searchQuery.toLowerCase();
+            list = list.filter(s => s.name.toLowerCase().includes(q) || s.nisn.toLowerCase().includes(q));
+        }
+        if (this.filterClassId !== '') {
+            list = list.filter(s => String(s.class_id) === String(this.filterClassId));
+        }
+        if (this.filterStatus === 'my_group') {
+            list = list.filter(s => this.selectedStudentIds.includes(s.id));
+        } else if (this.filterStatus === 'unassigned') {
+            list = list.filter(s => !this.selectedStudentIds.includes(s.id) && !s.assigned_teacher_id);
+        } else if (this.filterStatus === 'other_group') {
+            list = list.filter(s => !this.selectedStudentIds.includes(s.id) && s.assigned_teacher_id && s.assigned_teacher_id !== this.modalTeacherId);
+        }
+        return list;
+    },
+    toggleStudent(id) {
+        const idx = this.selectedStudentIds.indexOf(id);
+        if (idx > -1) {
+            this.selectedStudentIds.splice(idx, 1);
+        } else {
+            this.selectedStudentIds.push(id);
+        }
+    },
+    isStudentSelected(id) {
+        return this.selectedStudentIds.includes(id);
+    },
+    selectAllFiltered() {
+        this.filteredGroupStudents.forEach(s => {
+            if (!this.selectedStudentIds.includes(s.id)) {
+                this.selectedStudentIds.push(s.id);
+            }
+        });
+    },
+    deselectAllFiltered() {
+        const filteredIds = this.filteredGroupStudents.map(s => s.id);
+        this.selectedStudentIds = this.selectedStudentIds.filter(id => !filteredIds.includes(id));
+    },
+    async saveGroupArrangement() {
+        this.savingGroup = true;
+        try {
+            const res = await fetch('{{ route('admin.halaqah.save-group') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    grade: this.modalGrade,
+                    teacher_id: this.modalTeacherId,
+                    student_ids: this.selectedStudentIds
+                })
+            });
+            const result = await res.json();
+            if (result.success) {
+                // Refresh halaman untuk memuat santri kelompok yang baru disimpan
+                window.location.href = `{{ route('admin.halaqah.index') }}?tab={{ $tab }}&mode={{ $mode }}&grade=${this.modalGrade}&teacher_id=${this.modalTeacherId}`;
+            } else {
+                alert('Gagal menyimpan susunan kelompok: ' + (result.message || 'Terjadi kesalahan'));
+            }
+        } catch (err) {
+            console.error('Error saat menyimpan kelompok:', err);
+            alert('Terjadi kesalahan jaringan.');
+        } finally {
+            this.savingGroup = false;
+        }
     }
 }">
 
     {{-- Top Bar Tabs (Input & Evaluasi | Laporan & Grafik | Rekap Kehadiran) --}}
     <div class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900 p-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
         <div class="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto">
-            <a href="{{ route('admin.halaqah.index', ['tab' => 'input', 'class_id' => $selectedClassId, 'mode' => $mode]) }}"
+            <a href="{{ route('admin.halaqah.index', ['tab' => 'input', 'grade' => $selectedGrade, 'mode' => $mode, 'teacher_id' => $activeTeacherId]) }}"
                class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'input' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                 <span>Input &amp; Catatan Evaluasi</span>
             </a>
 
-            <a href="{{ route('admin.halaqah.index', ['tab' => 'reports', 'class_id' => $selectedClassId]) }}"
+            <a href="{{ route('admin.halaqah.index', ['tab' => 'reports', 'grade' => $selectedGrade, 'teacher_id' => $activeTeacherId]) }}"
                class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'reports' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                <span>Laporan Harian &amp; Bulanan + Grafik Statistik</span>
+                <span>Laporan Harian &amp; Bulanan + Grafik</span>
             </a>
 
-            <a href="{{ route('admin.halaqah.index', ['tab' => 'attendance', 'class_id' => $selectedClassId]) }}"
+            <a href="{{ route('admin.halaqah.index', ['tab' => 'attendance', 'grade' => $selectedGrade, 'teacher_id' => $activeTeacherId]) }}"
                class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'attendance' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 <span>Rekap Kehadiran</span>
@@ -69,12 +189,19 @@
         </div>
 
         <div class="flex items-center gap-2 shrink-0">
-            <a href="{{ route('admin.halaqah.export-excel', ['class_id' => $selectedClassId]) }}"
+            {{-- Tombol Atur Kelompok Santri --}}
+            <button type="button" @click="openGroupModal({{ $selectedGrade }})"
+                    class="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                <span>Atur Kelompok Halaqah</span>
+            </button>
+
+            <a href="{{ route('admin.halaqah.export-excel', ['grade' => $selectedGrade, 'teacher_id' => $activeTeacherId]) }}"
                class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-bold rounded-xl border border-emerald-200 dark:border-emerald-800 transition flex items-center gap-1.5">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                 <span>Export Excel</span>
             </a>
-            <a href="{{ route('admin.quran-raport.index', ['class_id' => $selectedClassId]) }}"
+            <a href="{{ route('admin.quran-raport.index') }}"
                class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
                 <span>E-Raport Al-Qur'an</span>
@@ -89,27 +216,33 @@
         <span>{{ session('success') }}</span>
     </div>
     @endif
+    @if(session('error'))
+    <div class="p-4 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-2xs">
+        <svg class="w-5 h-5 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        <span>{{ session('error') }}</span>
+    </div>
+    @endif
 
     {{-- ========================================================================= --}}
-    {{-- TAB 1: INPUT & CATATAN EVALUASI (Screenshot 1 & Screenshot 2) --}}
+    {{-- TAB 1: INPUT & CATATAN EVALUASI --}}
     {{-- ========================================================================= --}}
     @if($tab === 'input')
     <div class="space-y-5">
         
-        {{-- Sub-Toggle: Individu (Satu Santri) vs Massal Satu Kelas --}}
+        {{-- Sub-Toggle: Individu (Satu Santri) vs Massal Satu Kelompok Halaqah --}}
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
             <div>
                 <h3 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">METODE PENILAIAN EVALUASI</h3>
-                <p class="text-[11px] text-slate-400">Pilih input individu untuk santri tunggal atau input massal untuk satu kelas sekaligus</p>
+                <p class="text-[11px] text-slate-400">Pilih input individu untuk santri tunggal atau input massal untuk satu kelompok halaqah sekaligus</p>
             </div>
             <div class="inline-flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
-                <a href="{{ route('admin.halaqah.index', ['tab' => 'input', 'mode' => 'individual', 'class_id' => $selectedClassId]) }}"
+                <a href="{{ route('admin.halaqah.index', ['tab' => 'input', 'mode' => 'individual', 'grade' => $selectedGrade, 'teacher_id' => $activeTeacherId]) }}"
                    class="px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 {{ $mode === 'individual' ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white' }}">
                     <span>👤 Individu (Satu Santri)</span>
                 </a>
-                <a href="{{ route('admin.halaqah.index', ['tab' => 'input', 'mode' => 'mass', 'class_id' => $selectedClassId]) }}"
+                <a href="{{ route('admin.halaqah.index', ['tab' => 'input', 'mode' => 'mass', 'grade' => $selectedGrade, 'teacher_id' => $activeTeacherId]) }}"
                    class="px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 {{ $mode === 'mass' ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white' }}">
-                    <span>👥 Massal Satu Kelas</span>
+                    <span>👥 Massal Satu Kelompok</span>
                 </a>
             </div>
         </div>
@@ -120,12 +253,33 @@
             
             {{-- Kolom Kiri: Form Input Individu --}}
             <div class="lg:col-span-5 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-                <div class="flex items-center gap-2 text-amber-500 font-extrabold text-xs tracking-wider uppercase border-b border-slate-100 dark:border-slate-800 pb-3">
-                    <span>⚡ INPUT NILAI BARU HARIAN</span>
+                <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <div class="flex items-center gap-2 text-amber-500 font-extrabold text-xs tracking-wider uppercase">
+                        <span>⚡ INPUT NILAI BARU HARIAN</span>
+                    </div>
+                    <span class="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                        {{ $activeTeacher->name }}
+                    </span>
                 </div>
 
                 <form action="{{ route('admin.halaqah.store-individual') }}" method="POST" class="space-y-4">
                     @csrf
+                    <input type="hidden" name="grade" value="{{ $selectedGrade }}">
+
+                    @if($isAdmin)
+                    {{-- Filter Guru Pembimbing (Khusus Admin) --}}
+                    <div>
+                        <label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Guru Pembimbing (Mode Admin)</label>
+                        <select onchange="location.href = '{{ route('admin.halaqah.index') }}?tab=input&mode=individual&grade={{ $selectedGrade }}&teacher_id=' + this.value"
+                                class="w-full px-3.5 py-2.5 border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-900 dark:text-indigo-200 rounded-xl text-xs font-bold">
+                            @foreach($quranTeachers as $t)
+                                <option value="{{ $t->id }}" {{ $activeTeacherId == $t->id ? 'selected' : '' }}>
+                                    Ust. {{ $t->name }} (Guru Al-Qur'an)
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    @endif
                     
                     {{-- Tanggal Penilaian --}}
                     <div>
@@ -134,34 +288,56 @@
                                class="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition">
                     </div>
 
-                    {{-- Pilih Kelas --}}
+                    {{-- PILIH TINGKAT KELAS YANG DIAJAR (LANGSUNG TINGKAT, BUKAN PILIHAN KELAS SPESIFIK) --}}
                     <div>
-                        <label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Pilih Tingkat Kelas yang Diajar</label>
-                        <select onchange="location.href = '{{ route('admin.halaqah.index') }}?tab=input&mode=individual&class_id=' + this.value"
-                                class="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition">
-                            <option value="">-- Pilih Tingkat Kelas Aktif Anda --</option>
-                            @foreach($classes as $c)
-                                <option value="{{ $c->id }}" {{ $selectedClassId == $c->id ? 'selected' : '' }}>
-                                    {{ $c->name }} ({{ $c->students_count ?? 0 }} Santri)
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-[11px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                                Pilih Tingkat Kelas
+                            </label>
+                            <button type="button" @click="openGroupModal({{ $selectedGrade }})" class="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 underline flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                                <span>Atur Anggota Kelompok</span>
+                            </button>
+                        </div>
+                        <select onchange="location.href = '{{ route('admin.halaqah.index') }}?tab=input&mode=individual&grade=' + this.value + '{{ $isAdmin ? '&teacher_id=' . $activeTeacherId : '' }}'"
+                                class="w-full px-3.5 py-2.5 border-2 border-emerald-500/30 dark:border-emerald-600/40 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl text-xs font-extrabold focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition">
+                            @foreach($availableGrades as $gradeItem)
+                                <option value="{{ $gradeItem }}" {{ $selectedGrade == $gradeItem ? 'selected' : '' }}>
+                                    Tingkat Kelas {{ $gradeItem }} ({{ $gradeCounts[$gradeItem] ?? 0 }} Santri Kelompok Anda)
                                 </option>
                             @endforeach
                         </select>
                     </div>
 
-                    {{-- Pilih Nama Santri --}}
+                    {{-- PILIH NAMA SANTRI (HANYA SANTRI KELOMPOK GURU BERSANGKUTAN) --}}
                     <div>
-                        <label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Pilih Nama Santri (Nama Siswa)</label>
-                        @if($selectedClassId && count($students) > 0)
+                        <label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">
+                            Pilih Nama Santri (Kelompok Anda)
+                        </label>
+                        @if(count($students) > 0)
                             <select name="student_id" required
                                     class="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition">
-                                <option value="">-- Pilih Santri --</option>
+                                <option value="">-- Pilih Santri ({{ count($students) }} dalam Kelompok Anda) --</option>
                                 @foreach($students as $st)
-                                    <option value="{{ $st->id }}">{{ $st->user?->name ?? 'Santri' }} (NISN: {{ $st->nisn ?? '-' }})</option>
+                                    <option value="{{ $st->id }}">
+                                        {{ $st->user?->name ?? 'Santri' }} (Kelas: {{ $st->class?->name ?? 'Tingkat ' . $selectedGrade }} • NISN: {{ $st->nisn ?? '-' }})
+                                    </option>
                                 @endforeach
                             </select>
                         @else
-                            <div class="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-xs text-slate-400 font-medium">
-                                Sila pilih kelas terlebih dahulu
+                            {{-- Empty State Ramah: Belum ada santri di kelompok tingkat ini --}}
+                            <div class="p-4 bg-amber-50/80 dark:bg-amber-950/40 rounded-2xl border border-dashed border-amber-300 dark:border-amber-800 text-center space-y-2">
+                                <p class="text-xs font-bold text-amber-800 dark:text-amber-300">
+                                    Belum ada santri di kelompok Tingkat Kelas {{ $selectedGrade }} Anda.
+                                </p>
+                                <p class="text-[11px] text-amber-600 dark:text-amber-400">
+                                    Pembelajaran Al-Qur'an bersifat eksklusif. Atur santri bimbingan Anda sekali saja agar muncul di sini.
+                                </p>
+                                <button type="button" @click="openGroupModal({{ $selectedGrade }})"
+                                        class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow transition inline-flex items-center gap-1.5 cursor-pointer">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                                    <span>Pilih Santri Kelompok Tingkat {{ $selectedGrade }}</span>
+                                </button>
                             </div>
                         @endif
                     </div>
@@ -178,187 +354,156 @@
 
                     {{-- Detail Lembar Jika Tahsin --}}
                     <div x-show="programType === 'tahsin'" class="space-y-3 p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                        <div class="flex items-center justify-between">
-                            <span class="text-[11px] font-extrabold text-slate-500 uppercase">Detail Lembar Tajwid Tahsin:</span>
-                            <div class="inline-flex p-0.5 bg-slate-200 dark:bg-slate-700 rounded-lg text-[10px] font-bold">
-                                <button type="button" @click="tahsinType = 'jilid'" :class="tahsinType === 'jilid' ? 'bg-emerald-600 text-white' : 'text-slate-600 dark:text-slate-300'" class="px-2.5 py-0.5 rounded transition">Jilid</button>
-                                <button type="button" @click="tahsinType = 'tilawah'" :class="tahsinType === 'tilawah' ? 'bg-emerald-600 text-white' : 'text-slate-600 dark:text-slate-300'" class="px-2.5 py-0.5 rounded transition">Tilawah (Al-Qur'an)</button>
-                            </div>
-                            <input type="hidden" name="tahsin_type" :value="tahsinType">
-                        </div>
-
-                        {{-- Mode 1: Tahsin Standar Jilid --}}
-                        <div x-show="tahsinType === 'jilid'" class="grid grid-cols-3 gap-2">
+                        <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-[10px] font-bold text-slate-400 mb-1">Standard Jilid</label>
-                                <select name="jilid_level" class="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold">
+                                <label class="block text-[10px] font-bold text-slate-400 mb-1">Pilihan Jilid / Level</label>
+                                <select name="jilid_level" class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl text-xs font-bold">
                                     <option value="Jilid 1">Jilid 1</option>
                                     <option value="Jilid 2">Jilid 2</option>
                                     <option value="Jilid 3">Jilid 3</option>
                                     <option value="Jilid 4">Jilid 4</option>
+                                    <option value="Tilawah">Tilawah</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-slate-400 mb-1">Mulai Halaman</label>
-                                <input type="number" name="page_start" value="1" min="1" class="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold text-center">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-400 mb-1">Sampai Halaman</label>
-                                <input type="number" name="page_end" value="10" min="1" class="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold text-center">
-                            </div>
-                        </div>
-
-                        {{-- Mode 2: Tahsin Tilawah Al-Qur'an (Dropdown Surah Lengkap) --}}
-                        <div x-show="tahsinType === 'tilawah'" class="space-y-2.5">
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-400 mb-1">Juz (Otomatis)</label>
-                                    <input type="number" name="juz_number" x-model="selectedJuz" min="1" max="30" class="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold text-center">
-                                </div>
-                                <div class="sm:col-span-2">
-                                    <label class="block text-[10px] font-bold text-slate-400 mb-1">Pilih Nama Surah (1 - 114)</label>
-                                    <select name="surah_name" @change="onSurahChange($event)" class="w-full px-2.5 py-2 border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold focus:ring-2 focus:ring-emerald-500">
-                                        <option value="">-- Pilih Nama Surah --</option>
-                                        @foreach($surahOptions ?? [] as $surah)
-                                            <option value="{{ $surah['name'] }}" data-juz="{{ $surah['juz'] }}">
-                                                {{ $surah['label'] }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-2">
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-400 mb-1">Ayat Mulai</label>
-                                    <input type="number" name="ayat_start" value="1" min="1" class="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold text-center">
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-400 mb-1">Ayat Selesai</label>
-                                    <input type="number" name="ayat_end" value="10" min="1" class="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold text-center">
+                                <label class="block text-[10px] font-bold text-slate-400 mb-1">Range Halaman</label>
+                                <div class="flex items-center gap-1.5">
+                                    <input type="number" name="page_start" value="1" placeholder="Hal" class="w-1/2 px-2.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-bold text-center">
+                                    <span class="text-slate-400">-</span>
+                                    <input type="number" name="page_end" value="10" placeholder="Hal" class="w-1/2 px-2.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-bold text-center">
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {{-- Detail Jika Tahfidz (Dropdown Surah Lengkap) --}}
-                    <div x-show="programType === 'tahfidz'" class="space-y-3 p-3.5 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-2xl border border-emerald-100 dark:border-emerald-900/40">
-                        <span class="text-[11px] font-extrabold text-emerald-800 dark:text-emerald-300 uppercase">Detail Setoran Tahfidz:</span>
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-400 mb-1">Juz (Otomatis)</label>
-                                <input type="number" name="juz_number" x-model="selectedJuz" min="1" max="30" class="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold text-center">
-                            </div>
-                            <div class="sm:col-span-2">
-                                <label class="block text-[10px] font-bold text-slate-400 mb-1">Pilih Nama Surah (1 - 114)</label>
-                                <select name="surah_name" @change="onSurahChange($event)" class="w-full px-2.5 py-2 border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold focus:ring-2 focus:ring-emerald-500">
-                                    <option value="">-- Pilih Nama Surah --</option>
-                                    @foreach($surahOptions ?? [] as $surah)
-                                        <option value="{{ $surah['name'] }}" data-juz="{{ $surah['juz'] }}" {{ $surah['number'] == 78 ? 'selected' : '' }}>
-                                            {{ $surah['label'] }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
+                    {{-- Detail Surah & Ayat Jika Tahfidz --}}
+                    <div x-show="programType === 'tahfidz'" class="space-y-3 p-3.5 bg-emerald-50/50 dark:bg-emerald-950/30 rounded-2xl border border-emerald-100 dark:border-emerald-800/40">
                         <div>
-                            <label class="block text-[10px] font-bold text-slate-400 mb-1">Ayat (Mulai - Selesai)</label>
-                            <div class="flex items-center gap-1">
-                                <input type="number" name="ayat_start" value="1" min="1" class="w-1/2 px-2 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold text-center" placeholder="Mulai">
-                                <span>-</span>
-                                <input type="number" name="ayat_end" value="10" min="1" class="w-1/2 px-2 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold text-center" placeholder="Selesai">
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1">Pilihan Nama Surah</label>
+                            <select name="surah_name" @change="onSurahChange($event)" class="w-full px-3 py-2 border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl text-xs font-bold">
+                                <option value="">-- Pilih Surah --</option>
+                                @foreach($surahOptions ?? [] as $surah)
+                                    <option value="{{ $surah['name'] }}" data-juz="{{ $surah['juz'] ?? 30 }}">
+                                        {{ $surah['label'] }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 mb-1">Juz</label>
+                                <input type="number" name="juz_number" x-model="selectedJuz" class="w-full px-2 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-bold text-center">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 mb-1">Ayat Mulai</label>
+                                <input type="number" name="ayat_start" value="1" class="w-full px-2 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-bold text-center">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 mb-1">Ayat Selesai</label>
+                                <input type="number" name="ayat_end" value="10" class="w-full px-2 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-bold text-center">
                             </div>
                         </div>
                     </div>
 
-                    {{-- Nilai Kognitif & Adab --}}
+                    {{-- Penilaian Nilai Kognitif & Nilai Adab --}}
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Nilai Kognitif (0 - 100)</label>
                             <input type="number" name="score_cognitive" x-model="scoreCognitive" min="0" max="100" required
-                                   class="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl text-xs font-black text-center focus:ring-2 focus:ring-emerald-500/30">
+                                   class="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl text-xs font-bold text-center focus:ring-2 focus:ring-emerald-500">
                         </div>
                         <div>
                             <label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Nilai Adab (0 - 100)</label>
-                            <input type="number" name="score_adab" x-model="scoreAdab" min="0" max="100"
-                                   class="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl text-xs font-black text-center focus:ring-2 focus:ring-emerald-500/30">
+                            <input type="number" name="score_adab" x-model="scoreAdab" min="0" max="100" required
+                                   class="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl text-xs font-bold text-center focus:ring-2 focus:ring-emerald-500">
                         </div>
                     </div>
 
                     {{-- Predikat Terkalkulasi Otomatis --}}
-                    <div class="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-100 dark:border-emerald-900 flex items-center justify-between">
-                        <span class="text-[11px] font-extrabold text-emerald-800 dark:text-emerald-300 uppercase">Predikat Terkalkulasi Otomatis:</span>
-                        <span class="px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs font-extrabold shadow-2xs" x-text="calculatedPredicate"></span>
+                    <div class="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
+                        <span class="text-xs font-bold text-emerald-800 dark:text-emerald-300">PREDIKAT TERKALKULASI OTOMATIS:</span>
+                        <span class="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-xs font-extrabold" x-text="calculatedPredicate"></span>
                     </div>
 
-                    {{-- Catatan Tambahan Guru --}}
+                    {{-- Kehadiran Santri --}}
                     <div>
-                        <label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Catatan Tambahan Guru (Khidmat)</label>
-                        <textarea name="teacher_notes" rows="2" placeholder="e.g. MasyaAllah penekanan qalqalah kubra di akhir ayat sudah mantap..."
-                                  class="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500/30"></textarea>
+                        <label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Status Kehadiran</label>
+                        <select name="attendance_status" class="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl text-xs font-bold">
+                            <option value="hadir">Hadir (Mengikuti Majelis)</option>
+                            <option value="sakit">Sakit</option>
+                            <option value="izin">Izin</option>
+                            <option value="alpa">Alpa</option>
+                        </select>
                     </div>
 
-                    <button type="submit"
-                            class="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2">
-                        <span>Simpan &amp; Terbitkan Hasil Halaqah</span>
+                    {{-- Catatan Musyrif --}}
+                    <div>
+                        <label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Catatan Khusus Musyrif</label>
+                        <textarea name="teacher_notes" rows="2" placeholder="Tuliskan catatan kelancaran, makhraj, tajwid atau motivasi santri..."
+                                  class="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500"></textarea>
+                    </div>
+
+                    <button type="submit" @if(count($students) === 0) disabled @endif
+                            class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <span>SIMPAN HASIL EVALUASI HALAQAH</span>
                     </button>
                 </form>
             </div>
 
-            {{-- Kolom Kanan: Tabel Riwayat Penilaian Realtime --}}
+            {{-- Kolom Kanan: Catatan Riwayat Pembelajaran --}}
             <div class="lg:col-span-7 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
                 <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                    <h4 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                        <span>📜 CATATAN RIWAYAT PEMBELAJARAN JILID/HAFALAN</span>
-                    </h4>
-                    <span class="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-full text-[10px] font-extrabold">
-                        Total {{ $totalRecordsCount }} Data
-                    </span>
+                    <div class="flex items-center gap-2 font-black text-xs text-slate-800 dark:text-white uppercase tracking-wider">
+                        <span>📜 CATATAN RIWAYAT PEMBELAJARAN (TINGKAT {{ $selectedGrade }})</span>
+                    </div>
+                    <span class="text-[11px] font-bold text-slate-400">Total {{ $totalRecordsCount }} Data</span>
                 </div>
 
+                {{-- Tabel Riwayat Pembelajaran --}}
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs">
+                    <table class="w-full text-left text-xs border-collapse">
                         <thead>
-                            <tr class="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
-                                <th class="py-2.5 pr-2">Tanggal</th>
-                                <th class="py-2.5 px-2">Santri</th>
-                                <th class="py-2.5 px-2">Materi</th>
-                                <th class="py-2.5 px-2 text-center">Predikat</th>
-                                <th class="py-2.5 px-2 text-center">Nilai</th>
-                                <th class="py-2.5 pl-2 text-right">Aksi</th>
+                            <tr class="text-[10px] font-extrabold text-slate-400 uppercase border-b border-slate-200 dark:border-slate-800">
+                                <th class="py-2.5 px-3">Tanggal</th>
+                                <th class="py-2.5 px-3">Santri</th>
+                                <th class="py-2.5 px-3">Materi</th>
+                                <th class="py-2.5 px-3">Predikat</th>
+                                <th class="py-2.5 px-3">Nilai</th>
+                                <th class="py-2.5 px-3 text-right">Aksi</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                             @forelse($records as $rec)
-                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
-                                <td class="py-3 pr-2 text-slate-500 font-bold whitespace-nowrap">
-                                    {{ $rec->assessment_date->format('Y-m-d') }}
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                                <td class="py-2.5 px-3 whitespace-nowrap font-bold text-slate-500">
+                                    {{ $rec->assessment_date->format('d/m/Y') }}
                                 </td>
-                                <td class="py-3 px-2">
-                                    <div class="flex items-center gap-1.5">
-                                        <span class="font-bold text-slate-900 dark:text-white">{{ $rec->student->user?->name ?? 'Santri' }}</span>
-                                        <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                                            {{ strtoupper($rec->attendance_status) }}
-                                        </span>
-                                    </div>
-                                    <span class="text-[10px] text-slate-400">{{ $rec->class->name ?? '-' }}</span>
+                                <td class="py-2.5 px-3 whitespace-nowrap">
+                                    <div class="font-bold text-slate-900 dark:text-white">{{ $rec->student->user?->name ?? 'Santri' }}</div>
+                                    <div class="text-[10px] text-slate-400">{{ $rec->class->name ?? '-' }}</div>
                                 </td>
-                                <td class="py-3 px-2">
-                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold {{ $rec->program_type === 'tahfidz' ? 'bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300' }}">
+                                <td class="py-2.5 px-3">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold {{ $rec->program_type === 'tahsin' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800' }}">
+                                        {{ strtoupper($rec->program_type) }}
+                                    </span>
+                                    <div class="text-[11px] font-medium text-slate-600 dark:text-slate-300 mt-0.5">
                                         {{ $rec->material_summary }}
+                                    </div>
+                                </td>
+                                <td class="py-2.5 px-3">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                                        {{ $rec->predicate }}
                                     </span>
                                 </td>
-                                <td class="py-3 px-2 text-center">
-                                    <span class="font-extrabold text-emerald-600 dark:text-emerald-400">{{ $rec->predicate }}</span>
+                                <td class="py-2.5 px-3 font-black text-slate-900 dark:text-white">
+                                    {{ $rec->score_cognitive }}
                                 </td>
-                                <td class="py-3 px-2 text-center whitespace-nowrap">
-                                    <div class="font-black text-slate-900 dark:text-white">{{ $rec->score_cognitive }}</div>
-                                    <div class="text-[10px] text-slate-400">{{ $rec->score_adab }} Adab</div>
-                                </td>
-                                <td class="py-3 pl-2 text-right">
-                                    <form action="{{ route('admin.halaqah.destroy', $rec->id) }}" method="POST" onsubmit="return confirm('Hapus catatan ini?')">
+                                <td class="py-2.5 px-3 text-right whitespace-nowrap">
+                                    <form action="{{ route('admin.halaqah.destroy', $rec->id) }}" method="POST" onsubmit="return confirm('Hapus catatan riwayat halaqah ini?')" class="inline">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition" title="Hapus">
+                                        <button type="submit" class="p-1 text-rose-500 hover:text-rose-700 transition">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                         </button>
                                     </form>
@@ -367,7 +512,7 @@
                             @empty
                             <tr>
                                 <td colspan="6" class="py-8 text-center text-slate-400">
-                                    Belum ada data evaluasi pembelajaran Al-Qur'an.
+                                    Belum ada data evaluasi pembelajaran Al-Qur'an pada Tingkat Kelas {{ $selectedGrade }}.
                                 </td>
                             </tr>
                             @endforelse
@@ -375,54 +520,75 @@
                     </table>
                 </div>
 
+                @if($records->hasPages())
                 <div class="pt-2">
                     {{ $records->links() }}
                 </div>
+                @endif
             </div>
 
         </div>
 
-        {{-- MODE 2: MASSAL SATU KELAS (Screenshot 2) --}}
+        {{-- MODE 2: MASSAL SATU KELOMPOK HALAQAH --}}
         @elseif($mode === 'mass')
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-5">
             
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
                 <div>
                     <h3 class="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                        <span>👥 PENILAIAN MASSAL KELAS AL-QUR'AN</span>
+                        <span>👥 PENILAIAN MASSAL KELOMPOK HALAQAH AL-QUR'AN</span>
                     </h3>
-                    <p class="text-xs text-slate-400">Lakukan penilaian cepat sekaligus untuk seluruh santri yang diajar dalam tingkat/level kelas yang sama</p>
+                    <p class="text-xs text-slate-400">Penilaian cepat sekaligus untuk seluruh santri yang masuk dalam kelompok halaqah bimbingan Anda</p>
                 </div>
 
-                {{-- Filter Kelas untuk Pengisian Massal --}}
-                <div class="flex items-center gap-3">
+                {{-- Filter Tingkat Kelas untuk Pengisian Massal --}}
+                <div class="flex flex-wrap items-center gap-3">
+                    @if($isAdmin)
                     <div>
-                        <select onchange="location.href = '{{ route('admin.halaqah.index') }}?tab=input&mode=mass&class_id=' + this.value"
-                                class="px-3.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl text-xs font-bold">
-                            <option value="">-- Pilih Kelas Santri --</option>
-                            @foreach($classes as $c)
-                                <option value="{{ $c->id }}" {{ $selectedClassId == $c->id ? 'selected' : '' }}>
-                                    {{ $c->name }} ({{ $c->students_count ?? 0 }} Santri)
+                        <select onchange="location.href = '{{ route('admin.halaqah.index') }}?tab=input&mode=mass&grade={{ $selectedGrade }}&teacher_id=' + this.value"
+                                class="px-3.5 py-2 border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-900 dark:text-indigo-200 rounded-xl text-xs font-bold">
+                            @foreach($quranTeachers as $t)
+                                <option value="{{ $t->id }}" {{ $activeTeacherId == $t->id ? 'selected' : '' }}>
+                                    Ust. {{ $t->name }}
                                 </option>
                             @endforeach
                         </select>
                     </div>
+                    @endif
+
+                    <div>
+                        <select onchange="location.href = '{{ route('admin.halaqah.index') }}?tab=input&mode=mass&grade=' + this.value + '{{ $isAdmin ? '&teacher_id=' . $activeTeacherId : '' }}'"
+                                class="px-3.5 py-2 border-2 border-emerald-500/40 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl text-xs font-extrabold">
+                            @foreach($availableGrades as $gradeItem)
+                                <option value="{{ $gradeItem }}" {{ $selectedGrade == $gradeItem ? 'selected' : '' }}>
+                                    Tingkat Kelas {{ $gradeItem }} ({{ $gradeCounts[$gradeItem] ?? 0 }} Santri)
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <button type="button" @click="openGroupModal({{ $selectedGrade }})"
+                            class="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-xl text-xs font-bold border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5 cursor-pointer">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                        <span>Atur Santri Kelompok</span>
+                    </button>
                 </div>
             </div>
 
-            @if($selectedClassId && count($students) > 0)
+            @if(count($students) > 0)
             <form action="{{ route('admin.halaqah.store-mass') }}" method="POST" class="space-y-6">
                 @csrf
-                <input type="hidden" name="class_id" value="{{ $selectedClassId }}">
+                <input type="hidden" name="grade" value="{{ $selectedGrade }}">
                 
                 {{-- Fast-Grading Template Toolbar (Salin Template ke Semua Santri) --}}
                 <div class="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div class="flex items-center gap-2">
                             <span class="text-amber-500 font-bold text-xs">⚡ TEMPLATE PENGISIAN MASSAL (CEPAT)</span>
+                            <span class="text-[11px] text-slate-400">({{ count($students) }} Santri dalam Kelompok Tingkat {{ $selectedGrade }})</span>
                         </div>
                         <button type="button" @click="applyTemplateToAll()"
-                                class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-xs transition flex items-center gap-1.5 self-start sm:self-auto">
+                                class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-xs transition flex items-center gap-1.5 self-start sm:self-auto cursor-pointer">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                             <span>SALIN TEMPLATE KE SEMUA SANTRI</span>
                         </button>
@@ -470,12 +636,13 @@
                     </div>
                 </div>
 
-                {{-- Matriks Seluruh Santri di Kelas --}}
+                {{-- Matriks Santri dalam Kelompok Halaqah --}}
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs border-collapse">
                         <thead>
                             <tr class="text-[11px] font-extrabold text-slate-500 uppercase border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/50">
                                 <th class="py-3 px-3">Santri (Siswa)</th>
+                                <th class="py-3 px-3">Kelas Asal</th>
                                 <th class="py-3 px-3">Kehadiran</th>
                                 <th class="py-3 px-3">Program &amp; Materi</th>
                                 <th class="py-3 px-3 text-center">Halaman / Range</th>
@@ -488,7 +655,12 @@
                             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
                                 <td class="py-3 px-3 whitespace-nowrap">
                                     <div class="font-bold text-slate-900 dark:text-white">{{ $st->user?->name ?? 'Santri' }}</div>
-                                    <div class="text-[10px] text-slate-400">NIS: {{ $st->nis ?? '-' }} • NISN: {{ $st->nisn ?? '-' }}</div>
+                                    <div class="text-[10px] text-slate-400">NISN: {{ $st->nisn ?? '-' }}</div>
+                                </td>
+                                <td class="py-3 px-3 whitespace-nowrap">
+                                    <span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[10px] font-bold text-slate-600 dark:text-slate-300">
+                                        {{ $st->class?->name ?? '-' }}
+                                    </span>
                                 </td>
                                 <td class="py-3 px-3">
                                     <select name="items[{{ $st->id }}][attendance_status]" class="px-2 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold text-emerald-600">
@@ -545,15 +717,29 @@
                 </div>
 
                 <div class="flex justify-end pt-3">
-                    <button type="submit" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/20 transition flex items-center gap-2">
+                    <button type="submit" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/20 transition flex items-center gap-2 cursor-pointer">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <span>SIMPAN SELURUH NILAI SEKALIGUS</span>
+                        <span>SIMPAN SELURUH NILAI KELOMPOK SEKALIGUS</span>
                     </button>
                 </div>
             </form>
             @else
-            <div class="p-8 text-center text-slate-400">
-                Pilih kelas aktif terlebih dahulu untuk menampilkan daftar santri satu kelas.
+            {{-- Empty State Massal --}}
+            <div class="p-12 text-center bg-slate-50 dark:bg-slate-800/40 rounded-3xl border border-dashed border-slate-200 dark:border-slate-700 space-y-3">
+                <div class="w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 mx-auto flex items-center justify-center">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                </div>
+                <h4 class="text-sm font-black text-slate-800 dark:text-white uppercase">Kelompok Tingkat Kelas {{ $selectedGrade }} Masih Kosong</h4>
+                <p class="text-xs text-slate-400 max-w-md mx-auto">
+                    Belum ada santri yang dimasukkan ke dalam kelompok halaqah {{ $activeTeacher->name }} pada Tingkat Kelas {{ $selectedGrade }}. Pembelajaran Al-Qur'an bersifat eksklusif per guru pembimbing.
+                </p>
+                <div class="pt-2">
+                    <button type="button" @click="openGroupModal({{ $selectedGrade }})"
+                            class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-md shadow-emerald-600/20 transition inline-flex items-center gap-2 cursor-pointer">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                        <span>Pilih Santri Kelompok Anda Sekarang</span>
+                    </button>
+                </div>
             </div>
             @endif
         </div>
@@ -563,7 +749,7 @@
     @endif
 
     {{-- ========================================================================= --}}
-    {{-- TAB 2: LAPORAN HARIAN & BULANAN + GRAFIK STATISTIK (Screenshot 3) --}}
+    {{-- TAB 2: LAPORAN HARIAN & BULANAN + GRAFIK STATISTIK --}}
     {{-- ========================================================================= --}}
     @if($tab === 'reports')
     <div class="space-y-6">
@@ -607,7 +793,7 @@
                 </div>
                 <div class="pt-2 flex items-center justify-between text-xs font-bold border-t border-slate-100 dark:border-slate-800">
                     <span class="text-slate-500">Batas Standar Mumtaz:</span>
-                    <span class="text-slate-700 dark:text-slate-300 font-extrabold">>= 90 Skala Angka</span>
+                    <span class="text-slate-700 dark:text-slate-300 font-extrabold">&gt;= 90 Skala Angka</span>
                 </div>
             </div>
         </div>
@@ -732,7 +918,7 @@
     <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-6">
         <div>
             <h3 class="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <span>🗓️ REKAPITULASI KEHADIRAN HALAQAH SANTRI</span>
+                <span>🗓️ REKAPITULASI KEHADIRAN HALAQAH SANTRI (TINGKAT {{ $selectedGrade }})</span>
             </h3>
             <p class="text-xs text-slate-400">Tingkat kehadiran santri dalam mengikuti majelis Al-Qur'an harian</p>
         </div>
@@ -757,6 +943,255 @@
         </div>
     </div>
     @endif
+
+    {{-- ========================================================================= --}}
+    {{-- MODAL INTUITIF: ATUR / KELOLA KELOMPOK HALAQAH AL-QUR'AN --}}
+    {{-- ========================================================================= --}}
+    <div x-show="isGroupModalOpen"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5"
+         x-cloak>
+        
+        <div @click.away="closeGroupModal()"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            
+            {{-- Modal Header --}}
+            <div class="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-4 bg-slate-50/50 dark:bg-slate-800/30 shrink-0">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider">
+                            Eksklusif Halaqah
+                        </span>
+                        <h3 class="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                            Atur Kelompok Santri Al-Qur'an
+                        </h3>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-1">
+                        Pilih santri untuk kelompok halaqah bersama guru pembimbing. Diatur sekali saja dan dapat diedit kapan saja.
+                    </p>
+                </div>
+                <button type="button" @click="closeGroupModal()"
+                        class="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            {{-- Modal Controls: Pilihan Tingkat & Filter Guru (Sticky top) --}}
+            <div class="p-5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shrink-0">
+                
+                {{-- Baris 1: Selector Tingkat Kelas (Pill Buttons) --}}
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+                            PILIH TINGKAT KELAS:
+                        </span>
+                        <span class="text-xs font-black text-emerald-700 dark:text-emerald-400">
+                            Sedang Mengatur: Tingkat Kelas <span x-text="modalGrade"></span>
+                        </span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach($availableGrades as $g)
+                        <button type="button" @click="switchModalGrade({{ $g }})"
+                                :class="modalGrade === {{ $g }} ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 ring-2 ring-emerald-500 font-black' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold'"
+                                class="px-4 py-2 rounded-xl text-xs transition cursor-pointer">
+                            <span>Tingkat {{ $g }}</span>
+                        </button>
+                        @endforeach
+                    </div>
+                </div>
+
+                {{-- Baris 2: Guru Pembimbing (Jika Admin) / Info Guru --}}
+                @if($isAdmin)
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center pt-1">
+                    <div class="sm:col-span-4">
+                        <label class="block text-[11px] font-extrabold text-slate-500 uppercase">Guru Pembimbing Halaqah:</label>
+                    </div>
+                    <div class="sm:col-span-8">
+                        <select x-model="modalTeacherId" @change="fetchGroupStudents()"
+                                class="w-full px-3 py-2 border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-950 dark:text-indigo-200 rounded-xl text-xs font-bold">
+                            @foreach($quranTeachers as $t)
+                                <option value="{{ $t->id }}">{{ $t->name }} (Guru Al-Qur'an)</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                @else
+                <div class="flex items-center gap-2 p-2.5 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-xl border border-emerald-100 dark:border-emerald-800/40 text-xs">
+                    <span class="font-extrabold text-emerald-800 dark:text-emerald-300">Guru Pembimbing:</span>
+                    <span class="font-bold text-slate-700 dark:text-slate-200">{{ $activeTeacher->name }}</span>
+                </div>
+                @endif
+
+                {{-- Baris 3: Live Search, Filter Rombel Asal, & Filter Status --}}
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-1">
+                    {{-- Search box --}}
+                    <div class="sm:col-span-5 relative">
+                        <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input type="text" x-model="searchQuery" placeholder="Cari nama santri atau NISN..."
+                               class="w-full pl-9 pr-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 transition">
+                    </div>
+
+                    {{-- Filter Rombel Asal Kelas --}}
+                    <div class="sm:col-span-4">
+                        <select x-model="filterClassId"
+                                class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200">
+                            <option value="">Semua Rombel (Tingkat <span x-text="modalGrade"></span>)</option>
+                            <template x-for="c in modalClasses" :key="c.id">
+                                <option :value="c.id" x-text="c.name"></option>
+                            </template>
+                        </select>
+                    </div>
+
+                    {{-- Bulk Actions --}}
+                    <div class="sm:col-span-3 flex items-center gap-1.5">
+                        <button type="button" @click="selectAllFiltered()"
+                                class="w-1/2 py-2 px-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl text-[11px] font-extrabold text-slate-700 dark:text-slate-300 transition text-center cursor-pointer">
+                            Pilih Semua
+                        </button>
+                        <button type="button" @click="deselectAllFiltered()"
+                                class="w-1/2 py-2 px-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl text-[11px] font-extrabold text-slate-700 dark:text-slate-300 transition text-center cursor-pointer">
+                            Batal Pilih
+                        </button>
+                    </div>
+                </div>
+
+                {{-- Baris 4: Quick Filter Status Pills & Selected Counter --}}
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        <button type="button" @click="filterStatus = 'all'"
+                                :class="filterStatus === 'all' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'"
+                                class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer">
+                            Semua (<span x-text="allGroupStudents.length"></span>)
+                        </button>
+                        <button type="button" @click="filterStatus = 'my_group'"
+                                :class="filterStatus === 'my_group' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'"
+                                class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer">
+                            ✓ Kelompok Ini (<span x-text="selectedStudentIds.length"></span>)
+                        </button>
+                        <button type="button" @click="filterStatus = 'unassigned'"
+                                :class="filterStatus === 'unassigned' ? 'bg-amber-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'"
+                                class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer">
+                            Belum Berkelompok
+                        </button>
+                    </div>
+
+                    <div class="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                        ✨ <span x-text="selectedStudentIds.length"></span> Santri Terpilih
+                    </div>
+                </div>
+
+            </div>
+
+            {{-- Modal Body: Daftar Kartu Santri (Scrollable) --}}
+            <div class="p-5 overflow-y-auto flex-1 bg-slate-50/50 dark:bg-slate-900/50 min-h-[250px]">
+                
+                {{-- Loading Spinner --}}
+                <div x-show="loadingGroupStudents" class="py-12 text-center text-slate-400 space-y-3">
+                    <svg class="animate-spin w-8 h-8 mx-auto text-emerald-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <p class="text-xs font-bold">Memuat daftar santri Tingkat Kelas <span x-text="modalGrade"></span>...</p>
+                </div>
+
+                {{-- Empty List State --}}
+                <div x-show="!loadingGroupStudents && filteredGroupStudents.length === 0" class="py-12 text-center text-slate-400">
+                    <p class="text-xs font-bold">Tidak ada santri yang sesuai dengan filter pencarian.</p>
+                </div>
+
+                {{-- Grid Kartu Santri --}}
+                <div x-show="!loadingGroupStudents && filteredGroupStudents.length > 0"
+                     class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <template x-for="st in filteredGroupStudents" :key="st.id">
+                        <div @click="toggleStudent(st.id)"
+                             :class="isStudentSelected(st.id)
+                                ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-2 border-emerald-500 shadow-xs'
+                                : 'bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 hover:border-slate-300 dark:hover:border-slate-600'"
+                             class="p-3.5 rounded-2xl transition cursor-pointer flex items-center justify-between gap-3 select-none">
+                            
+                            <div class="flex items-center gap-3 min-w-0">
+                                {{-- Checkbox Visual --}}
+                                <div :class="isStudentSelected(st.id) ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-transparent'"
+                                     class="w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                </div>
+
+                                {{-- Avatar / Initials --}}
+                                <div class="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 flex items-center justify-center font-black text-xs shrink-0 uppercase">
+                                    <span x-text="st.name.substring(0, 2)"></span>
+                                </div>
+
+                                {{-- Data Santri --}}
+                                <div class="min-w-0">
+                                    <h4 class="text-xs font-black text-slate-900 dark:text-white truncate" x-text="st.name"></h4>
+                                    <div class="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
+                                        <span class="font-bold text-slate-600 dark:text-slate-300" x-text="st.class_name"></span>
+                                        <span>•</span>
+                                        <span>NISN: <span x-text="st.nisn"></span></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Status Badges --}}
+                            <div class="shrink-0 text-right">
+                                <template x-if="isStudentSelected(st.id)">
+                                    <span class="px-2.5 py-1 bg-emerald-600 text-white text-[10px] font-black rounded-lg shadow-2xs">
+                                        ✓ Di Kelompok Ini
+                                    </span>
+                                </template>
+                                <template x-if="!isStudentSelected(st.id) && st.assigned_teacher_name">
+                                    <span class="px-2 py-0.5 bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 text-[10px] font-bold rounded-lg border border-amber-200 dark:border-amber-800"
+                                          :title="'Saat ini di kelompok ' + st.assigned_teacher_name + '. Klik untuk pindahkan ke sini.'">
+                                        Kelompok: <span x-text="st.assigned_teacher_name"></span>
+                                    </span>
+                                </template>
+                                <template x-if="!isStudentSelected(st.id) && !st.assigned_teacher_name">
+                                    <span class="px-2 py-0.5 bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400 text-[10px] font-bold rounded-lg">
+                                        Belum Ada Kelompok
+                                    </span>
+                                </template>
+                            </div>
+
+                        </div>
+                    </template>
+                </div>
+
+            </div>
+
+            {{-- Modal Footer: Save & Cancel --}}
+            <div class="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-3 shrink-0">
+                <div class="text-xs text-slate-500 hidden sm:block">
+                    Total <strong class="text-slate-900 dark:text-white" x-text="selectedStudentIds.length"></strong> santri akan dimasukkan ke kelompok ini.
+                </div>
+                
+                <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <button type="button" @click="closeGroupModal()"
+                            class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
+                        Batal
+                    </button>
+                    <button type="button" @click="saveGroupArrangement()" :disabled="savingGroup"
+                            class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-black shadow-md shadow-emerald-600/20 transition flex items-center gap-2 cursor-pointer">
+                        <template x-if="savingGroup">
+                            <svg class="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        </template>
+                        <template x-if="!savingGroup">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        </template>
+                        <span>Simpan Susunan Kelompok (<span x-text="selectedStudentIds.length"></span> Santri)</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
 
 </div>
 @endsection

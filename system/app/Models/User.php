@@ -283,6 +283,16 @@ class User extends Authenticatable implements CanResetPassword
         return $this->belongsToMany(ClassModel::class, 'quran_teacher_classes', 'user_id', 'class_id')->withTimestamps();
     }
 
+    public function halaqahMembers(): HasMany
+    {
+        return $this->hasMany(QuranHalaqahMember::class, 'teacher_id');
+    }
+
+    public function halaqahStudents(): BelongsToMany
+    {
+        return $this->belongsToMany(Student::class, 'quran_halaqah_members', 'teacher_id', 'student_id')->withTimestamps();
+    }
+
     /**
      * Dapatkan daftar ID kelas yang ditugaskan kepada guru ini.
      * Jika admin/super-admin: return null (seluruh kelas).
