@@ -155,8 +155,12 @@ if (!function_exists('get_public_file_url')) {
         
         $cleanPath = preg_replace('#^img/+img/#', 'img/', $cleanPath);
         $cleanPath = preg_replace('#^doc/+doc/#', 'doc/', $cleanPath);
-        
-        return url($cleanPath);
+        $isSecure = false;
+        try {
+            $isSecure = request() && (request()->isSecure() || strtolower((string)request()->header('x-forwarded-proto')) === 'https');
+        } catch (\Throwable $e) {}
+
+        return $isSecure ? secure_url($cleanPath) : url($cleanPath);
     }
 }
 

@@ -42,9 +42,6 @@ class Setting extends Model
         if (\Illuminate\Support\Facades\File::exists(public_path('img/logo.png'))) {
             return asset('img/logo.png');
         }
-        if (\Illuminate\Support\Facades\File::exists(public_path('img/fav.png'))) {
-            return asset('img/fav.png');
-        }
         return asset('img/fav.png');
     }
 
@@ -59,4 +56,52 @@ class Setting extends Model
         }
         return self::getLogoUrl();
     }
+
+    public static function getLogoFilePath(): ?string
+    {
+        $candidates = [
+            self::get('logo_path'),
+            self::get('school_logo'),
+            self::get('logo'),
+            'img/logo.png',
+            'img/fav.png',
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (!$candidate) continue;
+
+            $clean = ltrim(str_replace('\\', '/', $candidate), '/');
+            if (\Illuminate\Support\Str::startsWith($clean, 'system/public/')) {
+                $clean = substr($clean, 14);
+            }
+            if (\Illuminate\Support\Str::startsWith($clean, 'storage/')) {
+                $clean = substr($clean, 8);
+            }
+
+            $pathsToCheck = [
+                public_path($clean),
+                public_path('img/' . basename($clean)),
+                base_path($clean),
+                base_path('img/' . basename($clean)),
+            ];
+
+            foreach ($pathsToCheck as $p) {
+                if (\Illuminate\Support\Facades\File::exists($p) && !\Illuminate\Support\Facades\File::isDirectory($p)) {
+                    return $p;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public static function getLogoVersion(): string
+    {
+        $path = self::getLogoFilePath();
+        if ($path && \Illuminate\Support\Facades\File::exists($path)) {
+            return (string) \Illuminate\Support\Facades\File::lastModified($path);
+        }
+        return (string) time();
+    }
 }
+

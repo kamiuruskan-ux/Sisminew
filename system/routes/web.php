@@ -61,8 +61,10 @@ use App\Http\Controllers\Admin\GuideController;
 use App\Http\Controllers\PwaController;
 use Illuminate\Support\Facades\Route;
 
-// PWA Dynamic Manifest
+// PWA Dynamic Manifest, Icons & Service Worker
 Route::get('/manifest.json', [PwaController::class, 'manifest'])->name('pwa.manifest');
+Route::get('/pwa-icon/{size?}', [PwaController::class, 'icon'])->name('pwa.icon');
+Route::get('/sw.js', [PwaController::class, 'serviceWorker'])->name('pwa.sw');
 
 
 /*

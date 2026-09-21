@@ -813,5 +813,6 @@
         });
     </script>
     @stack('scripts')
+    @include('components.pwa-install')
 </body>
 </html>

@@ -3,16 +3,21 @@
     $pwaName = \App\Models\Setting::get('school_name', config('app.name', 'SISMI'));
     $pwaShortName = \App\Models\Setting::get('school_short_name', 'SISMI');
     $pwaColor = \App\Models\Setting::get('primary_color', '#3C50E0');
+    $pwaVersion = \App\Models\Setting::getLogoVersion();
 @endphp
 
 <!-- PWA Manifest & App Metas -->
-<link rel="manifest" href="{{ route('pwa.manifest') }}">
+<link rel="manifest" href="/manifest.json?v={{ $pwaVersion }}">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="{{ $pwaShortName }}">
+<meta name="application-name" content="{{ $pwaName }}">
 <meta name="theme-color" content="{{ $pwaColor }}">
-<link rel="apple-touch-icon" href="{{ $pwaLogo }}">
+<link rel="icon" type="image/png" sizes="192x192" href="/pwa-icon/192?v={{ $pwaVersion }}">
+<link rel="icon" type="image/png" sizes="512x512" href="/pwa-icon/512?v={{ $pwaVersion }}">
+<link rel="apple-touch-icon" sizes="180x180" href="/pwa-icon/180?v={{ $pwaVersion }}">
+<link rel="apple-touch-icon" href="/pwa-icon/192?v={{ $pwaVersion }}">
 
 <!-- PWA Install Modal (Universal for Desktop, Android & iOS Safari) -->
 <div id="pwaInstallModal" class="hidden fixed inset-0 z-[99999] overflow-y-auto flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
@@ -23,7 +28,7 @@
 
         <!-- System Logo dynamically loaded -->
         <div class="w-20 h-20 mx-auto mb-4 rounded-2xl p-2 bg-slate-50 dark:bg-[#1A222C] border border-slate-100 dark:border-slate-800 shadow-md flex items-center justify-center">
-            <img src="{{ $pwaLogo }}" alt="{{ $pwaName }}" class="w-full h-full object-contain rounded-xl">
+            <img src="/pwa-icon/192?v={{ $pwaVersion }}" alt="{{ $pwaName }}" class="w-full h-full object-contain rounded-xl">
         </div>
 
         <h3 class="text-base font-extrabold text-slate-900 dark:text-white">{{ $pwaName }}</h3>
