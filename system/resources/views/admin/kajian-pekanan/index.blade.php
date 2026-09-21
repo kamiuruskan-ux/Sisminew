@@ -144,7 +144,7 @@
                                 </span>
                                 @if($session->material_summary)
                                     <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 italic">
-                                        "{{ Str::limit($session->material_summary, 80) }}"
+                                        "{{ \Illuminate\Support\Str::limit($session->material_summary, 80) }}"
                                     </p>
                                 @endif
                             </td>

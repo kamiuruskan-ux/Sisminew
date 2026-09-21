@@ -200,7 +200,7 @@
             <tr>
                 <td class="label">Ringkasan Materi</td>
                 <td class="sep">:</td>
-                <td>{{ Str::limit($session->material_summary, 200) }}</td>
+                <td>{{ \Illuminate\Support\Str::limit($session->material_summary, 200) }}</td>
             </tr>
             @endif
         </table>

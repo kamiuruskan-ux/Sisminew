@@ -236,32 +236,74 @@ class KpiCalculationEngineService
             $endDate = Carbon::createFromDate($year, 12, 31)->endOfYear();
         }
 
-        // 2. Calculate Effective Working Days (exclude Sundays)
-        $totalDays = 0;
-        $period = CarbonPeriod::create($startDate, $endDate);
+        // Logika Adil Hari Kerja:
+        // Jika mengevaluasi bulan berjalan, batas akhir evaluasi TIDAK BOLEH melampaui hari ini
+        // karena hari esok/depan belum terjadi dan tidak adil dianggap sebagai ketidakhadiran
+        $isCurrentMonth = ($year == (int)now()->year && (int)$month == (int)now()->month);
+        $evalEndDate = $isCurrentMonth ? now()->endOfDay() : $endDate;
+
+        // 2. Konfigurasi Hari Libur Akhir Pekan (Default SDIT 5 Hari Kerja: Ahad=0, Sabtu=6)
+        $weekendConfig = Setting::get('attendance_weekend_days', '0,6');
+        $weekendDays = array_map('intval', explode(',', $weekendConfig));
+
+        // Hari libur kalender sekolah / libur nasional
+        $holidaysRaw = Setting::get('attendance_holidays', '');
+        $holidayDates = [];
+        if (!empty($holidaysRaw)) {
+            $decoded = json_decode($holidaysRaw, true);
+            $holidayDates = is_array($decoded) ? $decoded : array_map('trim', explode(',', $holidaysRaw));
+        }
+
+        // Hitung hari kerja kalender yang sudah lewat (exclude weekend & holidays)
+        $calendarWorkdays = 0;
+        $period = CarbonPeriod::create($startDate, $evalEndDate);
         foreach ($period as $date) {
-            if ($date->dayOfWeek !== Carbon::SUNDAY) {
-                $totalDays++;
+            if (!in_array($date->dayOfWeek, $weekendDays) && !in_array($date->format('Y-m-d'), $holidayDates)) {
+                $calendarWorkdays++;
             }
         }
-        $totalDays = max(1, $totalDays);
+        $calendarWorkdays = max(1, $calendarWorkdays);
 
-        // 3. Excused Days (Approved Sick / Official Duty Leaves)
+        // Hitung hari riil sekolah membuka/mencatat presensi & briefing
+        $schoolAttendanceDays = 0;
+        $schoolBriefingDays = 0;
+        try {
+            $schoolAttendanceDays = TeacherAttendance::whereBetween('date', [$startDate->format('Y-m-d'), $evalEndDate->format('Y-m-d')])
+                ->distinct('date')
+                ->count('date');
+            $schoolBriefingDays = BriefingSession::whereBetween('date', [$startDate->format('Y-m-d'), $evalEndDate->format('Y-m-d')])
+                ->distinct('date')
+                ->count('date');
+        } catch (\Throwable $e) {
+            $schoolAttendanceDays = 0;
+        }
+
+        $actualSchoolActiveDays = max($schoolAttendanceDays, $schoolBriefingDays);
+
+        // Penentuan total hari kerja yang adil:
+        // Jika sekolah baru mencatat presensi pada beberapa hari riil, patokan adalah hari aktif riil
+        if ($actualSchoolActiveDays > 0) {
+            $totalDays = min($calendarWorkdays, max($actualSchoolActiveDays, 1));
+        } else {
+            $totalDays = $calendarWorkdays;
+        }
+
+        // 3. Excused Days (Izin / Sakit / Tugas Luar Resmi yang Disetujui)
         $excusedDays = 0;
         try {
             $permits = EmployeePermit::where('user_id', $userId)
                 ->where('status', 'approved')
-                ->where(function ($q) use ($startDate, $endDate) {
-                    $q->whereBetween('start_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
-                      ->orWhereBetween('end_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')]);
+                ->where(function ($q) use ($startDate, $evalEndDate) {
+                    $q->whereBetween('start_date', [$startDate->format('Y-m-d'), $evalEndDate->format('Y-m-d')])
+                      ->orWhereBetween('end_date', [$startDate->format('Y-m-d'), $evalEndDate->format('Y-m-d')]);
                 })->get();
 
             foreach ($permits as $permit) {
                 $pStart = Carbon::parse($permit->start_date)->max($startDate);
-                $pEnd = Carbon::parse($permit->end_date)->min($endDate);
+                $pEnd = Carbon::parse($permit->end_date)->min($evalEndDate);
                 $pPeriod = CarbonPeriod::create($pStart, $pEnd);
                 foreach ($pPeriod as $pDate) {
-                    if ($pDate->dayOfWeek !== Carbon::SUNDAY) {
+                    if (!in_array($pDate->dayOfWeek, $weekendDays) && !in_array($pDate->format('Y-m-d'), $holidayDates)) {
                         $excusedDays++;
                     }
                 }
@@ -274,7 +316,7 @@ class KpiCalculationEngineService
 
         // 4. Retrieve Teacher Attendance records
         $attendances = TeacherAttendance::where('user_id', $userId)
-            ->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+            ->whereBetween('date', [$startDate->format('Y-m-d'), $evalEndDate->format('Y-m-d')])
             ->get();
 
         $presentCount = 0;
@@ -293,7 +335,7 @@ class KpiCalculationEngineService
                 $morningScoresSum += max(0, 100 - $penalty);
             }
 
-            if (!empty($att->midday_at)) {
+            if (!empty($att->midday_at) || (!empty($att->notes) && str_contains($att->notes, 'Hadir Sesi Siang'))) {
                 $middayCount++;
             }
 
@@ -302,38 +344,76 @@ class KpiCalculationEngineService
             }
         }
 
+        // Pembagi hari kerja riil yang adil
+        $divisorWorkdays = max(1, $effectiveWorkdays);
+
         // Indicator 1.1: Presensi Masuk Pagi
-        $scoreInd11 = round(min(100, $morningScoresSum / $effectiveWorkdays), 2);
-        $detailInd11 = "Hadir {$presentCount}/{$effectiveWorkdays} hari aktif, akumulasi terlambat {$totalDelayMinutes} menit";
+        if ($presentCount >= $divisorWorkdays) {
+            $scoreInd11 = round(min(100, $morningScoresSum / max(1, $presentCount)), 2);
+        } else {
+            $scoreInd11 = round(min(100, $morningScoresSum / $divisorWorkdays), 2);
+        }
+        $detailInd11 = "Hadir {$presentCount}/{$divisorWorkdays} hari aktif riil, akumulasi terlambat {$totalDelayMinutes} menit";
 
         // Indicator 1.2: Presensi Siang
-        $scoreInd12 = round(min(100, ($middayCount / $effectiveWorkdays) * 100), 2);
-        $detailInd12 = "Presensi siang tercatat {$middayCount} dari {$effectiveWorkdays} hari kerja";
+        $schoolTotalMidday = 0;
+        try {
+            $schoolTotalMidday = TeacherAttendance::whereBetween('date', [$startDate->format('Y-m-d'), $evalEndDate->format('Y-m-d')])
+                ->where(function($q) {
+                    $q->whereNotNull('midday_at')->orWhere('notes', 'like', '%Hadir Sesi Siang%');
+                })->count();
+        } catch (\Throwable $e) {
+            $schoolTotalMidday = 0;
+        }
+
+        if ($schoolTotalMidday > 0) {
+            $scoreInd12 = round(min(100, ($middayCount / $divisorWorkdays) * 100), 2);
+            $detailInd12 = "Presensi siang tercatat {$middayCount} dari {$divisorWorkdays} hari kerja";
+        } else {
+            // Sesi presensi siang belum diaktifkan/diterapkan oleh sekolah, default 95/100
+            $scoreInd12 = 95.0;
+            $detailInd12 = "Sesi presensi siang belum diwajibkan sistem (95 pts)";
+        }
 
         // Indicator 1.3: Presensi Pulang
-        $scoreInd13 = round(min(100, ($checkoutCount / $effectiveWorkdays) * 100), 2);
-        $detailInd13 = "Presensi kepulangan tepat waktu {$checkoutCount} dari {$effectiveWorkdays} hari kerja";
+        $schoolTotalCheckout = 0;
+        try {
+            $schoolTotalCheckout = TeacherAttendance::whereBetween('date', [$startDate->format('Y-m-d'), $evalEndDate->format('Y-m-d')])
+                ->whereNotNull('check_out')
+                ->count();
+        } catch (\Throwable $e) {
+            $schoolTotalCheckout = 0;
+        }
+
+        if ($schoolTotalCheckout > 0) {
+            $scoreInd13 = round(min(100, ($checkoutCount / $divisorWorkdays) * 100), 2);
+            $detailInd13 = "Presensi kepulangan tercatat {$checkoutCount} dari {$divisorWorkdays} hari kerja";
+        } else {
+            // Presensi kepulangan belum diwajibkan oleh sekolah
+            $scoreInd13 = 95.0;
+            $detailInd13 = "Presensi kepulangan belum diwajibkan sistem (95 pts)";
+        }
 
         // Indicator 1.4: Kehadiran Briefing Pagi
         $totalBriefings = 0;
         $attendedBriefings = 0;
         try {
-            $totalBriefings = BriefingSession::whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])->count();
+            $totalBriefings = BriefingSession::whereBetween('date', [$startDate->format('Y-m-d'), $evalEndDate->format('Y-m-d')])->count();
             if ($totalBriefings > 0) {
                 $attendedBriefings = BriefingAttendance::where('user_id', $userId)
-                    ->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+                    ->whereBetween('date', [$startDate->format('Y-m-d'), $evalEndDate->format('Y-m-d')])
                     ->count();
                 $scoreInd14 = round(min(100, ($attendedBriefings / $totalBriefings) * 100), 2);
             } else {
-                $scoreInd14 = 100;
+                $scoreInd14 = 95.0;
             }
         } catch (\Throwable $e) {
-            $scoreInd14 = 85;
+            $scoreInd14 = 95.0;
         }
-        $detailInd14 = $totalBriefings > 0 ? "Hadir {$attendedBriefings} dari {$totalBriefings} sesi briefing pagi" : "Tidak ada jadwal briefing wajib";
+        $detailInd14 = $totalBriefings > 0 ? "Hadir {$attendedBriefings} dari {$totalBriefings} sesi briefing pagi" : "Tidak ada jadwal briefing wajib (95 pts)";
 
         // Attendance Percentage & Gate Prerequisite
-        $attendancePercentage = round(min(100, (($presentCount + $excusedDays) / $totalDays) * 100), 2);
+        $attendancePercentage = round(min(100, (($presentCount + $excusedDays) / max(1, min($totalDays, max($divisorWorkdays, $presentCount)))) * 100), 2);
         $gatePassed = ($attendancePercentage >= $settings['gate_threshold']);
 
         // Component 1 Score
