@@ -1183,6 +1183,58 @@
                     </div>
                 </div>
 
+                <!-- Kinerja & Mutabaah Pegawai -->
+                @if(auth()->user()->hasRole(['super-admin', 'admin', 'operator', 'kepala-sekolah', 'wakasek-kurikulum', 'wakasek-kesiswaan', 'guru', 'teacher', 'guru-quran', 'staff', 'tata-usaha']))
+                <div>
+                    <p class="section-label">Kinerja &amp; Mutabaah Pegawai</p>
+                    <div class="space-y-1">
+                        <!-- KPI & Performance Engine -->
+                        <a href="{{ route('admin.kpi.index') }}" 
+                           class="nav-link {{ request()->routeIs('admin.kpi.*') ? 'nav-link-active' : '' }}">
+                            <svg class="nav-icon text-indigo-500 dark:text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 20V10"></path>
+                                <path d="M18 20V4"></path>
+                                <path d="M6 20v-4"></path>
+                            </svg>
+                            <span class="flex items-center justify-between w-full">
+                                <span class="font-bold">Penilaian Kinerja (KPI)</span>
+                                <span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-extrabold text-[9px] rounded">Engine</span>
+                            </span>
+                        </a>
+
+                        <!-- Dropdown Mutabaah Pegawai -->
+                        @php
+                            $isMutabaahActive = request()->routeIs('admin.employee-mutabaah.*');
+                        @endphp
+                        <div x-data="{ open: {{ $isMutabaahActive ? 'true' : 'false' }} }">
+                            <button type="button" @click="open = !open" 
+                                    class="nav-link w-full flex items-center justify-between transition-colors {{ $isMutabaahActive ? 'text-[#3C50E0] dark:text-indigo-400 font-bold' : '' }}">
+                                <div class="flex items-center">
+                                    <svg class="nav-icon text-emerald-500 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M9 11l3 3L22 4"></path>
+                                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                                    </svg>
+                                    <span>Mutabaah Ibadah</span>
+                                </div>
+                                <svg class="w-4 h-4 transition-transform duration-200 shrink-0 text-slate-400" :class="{ 'rotate-90': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                            </button>
+
+                            <div x-show="open" x-collapse class="pl-4 space-y-1 mt-1 border-l-2 border-slate-200 dark:border-slate-800 ml-4">
+                                <a href="{{ route('admin.employee-mutabaah.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.employee-mutabaah.index') ? 'nav-link-active' : '' }}">
+                                    <span>Mutabaah Harian Saya</span>
+                                </a>
+                                @if(auth()->user()->hasRole(['super-admin', 'admin', 'operator', 'kepala-sekolah']))
+                                    <a href="{{ route('admin.employee-mutabaah.recap') }}" class="nav-link text-xs {{ request()->routeIs('admin.employee-mutabaah.recap') ? 'nav-link-active' : '' }}">
+                                        <span>Rekap Mutabaah Guru</span>
+                                    </a>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @endif
+
+
                 <!-- 6. Keuangan & Operasional -->
                 @if(auth()->user()->hasPermission('view-financial|view-student-payments|view-savings|view-financial-transactions|manage-financial|manage-payment-bills|view-payment-tracking|view-financial-reports|view-canteen-admin|manage-canteen-admin'))
                 <div>

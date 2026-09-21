@@ -673,6 +673,21 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
     Route::delete('kajian-pekanan/{kajian_pekanan}', [\App\Http\Controllers\Admin\KajianPekananController::class, 'destroy'])->name('kajian-pekanan.destroy');
     Route::get('kajian-pekanan/{kajian_pekanan}/print', [\App\Http\Controllers\Admin\KajianPekananController::class, 'printReport'])->name('kajian-pekanan.print');
 
+    // Penilaian Kinerja Guru & Pegawai (KPI & Performance Engine)
+    Route::get('kpi', [\App\Http\Controllers\Admin\KpiController::class, 'index'])->name('kpi.index');
+    Route::get('kpi/evaluation-data/{userId}', [\App\Http\Controllers\Admin\KpiController::class, 'getEvaluationData'])->name('kpi.evaluation-data');
+    Route::post('kpi/evaluation', [\App\Http\Controllers\Admin\KpiController::class, 'saveEvaluation'])->name('kpi.save-evaluation');
+    Route::put('kpi/settings', [\App\Http\Controllers\Admin\KpiController::class, 'updateSettings'])->name('kpi.update-settings');
+    Route::get('kpi/raport/{userId}', [\App\Http\Controllers\Admin\KpiController::class, 'showRaport'])->name('kpi.raport');
+    Route::get('kpi/raport/{userId}/print', [\App\Http\Controllers\Admin\KpiController::class, 'printRaport'])->name('kpi.raport.print');
+    Route::get('kpi/export', [\App\Http\Controllers\Admin\KpiController::class, 'exportExcel'])->name('kpi.export');
+
+    // Mutabaah Ibadah Harian Pegawai & Guru
+    Route::get('employee-mutabaah', [\App\Http\Controllers\Admin\EmployeeMutabaahController::class, 'index'])->name('employee-mutabaah.index');
+    Route::post('employee-mutabaah', [\App\Http\Controllers\Admin\EmployeeMutabaahController::class, 'store'])->name('employee-mutabaah.store');
+    Route::get('employee-mutabaah/recap', [\App\Http\Controllers\Admin\EmployeeMutabaahController::class, 'recap'])->name('employee-mutabaah.recap');
+
+
     // Aspirasi, Kritik & Saran Sekolah
     Route::get('feedback', [\App\Http\Controllers\Admin\FeedbackController::class, 'index'])->name('feedback.index');
     Route::post('feedback', [\App\Http\Controllers\Admin\FeedbackController::class, 'store'])->name('feedback.store');
