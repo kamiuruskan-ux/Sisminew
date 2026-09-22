@@ -6,6 +6,28 @@
     $schoolName = Setting::get('school_name', config('app.name', 'SDIT AL-FAHMI PALU'));
     $attendanceSettings = app(\App\Services\AttendanceSessionService::class)->getScheduleSettings();
     $user = auth()->user();
+
+    // Query today's attendance for current user if not provided by parent view
+    $todayAttendance = $todayAttendance ?? \App\Models\TeacherAttendance::where('user_id', $user->id)
+        ->where('date', date('Y-m-d'))
+        ->first();
+
+    $checkInTime = null;
+    if (!empty($todayAttendance?->check_in)) {
+        $checkInTime = \Carbon\Carbon::parse($todayAttendance->check_in)->format('H:i');
+    }
+
+    $middayTime = null;
+    if (!empty($todayAttendance?->midday_at)) {
+        $middayTime = \Carbon\Carbon::parse($todayAttendance->midday_at)->format('H:i');
+    } elseif (!empty($todayAttendance?->notes) && preg_match('/Hadir Sesi Siang\s*@\s*(\d{2}:\d{2})/', $todayAttendance->notes, $matches)) {
+        $middayTime = $matches[1];
+    }
+
+    $checkOutTime = null;
+    if (!empty($todayAttendance?->check_out)) {
+        $checkOutTime = \Carbon\Carbon::parse($todayAttendance->check_out)->format('H:i');
+    }
 @endphp
 
 <!-- Ensure Required Modular Attendance Services are Loaded -->
@@ -189,28 +211,79 @@
             </template>
         </div>
 
-        <!-- Session Selection Option (Simplified) -->
+        <!-- Session Selection Option (Dynamic based on completed attendance times) -->
         <div class="space-y-1.5">
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">Sesi Presensi</label>
+            <div class="flex items-center justify-between">
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">Sesi Presensi</label>
+                @if($checkInTime && $middayTime && $checkOutTime)
+                    <span class="text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md flex items-center gap-1 border border-emerald-300/40">
+                        <span>✓</span> Lengkap Hari Ini
+                    </span>
+                @endif
+            </div>
             <div class="grid grid-cols-3 gap-2">
-                <button type="button" @click="selectedSessionType = 'check_in'"
-                        :class="selectedSessionType === 'check_in' ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-extrabold ring-2 ring-emerald-500/20' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'"
-                        class="p-2.5 rounded-xl border text-center text-xs transition cursor-pointer">
-                    <span class="block text-sm">🌅</span>
-                    <span class="text-[11px] font-bold block mt-0.5">Pagi Masuk</span>
-                </button>
-                <button type="button" @click="selectedSessionType = 'midday'"
-                        :class="selectedSessionType === 'midday' ? 'border-amber-500 bg-amber-50/60 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-extrabold ring-2 ring-amber-500/20' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'"
-                        class="p-2.5 rounded-xl border text-center text-xs transition cursor-pointer">
-                    <span class="block text-sm">☀️</span>
-                    <span class="text-[11px] font-bold block mt-0.5">Dzuhur</span>
-                </button>
-                <button type="button" @click="selectedSessionType = 'check_out'"
-                        :class="selectedSessionType === 'check_out' ? 'border-indigo-500 bg-indigo-50/60 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-extrabold ring-2 ring-indigo-500/20' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'"
-                        class="p-2.5 rounded-xl border text-center text-xs transition cursor-pointer">
-                    <span class="block text-sm">🌇</span>
-                    <span class="text-[11px] font-bold block mt-0.5">Sore Pulang</span>
-                </button>
+                <!-- 1. Pagi Masuk -->
+                @if($checkInTime)
+                    <div class="p-2 sm:p-2.5 rounded-xl border-2 border-emerald-400/80 dark:border-emerald-700 bg-emerald-50/90 dark:bg-emerald-950/50 text-center text-xs opacity-95 cursor-not-allowed shadow-2xs select-none"
+                         title="Presensi Masuk telah tercatat pukul {{ $checkInTime }} {{ $timezoneLabel }}">
+                        <div class="flex items-center justify-center gap-1">
+                            <span class="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-emerald-600 text-white text-[9px] font-black">✓</span>
+                            <span class="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">Pagi Selesai</span>
+                        </div>
+                        <span class="text-xs sm:text-sm font-black font-mono text-emerald-800 dark:text-emerald-200 block mt-0.5">
+                            {{ $checkInTime }} <span class="text-[9px] font-sans font-semibold">{{ $timezoneLabel }}</span>
+                        </span>
+                    </div>
+                @else
+                    <button type="button" @click="selectedSessionType = 'check_in'"
+                            :class="selectedSessionType === 'check_in' ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-extrabold ring-2 ring-emerald-500/20' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600'"
+                            class="p-2.5 rounded-xl border text-center text-xs transition cursor-pointer">
+                        <span class="block text-sm">🌅</span>
+                        <span class="text-[11px] font-bold block mt-0.5">Pagi Masuk</span>
+                    </button>
+                @endif
+
+                <!-- 2. Dzuhur -->
+                @if($middayTime)
+                    <div class="p-2 sm:p-2.5 rounded-xl border-2 border-amber-400/80 dark:border-amber-700 bg-amber-50/90 dark:bg-amber-950/50 text-center text-xs opacity-95 cursor-not-allowed shadow-2xs select-none"
+                         title="Presensi Dzuhur telah tercatat pukul {{ $middayTime }} {{ $timezoneLabel }}">
+                        <div class="flex items-center justify-center gap-1">
+                            <span class="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-amber-600 text-white text-[9px] font-black">✓</span>
+                            <span class="text-[10px] font-bold text-amber-700 dark:text-amber-300">Dzuhur Selesai</span>
+                        </div>
+                        <span class="text-xs sm:text-sm font-black font-mono text-amber-800 dark:text-amber-200 block mt-0.5">
+                            {{ $middayTime }} <span class="text-[9px] font-sans font-semibold">{{ $timezoneLabel }}</span>
+                        </span>
+                    </div>
+                @else
+                    <button type="button" @click="selectedSessionType = 'midday'"
+                            :class="selectedSessionType === 'midday' ? 'border-amber-500 bg-amber-50/60 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-extrabold ring-2 ring-amber-500/20' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600'"
+                            class="p-2.5 rounded-xl border text-center text-xs transition cursor-pointer">
+                        <span class="block text-sm">☀️</span>
+                        <span class="text-[11px] font-bold block mt-0.5">Dzuhur</span>
+                    </button>
+                @endif
+
+                <!-- 3. Sore Pulang -->
+                @if($checkOutTime)
+                    <div class="p-2 sm:p-2.5 rounded-xl border-2 border-indigo-400/80 dark:border-indigo-700 bg-indigo-50/90 dark:bg-indigo-950/50 text-center text-xs opacity-95 cursor-not-allowed shadow-2xs select-none"
+                         title="Presensi Pulang telah tercatat pukul {{ $checkOutTime }} {{ $timezoneLabel }}">
+                        <div class="flex items-center justify-center gap-1">
+                            <span class="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-indigo-600 text-white text-[9px] font-black">✓</span>
+                            <span class="text-[10px] font-bold text-indigo-700 dark:text-indigo-300">Pulang Selesai</span>
+                        </div>
+                        <span class="text-xs sm:text-sm font-black font-mono text-indigo-800 dark:text-indigo-200 block mt-0.5">
+                            {{ $checkOutTime }} <span class="text-[9px] font-sans font-semibold">{{ $timezoneLabel }}</span>
+                        </span>
+                    </div>
+                @else
+                    <button type="button" @click="selectedSessionType = 'check_out'"
+                            :class="selectedSessionType === 'check_out' ? 'border-indigo-500 bg-indigo-50/60 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-extrabold ring-2 ring-indigo-500/20' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600'"
+                            class="p-2.5 rounded-xl border text-center text-xs transition cursor-pointer">
+                        <span class="block text-sm">🌇</span>
+                        <span class="text-[11px] font-bold block mt-0.5">Sore Pulang</span>
+                    </button>
+                @endif
             </div>
         </div>
 
@@ -247,6 +320,9 @@ function presensiGpsModalApp() {
         schoolLong: {{ $schoolLong }},
         schoolRadius: {{ $schoolRadius }},
         schoolName: '{{ $schoolName }}',
+        checkInTime: '{{ $checkInTime ?? '' }}',
+        middayTime: '{{ $middayTime ?? '' }}',
+        checkOutTime: '{{ $checkOutTime ?? '' }}',
         userLat: null,
         userLong: null,
         accuracy: null,
@@ -277,14 +353,24 @@ function presensiGpsModalApp() {
             if (this.clockTimer) clearInterval(this.clockTimer);
             this.clockTimer = setInterval(() => this.updateClock(), 1000);
 
-            // Auto-detect sensible initial session based on current hour
+            // Auto-detect next uncompleted session based on attendance state and current hour
+            const isCheckInDone = Boolean(this.checkInTime);
+            const isMiddayDone = Boolean(this.middayTime);
+            const isCheckOutDone = Boolean(this.checkOutTime);
+
             const hour = new Date().getHours();
-            if (hour >= 6 && hour < 12) {
+            if (!isCheckInDone && hour < 12) {
                 this.selectedSessionType = 'check_in';
-            } else if (hour >= 12 && hour < 14) {
+            } else if (!isMiddayDone && hour < 15) {
+                this.selectedSessionType = 'midday';
+            } else if (!isCheckOutDone) {
+                this.selectedSessionType = 'check_out';
+            } else if (!isCheckInDone) {
+                this.selectedSessionType = 'check_in';
+            } else if (!isMiddayDone) {
                 this.selectedSessionType = 'midday';
             } else {
-                this.selectedSessionType = 'check_out';
+                this.selectedSessionType = null; // All done
             }
 
             // Detect GPS on modal open
@@ -402,12 +488,17 @@ function presensiGpsModalApp() {
 
         isSubmitDisabled() {
             if (this.submitting) return true;
+            if (!this.selectedSessionType) return true;
+            if (this.selectedSessionType === 'check_in' && this.checkInTime) return true;
+            if (this.selectedSessionType === 'midday' && this.middayTime) return true;
+            if (this.selectedSessionType === 'check_out' && this.checkOutTime) return true;
             if (this.attendanceMode === 'reguler' && (!this.userLat || !this.inRadius)) return true;
             if (this.attendanceMode === 'dinas_luar' && (!this.userLat || !this.dinasNotes.trim())) return true;
             return false;
         },
 
         getSubmitIcon() {
+            if (this.checkInTime && this.middayTime && this.checkOutTime) return '✅';
             if (this.attendanceMode === 'dinas_luar') return '💼';
             if (this.selectedSessionType === 'check_in') return '🌅';
             if (this.selectedSessionType === 'midday') return '☀️';
@@ -416,6 +507,9 @@ function presensiGpsModalApp() {
         },
 
         getSubmitButtonGradientClass() {
+            if (this.checkInTime && this.middayTime && this.checkOutTime) {
+                return 'bg-emerald-600/90 text-white cursor-not-allowed opacity-90 shadow-md shadow-emerald-500/20';
+            }
             if (this.isSubmitDisabled()) return 'bg-slate-400 opacity-70 cursor-not-allowed';
             if (this.attendanceMode === 'dinas_luar') {
                 return 'bg-gradient-to-r from-purple-600 to-indigo-600 shadow-purple-600/30';
@@ -428,6 +522,18 @@ function presensiGpsModalApp() {
 
         getSubmitButtonLabel() {
             if (this.submitting) return 'Memproses Presensi ke Server...';
+            if (this.checkInTime && this.middayTime && this.checkOutTime) {
+                return 'Semua Presensi Hari Ini Sudah Lengkap ✓';
+            }
+            if (this.selectedSessionType === 'check_in' && this.checkInTime) {
+                return 'Presensi Masuk Selesai (' + this.checkInTime + ')';
+            }
+            if (this.selectedSessionType === 'midday' && this.middayTime) {
+                return 'Presensi Dzuhur Selesai (' + this.middayTime + ')';
+            }
+            if (this.selectedSessionType === 'check_out' && this.checkOutTime) {
+                return 'Presensi Pulang Selesai (' + this.checkOutTime + ')';
+            }
             if (this.attendanceMode === 'dinas_luar') {
                 return 'Simpan Presensi Dinas Luar';
             }

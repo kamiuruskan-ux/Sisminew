@@ -1945,18 +1945,81 @@
                 <span class="text-[10px] font-extrabold tracking-tight -mt-1.5 {{ request()->routeIs('admin.teacher-attendances.*') ? 'text-primary' : 'text-slate-600 dark:text-slate-300' }}">Presensi</span>
             </a>
 
-            @if(auth()->user()->hasRole(['guru-quran', 'super-admin', 'admin', 'kepala-sekolah']))
-            <!-- Halaqah -->
-            <a href="{{ route('admin.halaqah.index') }}" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all {{ request()->routeIs('admin.halaqah.*') ? 'text-[#3C50E0] dark:text-indigo-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800' }}">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="{{ request()->routeIs('admin.halaqah.*') ? '2.5' : '2' }}"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-                <span class="text-[10px] tracking-tight mt-0.5">Halaqah</span>
-            </a>
+            @php
+                $currUser = auth()->user();
+                $isQuranGuru = $currUser->hasRole(['guru-quran', 'guru_quran', 'guru-qur-an']);
+                $isMapelGuru = $currUser->hasRole(['guru', 'teacher', 'guru-mapel', 'guru-kelas']) || ($currUser->isTeacher() && !$isQuranGuru);
+                $isKepsek = $currUser->hasRole(['kepala-sekolah', 'kepsek']);
+                $isBkUser = $currUser->hasRole(['bk', 'guru-bk', 'konselor']);
+                $isTreasurer = $currUser->hasRole(['bendahara', 'bendahara-sekolah']);
+                $isOperatorOrAdmin = $currUser->hasRole(['super-admin', 'admin', 'operator']);
+                $isStaffTendik = $currUser->hasRole(['staff', 'tata-usaha', 'tu']);
+            @endphp
+
+            @if($isQuranGuru)
+                <!-- 1. Guru Al-Qur'an: Halaqah -->
+                <a href="{{ route('admin.halaqah.index') }}" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all {{ request()->routeIs('admin.halaqah.*') ? 'text-[#3C50E0] dark:text-indigo-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800' }}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="{{ request()->routeIs('admin.halaqah.*') ? '2.5' : '2' }}"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                    <span class="text-[10px] tracking-tight mt-0.5">Halaqah</span>
+                </a>
+            @elseif($isMapelGuru)
+                <!-- 2. Guru Bidang Studi / Mapel / Guru Kelas: Agenda & Penilaian Mapel -->
+                <a href="{{ route('admin.grades.index') }}" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all {{ request()->routeIs('admin.grades.*') ? 'text-[#3C50E0] dark:text-indigo-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800' }}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="{{ request()->routeIs('admin.grades.*') ? '2.5' : '2' }}"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <span class="text-[10px] tracking-tight mt-0.5">Agenda &amp; Nilai</span>
+                </a>
+            @elseif($isKepsek)
+                <!-- 3. Kepala Sekolah: Approval Izin Pegawai -->
+                @php
+                    $pendingPermitsCount = 0;
+                    try {
+                        if (\Illuminate\Support\Facades\Schema::hasTable('employee_permits')) {
+                            $pendingPermitsCount = \App\Models\EmployeePermit::where('status', 'pending')->count();
+                        }
+                    } catch (\Throwable $e) {}
+                @endphp
+                <a href="{{ route('admin.employee-permits.index') }}" class="relative flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all {{ request()->routeIs('admin.employee-permits.*') ? 'text-[#3C50E0] dark:text-indigo-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800' }}">
+                    <div class="relative">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="{{ request()->routeIs('admin.employee-permits.*') ? '2.5' : '2' }}"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        @if($pendingPermitsCount > 0)
+                            <span class="absolute -top-1 -right-1.5 flex h-2.5 w-2.5">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                            </span>
+                        @endif
+                    </div>
+                    <span class="text-[10px] tracking-tight mt-0.5">Approval Izin</span>
+                </a>
+            @elseif($isBkUser)
+                <!-- 4. Guru BK: Konseling Siswa -->
+                <a href="{{ route('admin.bk.index') }}" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all {{ request()->routeIs('admin.bk.*') ? 'text-[#3C50E0] dark:text-indigo-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800' }}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="{{ request()->routeIs('admin.bk.*') ? '2.5' : '2' }}"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                    <span class="text-[10px] tracking-tight mt-0.5">Konseling BK</span>
+                </a>
+            @elseif($isTreasurer)
+                <!-- 5. Bendahara: Kas & SPP -->
+                <a href="{{ route('admin.student-payments.index') }}" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all {{ (request()->routeIs('admin.student-payments.*') || request()->routeIs('admin.financial*')) ? 'text-[#3C50E0] dark:text-indigo-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800' }}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="{{ (request()->routeIs('admin.student-payments.*') || request()->routeIs('admin.financial*')) ? '2.5' : '2' }}"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                    <span class="text-[10px] tracking-tight mt-0.5">Kas &amp; SPP</span>
+                </a>
+            @elseif($isOperatorOrAdmin)
+                <!-- 6. Admin / Operator: Direktori Data Siswa -->
+                <a href="{{ route('admin.students.index') }}" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all {{ request()->routeIs('admin.students.*') ? 'text-[#3C50E0] dark:text-indigo-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800' }}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="{{ request()->routeIs('admin.students.*') ? '2.5' : '2' }}"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                    <span class="text-[10px] tracking-tight mt-0.5">Data Siswa</span>
+                </a>
+            @elseif($isStaffTendik)
+                <!-- 7. Staff Tendik (Non-Guru): Mutabaah Ibadah Harian -->
+                <a href="{{ route('admin.employee-mutabaah.index') }}" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all {{ request()->routeIs('admin.employee-mutabaah.*') ? 'text-[#3C50E0] dark:text-indigo-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800' }}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="{{ request()->routeIs('admin.employee-mutabaah.*') ? '2.5' : '2' }}"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+                    <span class="text-[10px] tracking-tight mt-0.5">Mutabaah</span>
+                </a>
             @else
-            <!-- Agenda & Penilaian Mapel -->
-            <a href="{{ route('admin.grades.index') }}" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all {{ request()->routeIs('admin.grades.*') ? 'text-[#3C50E0] dark:text-indigo-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800' }}">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="{{ request()->routeIs('admin.grades.*') ? '2.5' : '2' }}"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                <span class="text-[10px] tracking-tight mt-0.5">Agenda</span>
-            </a>
+                <!-- 8. Default Fallback -->
+                <a href="{{ route('admin.grades.index') }}" class="flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all {{ request()->routeIs('admin.grades.*') ? 'text-[#3C50E0] dark:text-indigo-400 font-extrabold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800' }}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="{{ request()->routeIs('admin.grades.*') ? '2.5' : '2' }}"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <span class="text-[10px] tracking-tight mt-0.5">Agenda &amp; Nilai</span>
+                </a>
             @endif
 
             <!-- Profil Akun -->
