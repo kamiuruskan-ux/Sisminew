@@ -57,6 +57,16 @@
                     @endif
                 </button>
 
+                <form action="{{ route('admin.database-maintenance.sync-features') }}" method="POST">
+                    @csrf
+                    <button type="submit" class="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-md transition" title="Pastikan tabel presensi guru, KPI, halaqah, jurnal guru dibuat otomatis">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span>Sinkronkan Tabel Fitur Baru</span>
+                    </button>
+                </form>
+
                 <form action="{{ route('admin.database-maintenance.backup') }}" method="POST">
                     @csrf
                     <button type="submit" class="btn-secondary flex items-center space-x-2 px-4 py-2.5">

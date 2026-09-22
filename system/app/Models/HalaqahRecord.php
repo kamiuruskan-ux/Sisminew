@@ -16,6 +16,7 @@ class HalaqahRecord extends Model
         'student_id',
         'teacher_id',
         'class_id',
+        'grade',
         'academic_year_id',
         'assessment_date',
         'attendance_status',
@@ -35,6 +36,7 @@ class HalaqahRecord extends Model
     ];
 
     protected $casts = [
+        'grade' => 'integer',
         'assessment_date' => 'date',
         'page_start' => 'integer',
         'page_end' => 'integer',

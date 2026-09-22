@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
@@ -96,6 +97,16 @@ class Student extends Model
     public function schoolClass(): BelongsTo
     {
         return $this->belongsTo(ClassModel::class, 'class_id');
+    }
+
+    public function halaqahMember(): HasOne
+    {
+        return $this->hasOne(QuranHalaqahMember::class, 'student_id');
+    }
+
+    public function halaqahRecords(): HasMany
+    {
+        return $this->hasMany(HalaqahRecord::class, 'student_id');
     }
 
     public function paymentBills(): HasMany

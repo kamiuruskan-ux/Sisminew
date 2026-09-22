@@ -63,10 +63,12 @@
     openGroupModal(grade) {
         this.modalGrade = grade || this.modalGrade;
         this.isGroupModalOpen = true;
+        document.body.style.overflow = 'hidden';
         this.fetchGroupStudents();
     },
     closeGroupModal() {
         this.isGroupModalOpen = false;
+        document.body.style.overflow = '';
     },
     switchModalGrade(g) {
         this.modalGrade = g;
@@ -168,21 +170,27 @@
 
     {{-- Top Bar Tabs (Input & Evaluasi | Laporan & Grafik | Rekap Kehadiran) --}}
     <div class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900 p-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-        <div class="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto">
+        <div class="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
             <a href="{{ route('admin.halaqah.index', ['tab' => 'input', 'grade' => $selectedGrade, 'mode' => $mode, 'teacher_id' => $activeTeacherId]) }}"
-               class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'input' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+               class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'input' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                 <span>Input &amp; Catatan Evaluasi</span>
             </a>
 
+            <a href="{{ route('admin.halaqah.index', ['tab' => 'history', 'grade' => $selectedGrade, 'teacher_id' => $activeTeacherId]) }}"
+               class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'history' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span>History Mengajar</span>
+            </a>
+
             <a href="{{ route('admin.halaqah.index', ['tab' => 'reports', 'grade' => $selectedGrade, 'teacher_id' => $activeTeacherId]) }}"
-               class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'reports' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+               class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'reports' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                 <span>Laporan Harian &amp; Bulanan + Grafik</span>
             </a>
 
             <a href="{{ route('admin.halaqah.index', ['tab' => 'attendance', 'grade' => $selectedGrade, 'teacher_id' => $activeTeacherId]) }}"
-               class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'attendance' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+               class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'attendance' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 <span>Rekap Kehadiran</span>
             </a>
@@ -749,6 +757,373 @@
     @endif
 
     {{-- ========================================================================= --}}
+    {{-- TAB BARU: RIWAYAT & HISTORY MENGAJAR HALAQAH --}}
+    {{-- ========================================================================= --}}
+    @if($tab === 'history')
+    <div class="space-y-6">
+        
+        {{-- Header Tab History Mengajar --}}
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider">
+                        Logbook Mengajar
+                    </span>
+                    <h2 class="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                        History &amp; Catatan Mengajar Halaqah
+                    </h2>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Rekapitulasi lengkap riwayat pembelajaran, setoran ayat/jilid, kehadiran, dan penilaian santri oleh Guru Pembimbing.
+                </p>
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap">
+                <a href="{{ route('admin.halaqah.export-excel', ['grade' => $selectedGrade, 'teacher_id' => $activeTeacherId]) }}"
+                   class="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-xl text-xs font-bold border border-emerald-200 dark:border-emerald-800 transition inline-flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    <span>Export Rekap Excel</span>
+                </a>
+                <a href="{{ route('admin.halaqah.index', ['tab' => 'input', 'grade' => $selectedGrade, 'teacher_id' => $activeTeacherId]) }}"
+                   class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-xs transition inline-flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    <span>+ Input Nilai Baru</span>
+                </a>
+            </div>
+        </div>
+
+        {{-- 4 Kartu Metrik Ringkasan History Mengajar --}}
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Total Bimbingan</span>
+                <p class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-1">{{ $totalTeachingCount }}</p>
+                <span class="text-[11px] font-bold text-emerald-600">Kali Setoran Terdata</span>
+            </div>
+
+            <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Santri Terbimbing</span>
+                <p class="text-2xl sm:text-3xl font-black text-emerald-600 mt-1">{{ $historyUniqueStudentsCount }}</p>
+                <span class="text-[11px] font-bold text-slate-500">Santri Unik Berbeda</span>
+            </div>
+
+            <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Rata-Rata Nilai</span>
+                <p class="text-2xl sm:text-3xl font-black text-indigo-600 mt-1">{{ $historyAvgScore }}</p>
+                <span class="text-[11px] font-bold text-indigo-500">Skala 0 - 100</span>
+            </div>
+
+            <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Kelancaran Unggul</span>
+                <p class="text-2xl sm:text-3xl font-black text-teal-600 mt-1">{{ $historyExcellentPct }}%</p>
+                <span class="text-[11px] font-bold text-teal-600">Mumtaz &amp; Jayyid Jiddan</span>
+            </div>
+        </div>
+
+        {{-- Filter & Search Form --}}
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+            <form action="{{ route('admin.halaqah.index') }}" method="GET" class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
+                <input type="hidden" name="tab" value="history">
+                @if($isAdmin)
+                    <input type="hidden" name="teacher_id" value="{{ $activeTeacherId }}">
+                @endif
+
+                {{-- Filter Tingkat Kelas --}}
+                <div class="sm:col-span-2">
+                    <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Tingkat Kelas</label>
+                    <select name="history_grade" class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="all">Semua Tingkat</option>
+                        @foreach($availableGrades as $g)
+                            <option value="{{ $g }}" {{ (string)$historyGrade === (string)$g ? 'selected' : '' }}>Tingkat {{ $g }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                {{-- Filter Program Materi --}}
+                <div class="sm:col-span-2">
+                    <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Program</label>
+                    <select name="history_program" class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="all" {{ $historyProgram === 'all' ? 'selected' : '' }}>Semua Program</option>
+                        <option value="tahsin" {{ $historyProgram === 'tahsin' ? 'selected' : '' }}>Tahsin (Bimbingan)</option>
+                        <option value="tahfidz" {{ $historyProgram === 'tahfidz' ? 'selected' : '' }}>Tahfidz (Hafalan)</option>
+                    </select>
+                </div>
+
+                {{-- Filter Tanggal Mulai --}}
+                <div class="sm:col-span-2">
+                    <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Dari Tanggal</label>
+                    <input type="date" name="date_from" value="{{ $dateFrom }}" class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+
+                {{-- Filter Tanggal Selesai --}}
+                <div class="sm:col-span-2">
+                    <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Sampai Tanggal</label>
+                    <input type="date" name="date_to" value="{{ $dateTo }}" class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+
+                {{-- Search Box Santri --}}
+                <div class="sm:col-span-3">
+                    <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Cari Santri / NISN</label>
+                    <input type="text" name="search_student" value="{{ $searchStudent }}" placeholder="Ketik nama atau NISN..." class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+
+                {{-- Tombol Filter & Reset --}}
+                <div class="sm:col-span-1 flex items-center gap-1">
+                    <button type="submit" class="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center" title="Terapkan Filter">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </button>
+                    <a href="{{ route('admin.halaqah.index', ['tab' => 'history', 'grade' => $selectedGrade, 'teacher_id' => $activeTeacherId]) }}" class="py-2 px-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 rounded-xl text-xs font-bold transition flex items-center justify-center" title="Reset Filter">
+                        ↺
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        {{-- Tabel & List History Mengajar --}}
+        <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
+            
+            {{-- Header Card --}}
+            <div class="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs sm:text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">
+                        Daftar Riwayat Mengajar
+                    </span>
+                    <span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-md text-[10px] font-bold">
+                        {{ $totalTeachingCount }} Catatan
+                    </span>
+                </div>
+                @if($isAdmin)
+                <span class="text-xs font-bold text-slate-400 hidden sm:inline">
+                    Mode Admin: Menampilkan catatan Ust. {{ $activeTeacher->name }}
+                </span>
+                @endif
+            </div>
+
+            @if($historyTeachingRecords->count() > 0)
+                {{-- Tampilan Desktop (Table) --}}
+                <div class="hidden md:block overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="text-[10px] font-black text-slate-400 uppercase tracking-wider bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                                <th class="py-3 px-4">Tanggal</th>
+                                <th class="py-3 px-4">Santri</th>
+                                <th class="py-3 px-4">Tingkat/Kelas</th>
+                                <th class="py-3 px-4">Program &amp; Materi</th>
+                                <th class="py-3 px-4 text-center">Kehadiran</th>
+                                <th class="py-3 px-4 text-center">Nilai</th>
+                                <th class="py-3 px-4 text-center">Predikat</th>
+                                <th class="py-3 px-4">Catatan Musyrif</th>
+                                <th class="py-3 px-4 text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                            @foreach($historyTeachingRecords as $item)
+                            <tr class="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition">
+                                <td class="py-3 px-4 whitespace-nowrap">
+                                    <span class="font-extrabold text-slate-800 dark:text-white">{{ $item->assessment_date->format('d/m/Y') }}</span>
+                                    <p class="text-[10px] text-slate-400 font-medium">{{ $item->assessment_date->isoFormat('dddd') }}</p>
+                                </td>
+                                <td class="py-3 px-4">
+                                    <div class="flex items-center gap-2.5">
+                                        <div class="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 flex items-center justify-center font-black text-[10px] uppercase shrink-0">
+                                            {{ substr($item->student?->user?->name ?? 'S', 0, 2) }}
+                                        </div>
+                                        <div class="min-w-0">
+                                            <h4 class="font-black text-slate-900 dark:text-white truncate">{{ $item->student?->user?->name ?? 'Santri' }}</h4>
+                                            <span class="text-[10px] text-slate-400">NISN: {{ $item->student?->nisn ?? '-' }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="py-3 px-4 whitespace-nowrap">
+                                    <span class="font-bold text-slate-700 dark:text-slate-300">
+                                        Tingkat {{ $item->grade ?: ($item->class?->grade ?: 'Kelas') }}
+                                    </span>
+                                    @if($item->class)
+                                        <p class="text-[10px] text-slate-400">{{ $item->class->name }}</p>
+                                    @endif
+                                </td>
+                                <td class="py-3 px-4">
+                                    @if($item->program_type === 'tahsin')
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 text-[10px] font-black uppercase">
+                                            Tahsin
+                                        </span>
+                                        <p class="text-xs font-bold text-slate-800 dark:text-white mt-0.5">
+                                            {{ $item->tahsin_type === 'tilawah' ? 'Tilawah Al-Qur\'an' : ($item->jilid_level ?? 'Jilid') }}
+                                            @if($item->page_start && $item->page_end)
+                                                <span class="text-slate-400 font-normal">• hl. {{ $item->page_start }} - {{ $item->page_end }}</span>
+                                            @elseif($item->page_start)
+                                                <span class="text-slate-400 font-normal">• hl. {{ $item->page_start }}</span>
+                                            @endif
+                                        </p>
+                                    @else
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300 text-[10px] font-black uppercase">
+                                            Tahfidz
+                                        </span>
+                                        <p class="text-xs font-bold text-slate-800 dark:text-white mt-0.5">
+                                            Surah {{ $item->surah_name ?? '-' }}
+                                            @if($item->ayat_start && $item->ayat_end)
+                                                <span class="text-slate-400 font-normal">({{ $item->ayat_start }}-{{ $item->ayat_end }})</span>
+                                            @endif
+                                            @if($item->juz_number)
+                                                <span class="px-1.5 py-0.2 bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-200 text-[9px] rounded font-extrabold ml-1">Juz {{ $item->juz_number }}</span>
+                                            @endif
+                                        </p>
+                                    @endif
+                                </td>
+                                <td class="py-3 px-4 text-center whitespace-nowrap">
+                                    @if($item->attendance_status === 'hadir')
+                                        <span class="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 text-[10px] font-extrabold border border-emerald-200 dark:border-emerald-800">
+                                            Hadir
+                                        </span>
+                                    @elseif($item->attendance_status === 'sakit')
+                                        <span class="px-2 py-0.5 rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 text-[10px] font-extrabold border border-blue-200 dark:border-blue-800">
+                                            Sakit
+                                        </span>
+                                    @elseif($item->attendance_status === 'izin')
+                                        <span class="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 text-[10px] font-extrabold border border-amber-200 dark:border-amber-800">
+                                            Izin
+                                        </span>
+                                    @else
+                                        <span class="px-2 py-0.5 rounded-lg bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 text-[10px] font-extrabold border border-rose-200 dark:border-rose-800">
+                                            Alpa
+                                        </span>
+                                    @endif
+                                </td>
+                                <td class="py-3 px-4 text-center whitespace-nowrap">
+                                    <div class="inline-flex items-center gap-1 text-xs">
+                                        <span class="font-black text-emerald-600">{{ number_format($item->score_cognitive, 0) }}</span>
+                                        <span class="text-slate-300">/</span>
+                                        <span class="font-bold text-slate-400 text-[11px]">{{ number_format($item->score_adab, 0) }}</span>
+                                    </div>
+                                    <p class="text-[9px] text-slate-400">Kog / Adab</p>
+                                </td>
+                                <td class="py-3 px-4 text-center whitespace-nowrap">
+                                    @php
+                                        $predClass = match($item->predicate) {
+                                            'Mumtaz' => 'bg-emerald-600 text-white',
+                                            'Jayyid Jiddan' => 'bg-teal-600 text-white',
+                                            'Jayyid' => 'bg-blue-600 text-white',
+                                            default => 'bg-amber-500 text-white',
+                                        };
+                                    @endphp
+                                    <span class="px-2.5 py-0.5 rounded-md text-[10px] font-black {{ $predClass }}">
+                                        {{ $item->predicate }}
+                                    </span>
+                                </td>
+                                <td class="py-3 px-4 max-w-xs truncate text-[11px] text-slate-500 dark:text-slate-400">
+                                    {{ $item->teacher_notes ?: '-' }}
+                                </td>
+                                <td class="py-3 px-4 text-right whitespace-nowrap">
+                                    <form action="{{ route('admin.halaqah.destroy', $item->id) }}" method="POST" onsubmit="return confirm('Hapus riwayat penilaian halaqah ini?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition" title="Hapus Catatan">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- Tampilan Mobile (Cards Responsive) --}}
+                <div class="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+                    @foreach($historyTeachingRecords as $item)
+                    <div class="p-4 space-y-2.5">
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-black text-slate-900 dark:text-white">
+                                    {{ $item->assessment_date->format('d/m/Y') }}
+                                </span>
+                                <span class="text-[10px] text-slate-400 font-bold">({{ $item->assessment_date->isoFormat('dddd') }})</span>
+                            </div>
+                            <span class="px-2 py-0.5 rounded-md text-[9px] font-black {{ $item->predicate === 'Mumtaz' ? 'bg-emerald-600 text-white' : ($item->predicate === 'Jayyid Jiddan' ? 'bg-teal-600 text-white' : 'bg-blue-600 text-white') }}">
+                                {{ $item->predicate }}
+                            </span>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="min-w-0">
+                                <h4 class="text-xs font-black text-slate-900 dark:text-white truncate">
+                                    {{ $item->student?->user?->name ?? 'Santri' }}
+                                </h4>
+                                <p class="text-[10px] text-slate-400">
+                                    Tingkat {{ $item->grade ?: ($item->class?->grade ?: 'Kelas') }} • {{ $item->class?->name ?? '-' }}
+                                </p>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <span class="text-xs font-black text-emerald-600">{{ number_format($item->score_cognitive, 0) }}</span>
+                                <span class="text-[10px] text-slate-400">/ 100</span>
+                            </div>
+                        </div>
+
+                        <div class="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl flex items-center justify-between text-xs">
+                            <div>
+                                <span class="text-[10px] font-extrabold uppercase text-slate-400">{{ $item->program_type }}:</span>
+                                <span class="font-bold text-slate-700 dark:text-slate-200">
+                                    @if($item->program_type === 'tahsin')
+                                        {{ $item->jilid_level ?? 'Jilid' }} (hl. {{ $item->page_start ?? 1 }}-{{ $item->page_end ?? '-' }})
+                                    @else
+                                        Surah {{ $item->surah_name }} (ayat {{ $item->ayat_start ?? 1 }}-{{ $item->ayat_end ?? '-' }})
+                                    @endif
+                                </span>
+                            </div>
+                            <span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase {{ $item->attendance_status === 'hadir' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300' }}">
+                                {{ $item->attendance_status }}
+                            </span>
+                        </div>
+
+                        @if($item->teacher_notes)
+                        <p class="text-[11px] text-slate-500 italic bg-amber-50/50 dark:bg-amber-950/30 p-2 rounded-lg border border-amber-100 dark:border-amber-900/40">
+                            "{{ $item->teacher_notes }}"
+                        </p>
+                        @endif
+
+                        <div class="flex items-center justify-end pt-1">
+                            <form action="{{ route('admin.halaqah.destroy', $item->id) }}" method="POST" onsubmit="return confirm('Hapus riwayat penilaian ini?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="text-[11px] font-bold text-rose-600 hover:underline flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    <span>Hapus</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+
+                {{-- Pagination Links --}}
+                <div class="p-4 border-t border-slate-100 dark:border-slate-800">
+                    {{ $historyTeachingRecords->links() }}
+                </div>
+            @else
+                {{-- Empty State History --}}
+                <div class="p-12 text-center space-y-3">
+                    <div class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 mx-auto flex items-center justify-center">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                    </div>
+                    <h4 class="text-sm font-black text-slate-800 dark:text-white uppercase">Belum Ada Riwayat Mengajar</h4>
+                    <p class="text-xs text-slate-400 max-w-md mx-auto">
+                        Belum ada catatan penilaian halaqah yang tersimpan atau sesuai dengan filter pencarian yang Anda pilih.
+                    </p>
+                    <div class="pt-2">
+                        <a href="{{ route('admin.halaqah.index', ['tab' => 'input', 'grade' => $selectedGrade, 'teacher_id' => $activeTeacherId]) }}"
+                           class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow transition inline-flex items-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                            <span>Input Penilaian Santri Sekarang</span>
+                        </a>
+                    </div>
+                </div>
+            @endif
+
+        </div>
+
+    </div>
+    @endif
+
+    {{-- ========================================================================= --}}
     {{-- TAB 2: LAPORAN HARIAN & BULANAN + GRAFIK STATISTIK --}}
     {{-- ========================================================================= --}}
     @if($tab === 'reports')
@@ -946,14 +1321,15 @@
 
     {{-- ========================================================================= --}}
     {{-- MODAL INTUITIF: ATUR / KELOLA KELOMPOK HALAQAH AL-QUR'AN --}}
-    {{-- ====================================    <div x-show="isGroupModalOpen"
+    {{-- ========================================================================= --}}
+    <div x-show="isGroupModalOpen"
          x-transition:enter="transition ease-out duration-300"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
          x-transition:leave="transition ease-in duration-200"
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0"
-         class="fixed inset-0 z-50 overflow-hidden bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+         class="fixed inset-0 z-[9999] overflow-hidden bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
          x-cloak>
         
         <div @click.away="closeGroupModal()"
@@ -963,7 +1339,7 @@
              x-transition:leave="transition ease-in duration-200"
              x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
              x-transition:leave-end="opacity-0 translate-y-4 sm:scale-95"
-             class="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 w-full max-w-4xl h-[92vh] sm:h-[88vh] flex flex-col overflow-hidden">
+             class="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 w-full max-w-4xl h-[88dvh] sm:h-[85vh] max-h-[88dvh] flex flex-col overflow-hidden">
             
             {{-- Modal Header (Sticky at top) --}}
             <div class="px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 bg-slate-50/80 dark:bg-slate-800/40 shrink-0 z-10">
@@ -988,7 +1364,8 @@
             </div>
 
             {{-- Modal Scrollable Body: Controls + Student Cards Scroll Together Smoothly --}}
-            <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-slate-50/50 dark:bg-slate-900/50 divide-y divide-slate-100 dark:divide-slate-800/60">
+            <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-slate-50/50 dark:bg-slate-900/50 divide-y divide-slate-100 dark:divide-slate-800/60"
+                 style="-webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y;">
 
                 {{-- Section 1: Modal Controls (Tingkat, Guru, Search, Filter) --}}
                 <div class="p-3.5 sm:p-5 bg-white dark:bg-slate-900 space-y-3 sm:space-y-4">
@@ -1172,7 +1549,7 @@
             </div>
 
             {{-- Modal Footer: Save & Cancel (PERMANENTLY STICKY AT BOTTOM) --}}
-            <div class="p-3 sm:p-4 border-t border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md flex items-center justify-between gap-2 shrink-0 z-20 shadow-lg">
+            <div class="p-3.5 sm:p-4 border-t border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-2 shrink-0 z-20 shadow-lg pb-7 sm:pb-4">
                 <div class="flex items-center gap-1.5 min-w-0">
                     <span class="text-xs font-black text-emerald-700 dark:text-emerald-400 truncate">
                         ✨ <span x-text="selectedStudentIds.length"></span> Santri

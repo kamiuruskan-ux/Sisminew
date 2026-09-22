@@ -825,6 +825,7 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
     Route::middleware('role:super-admin|admin')->group(function () {
         Route::get('database-maintenance', [DatabaseMaintenanceController::class, 'index'])->name('database-maintenance.index');
         Route::post('database-maintenance/migrate', [DatabaseMaintenanceController::class, 'migrate'])->name('database-maintenance.migrate');
+        Route::post('database-maintenance/sync-features', [DatabaseMaintenanceController::class, 'syncFeatures'])->name('database-maintenance.sync-features');
         Route::post('database-maintenance/backup', [DatabaseMaintenanceController::class, 'backup'])->name('database-maintenance.backup');
         Route::get('database-maintenance/download/{filename}', [DatabaseMaintenanceController::class, 'download'])->name('database-maintenance.download');
         Route::delete('database-maintenance/destroy/{filename}', [DatabaseMaintenanceController::class, 'destroy'])->name('database-maintenance.destroy');

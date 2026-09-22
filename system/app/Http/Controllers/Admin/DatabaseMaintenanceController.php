@@ -107,12 +107,40 @@ class DatabaseMaintenanceController extends Controller
             Artisan::call('migrate', ['--force' => true]);
             $output = Artisan::output();
 
+            // Jalankan juga sinkronisasi tabel fitur baru (fail-safe)
+            \App\Services\DatabaseSchemaChecker::ensureAllNewTablesExist();
+
             return redirect()->route('admin.database-maintenance.index')
                 ->with('success', 'Update database / migrasi berhasil dijalankan!')
                 ->with('migration_output', trim($output) ?: 'Tidak ada migrasi baru yang diproses.');
         } catch (\Throwable $e) {
             return redirect()->route('admin.database-maintenance.index')
                 ->with('error', 'Gagal memperbarui database: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Sinkronisasi tabel-tabel fitur baru (Presensi Guru, KPI, Mutabaah, Quran, Jurnal Guru, dll)
+     */
+    public function syncFeatures(Request $request)
+    {
+        try {
+            $result = \App\Services\DatabaseSchemaChecker::ensureAllNewTablesExist();
+            $createdCount = count($result['created'] ?? []);
+            $updatedCount = count($result['updated'] ?? []);
+
+            $msg = "Sinkronisasi tabel berhasil dijalankan.";
+            if ($createdCount > 0 || $updatedCount > 0) {
+                $msg .= " ({$createdCount} tabel baru dibuat, {$updatedCount} kolom diperbarui).";
+            } else {
+                $msg .= " Semua tabel fitur baru sudah lengkap dan siap digunakan.";
+            }
+
+            return redirect()->route('admin.database-maintenance.index')
+                ->with('success', $msg);
+        } catch (\Throwable $e) {
+            return redirect()->route('admin.database-maintenance.index')
+                ->with('error', 'Gagal melakukan sinkronisasi tabel: ' . $e->getMessage());
         }
     }
 
