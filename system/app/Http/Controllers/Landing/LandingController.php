@@ -15,8 +15,35 @@ use Illuminate\Http\Request;
 
 class LandingController extends Controller
 {
-    public function home()
+    public function home(Request $request)
     {
+        // 1. If user is logged in, redirect directly to their respective dashboard
+        if (auth()->check()) {
+            if (!$request->has('view') && !$request->has('public') && !$request->has('web')) {
+                $user = auth()->user();
+                if ($user->hasRole('kantin')) {
+                    return redirect()->route('canteen.vendor.dashboard');
+                } elseif ($user->hasRole('student')) {
+                    return redirect()->route('student.dashboard');
+                } elseif ($user->hasRole('spmb') || $user->hasRole('calon-santri') || $user->hasRole('calon-siswa')) {
+                    return redirect()->route('spmb.dashboard.index');
+                }
+                return redirect()->route('admin.dashboard');
+            }
+        }
+
+        // 2. If parent portal session is active
+        if (session()->has('parent_student_id')) {
+            if (!$request->has('view') && !$request->has('public') && !$request->has('web')) {
+                return redirect()->route('parent.dashboard');
+            }
+        }
+
+        // 3. If accessed via installed PWA app (?pwa=1 or ?mode=standalone)
+        if ($request->has('pwa') || $request->query('mode') === 'standalone') {
+            return redirect()->route('login');
+        }
+
         $sliders = Slider::active()->get();
         $posts = Post::published()->with(['category', 'author'])->latest()->take(6)->get();
         $galleries = Gallery::active()->latest()->take(8)->get();

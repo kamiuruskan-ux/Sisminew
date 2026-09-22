@@ -99,15 +99,6 @@ class Student extends Model
         return $this->belongsTo(ClassModel::class, 'class_id');
     }
 
-    public function halaqahMember(): HasOne
-    {
-        return $this->hasOne(QuranHalaqahMember::class, 'student_id');
-    }
-
-    public function halaqahRecords(): HasMany
-    {
-        return $this->hasMany(HalaqahRecord::class, 'student_id');
-    }
 
     public function paymentBills(): HasMany
     {

@@ -23,7 +23,7 @@ class PwaController extends Controller
             'name' => $schoolName,
             'short_name' => $schoolShortName,
             'description' => $schoolDesc,
-            'start_url' => '/',
+            'start_url' => '/?pwa=1',
             'scope' => '/',
             'display' => 'standalone',
             'background_color' => '#FFFFFF',

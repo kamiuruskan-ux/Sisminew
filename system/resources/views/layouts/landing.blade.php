@@ -29,6 +29,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    {{-- Instant Standalone / PWA / Logged-in Redirect --}}
+    <script>
+        (function() {
+            try {
+                var params = new URLSearchParams(window.location.search);
+                var forceLanding = params.has('view') || params.has('public') || params.has('web');
+                if (forceLanding) return;
+
+                var isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+                @if(auth()->check())
+                    @php
+                        $u = auth()->user();
+                        $dashRoute = route('admin.dashboard');
+                        if ($u->hasRole('student')) {
+                            $dashRoute = route('student.dashboard');
+                        } elseif ($u->hasRole('kantin')) {
+                            $dashRoute = route('canteen.vendor.dashboard');
+                        } elseif ($u->hasRole('spmb') || $u->hasRole('calon-santri') || $u->hasRole('calon-siswa')) {
+                            $dashRoute = route('spmb.dashboard.index');
+                        }
+                    @endphp
+                    window.location.replace("{{ $dashRoute }}");
+                @elseif(session()->has('parent_student_id'))
+                    window.location.replace("{{ route('parent.dashboard') }}");
+                @else
+                    if (isStandalone && window.location.pathname === '/') {
+                        window.location.replace("{{ route('login') }}");
+                    }
+                @endif
+            } catch(e) {}
+        })();
+    </script>
+
     {{-- ===== SEO DASAR ===== --}}
     <title>{{ $seoTitle }}</title>
     <meta name="description" content="{{ $seoDesc }}">
