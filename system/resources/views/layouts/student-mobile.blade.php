@@ -1016,6 +1016,7 @@
 
     @stack('scripts')
     @include('components.pwa-install')
+    @include('components.push-notification-client')
 </body>
 </html>
 

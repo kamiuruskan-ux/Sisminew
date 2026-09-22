@@ -2,10 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\AppNotification;
 use App\Models\BriefingSession;
+use App\Models\CustomNotification;
 use App\Models\EmployeeMutabaah;
 use App\Models\EmployeeStudySession;
 use App\Models\KpiEvaluation;
+use App\Models\PushSubscription;
 use App\Models\SchoolFeedback;
 use App\Models\TeachingAgenda;
 use Illuminate\Database\Schema\Blueprint;
@@ -211,6 +214,11 @@ class DatabaseSchemaChecker
 
             // 12. Tabel Saran & Feedback (SchoolFeedback)
             SchoolFeedback::ensureTableExists();
+
+            // 13. Tabel Push Subscriptions & Notifikasi Custom (PushNotification, CustomNotification, AppNotification)
+            PushSubscription::ensureTableExists();
+            CustomNotification::ensureTableExists();
+            AppNotification::ensureTableExists();
 
             // 13. Kolom pelengkap di tabel users jika belum ada
             if (Schema::hasTable('users')) {

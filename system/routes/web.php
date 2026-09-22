@@ -58,6 +58,8 @@ use App\Http\Controllers\Student\ScheduleController as StudentScheduleController
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\SecurityCaptchaController;
 use App\Http\Controllers\Admin\GuideController;
+use App\Http\Controllers\Admin\CustomNotificationController;
+use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\PwaController;
 use Illuminate\Support\Facades\Route;
 
@@ -65,6 +67,12 @@ use Illuminate\Support\Facades\Route;
 Route::get('/manifest.json', [PwaController::class, 'manifest'])->name('pwa.manifest');
 Route::get('/pwa-icon/{size?}', [PwaController::class, 'icon'])->name('pwa.icon');
 Route::get('/sw.js', [PwaController::class, 'serviceWorker'])->name('pwa.sw');
+
+// Web Push Subscription & Realtime Notification API
+Route::post('/api/push/subscribe', [PushSubscriptionController::class, 'subscribe'])->name('api.push.subscribe');
+Route::post('/api/push/unsubscribe', [PushSubscriptionController::class, 'unsubscribe'])->name('api.push.unsubscribe');
+Route::get('/api/notifications/poll', [PushSubscriptionController::class, 'poll'])->name('api.notifications.poll');
+Route::post('/api/notifications/{id}/mark-read', [PushSubscriptionController::class, 'markAsRead'])->name('api.notifications.mark-read');
 
 
 /*
@@ -173,10 +181,14 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::put('security/settings', [SecurityController::class, 'updateSettings'])->name('security.settings.update');
     });
 
-    // Notifications
+    // Notifications & Broadcast
     Route::middleware('permission:view-notifications')->group(function () {
         Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
         Route::post('notifications/mark-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.mark-read');
+        Route::get('notifications/broadcast', [CustomNotificationController::class, 'broadcastIndex'])->name('notifications.broadcast');
+        Route::post('notifications/broadcast', [CustomNotificationController::class, 'sendBroadcast'])->name('notifications.broadcast.send');
+        Route::delete('notifications/broadcast/{id}', [CustomNotificationController::class, 'deleteBroadcast'])->name('notifications.broadcast.delete');
+        Route::post('notifications/attendance-reminder', [CustomNotificationController::class, 'triggerAttendanceReminder'])->name('notifications.attendance-reminder');
     });
     
     // Users

@@ -42,6 +42,16 @@ class NotificationController extends Controller
     public function markAllAsRead(Request $request)
     {
         session(['notifications_read_at' => now()]);
+
+        if (auth()->check() && \Illuminate\Support\Facades\Schema::hasTable('app_notifications')) {
+            \App\Models\AppNotification::where('user_id', auth()->id())
+                ->where('is_read', false)
+                ->update([
+                    'is_read' => true,
+                    'read_at' => now(),
+                ]);
+        }
+
         return redirect()->back()->with('success', 'Semua notifikasi telah ditandai sebagai dibaca.');
     }
 }

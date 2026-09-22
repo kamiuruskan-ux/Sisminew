@@ -28,6 +28,7 @@
 
     <!-- PWA Install Support -->
     @include('components.pwa-install')
+    @include('components.push-notification-client')
 
     <!-- TailwindCSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -1400,8 +1401,15 @@
                         </a>
                         @endif
                         @if(auth()->user()->hasPermission('view-notifications'))
+                        <a href="{{ route('admin.notifications.broadcast') }}" 
+                           class="nav-link {{ request()->routeIs('admin.notifications.broadcast') ? 'nav-link-active' : '' }}">
+                            <svg class="nav-icon text-indigo-500 dark:text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path>
+                            </svg>
+                            <span>Siaran Notifikasi (Push)</span>
+                        </a>
                         <a href="{{ route('admin.notifications.index') }}" 
-                           class="nav-link {{ request()->routeIs('admin.notifications.*') ? 'nav-link-active' : '' }}">
+                           class="nav-link {{ request()->routeIs('admin.notifications.index') ? 'nav-link-active' : '' }}">
                             <svg class="nav-icon text-amber-500 dark:text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                                 <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>

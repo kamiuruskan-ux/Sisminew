@@ -16,15 +16,24 @@
                 </p>
             </div>
             
-            <form method="POST" action="{{ route('admin.notifications.mark-read') }}">
-                @csrf
-                <button type="submit" class="inline-flex items-center space-x-2 px-3.5 py-2 bg-slate-100 hover:bg-slate-200/80 text-slate-700 text-xs font-semibold rounded-xl transition-colors border border-slate-200">
-                    <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+            <div class="flex items-center space-x-2.5">
+                <a href="{{ route('admin.notifications.broadcast') }}" class="inline-flex items-center space-x-2 px-3.5 py-2 bg-primary hover:bg-primary/90 text-white text-xs font-bold rounded-xl transition-all shadow-xs">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/>
                     </svg>
-                    <span>Tandai Semua Dibaca</span>
-                </button>
-            </form>
+                    <span>Kirim Siaran (Broadcast)</span>
+                </a>
+
+                <form method="POST" action="{{ route('admin.notifications.mark-read') }}">
+                    @csrf
+                    <button type="submit" class="inline-flex items-center space-x-2 px-3.5 py-2 bg-slate-100 hover:bg-slate-200/80 text-slate-700 text-xs font-semibold rounded-xl transition-colors border border-slate-200">
+                        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        <span>Tandai Semua Dibaca</span>
+                    </button>
+                </form>
+            </div>
         </div>
 
         <!-- Filter Tabs -->

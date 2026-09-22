@@ -321,5 +321,68 @@ CREATE TABLE IF NOT EXISTS `school_feedbacks` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 13. Tabel Push Subscriptions (Web Push HP & PC)
+CREATE TABLE IF NOT EXISTS `push_subscriptions` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` bigint(20) unsigned DEFAULT NULL,
+  `endpoint` varchar(500) NOT NULL,
+  `public_key` text DEFAULT NULL,
+  `auth_token` varchar(255) DEFAULT NULL,
+  `content_encoding` varchar(50) NOT NULL DEFAULT 'aes128gcm',
+  `device_type` varchar(50) DEFAULT 'desktop',
+  `user_agent` text DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `last_active_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `push_subscriptions_endpoint_unique` (`endpoint`),
+  KEY `push_subscriptions_user_active_index` (`user_id`,`is_active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 14. Tabel Siaran Notifikasi Custom (Custom Notifications)
+CREATE TABLE IF NOT EXISTS `custom_notifications` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `sender_id` bigint(20) unsigned DEFAULT NULL,
+  `title` varchar(255) NOT NULL,
+  `message` text NOT NULL,
+  `type` varchar(50) NOT NULL DEFAULT 'info',
+  `target_type` varchar(50) NOT NULL DEFAULT 'all',
+  `target_payload` json DEFAULT NULL,
+  `action_url` varchar(255) DEFAULT NULL,
+  `channels` json DEFAULT NULL,
+  `sent_count` int(11) NOT NULL DEFAULT 0,
+  `read_count` int(11) NOT NULL DEFAULT 0,
+  `status` varchar(30) NOT NULL DEFAULT 'sent',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `custom_notifications_type_index` (`type`),
+  KEY `custom_notifications_target_type_index` (`target_type`),
+  KEY `custom_notifications_status_index` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 15. Tabel Riwayat Notifikasi per Penerima (App Notifications)
+CREATE TABLE IF NOT EXISTS `app_notifications` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `custom_notification_id` bigint(20) unsigned DEFAULT NULL,
+  `user_id` bigint(20) unsigned NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `message` text NOT NULL,
+  `type` varchar(50) NOT NULL DEFAULT 'info',
+  `category` varchar(50) NOT NULL DEFAULT 'general',
+  `action_url` varchar(255) DEFAULT NULL,
+  `is_read` tinyint(1) NOT NULL DEFAULT 0,
+  `read_at` timestamp NULL DEFAULT NULL,
+  `is_pushed` tinyint(1) NOT NULL DEFAULT 0,
+  `pushed_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `app_notifications_user_read_index` (`user_id`,`is_read`,`created_at`),
+  KEY `app_notifications_custom_id_index` (`custom_notification_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS=1;
 COMMIT;
+

@@ -282,6 +282,38 @@ class NotificationService
             }
         }
 
+        // 8. Custom & Attendance Reminder Notifications (AppNotification)
+        if ($user && (!$category || $category === 'all' || $category === 'custom' || $category === 'attendance')) {
+            try {
+                if (\Illuminate\Support\Facades\Schema::hasTable('app_notifications')) {
+                    $customItems = \App\Models\AppNotification::where('user_id', $user->id)
+                        ->where('is_read', false)
+                        ->latest()
+                        ->take(15)
+                        ->get()
+                        ->map(function ($item) {
+                            $isReminder = $item->type === 'attendance_reminder';
+                            $isUrgent = in_array($item->type, ['urgent', 'warning']);
+                            return [
+                                'id' => 'custom-app-' . $item->id,
+                                'category' => $isReminder ? 'attendance' : 'custom',
+                                'badge' => $isReminder ? 'Pengingat' : 'Pemberitahuan',
+                                'badge_class' => $isReminder ? 'bg-blue-50 text-blue-700 border-blue-200' : ($isUrgent ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200'),
+                                'icon_bg' => $isReminder ? 'bg-blue-100 text-blue-600' : ($isUrgent ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'),
+                                'title' => $item->title,
+                                'message' => $item->message,
+                                'url' => $item->action_url ?: route('admin.dashboard'),
+                                'created_at' => $item->created_at,
+                                'is_urgent' => $isUrgent,
+                            ];
+                        });
+                    $notifications = $notifications->concat($customItems);
+                }
+            } catch (\Exception $e) {
+                // Ignore if table/query fails
+            }
+        }
+
         // Sort all by created_at descending
         $sorted = $notifications->sortByDesc('created_at')->values();
 
