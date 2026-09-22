@@ -946,246 +946,254 @@
 
     {{-- ========================================================================= --}}
     {{-- MODAL INTUITIF: ATUR / KELOLA KELOMPOK HALAQAH AL-QUR'AN --}}
-    {{-- ========================================================================= --}}
-    <div x-show="isGroupModalOpen"
+    {{-- ====================================    <div x-show="isGroupModalOpen"
          x-transition:enter="transition ease-out duration-300"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
          x-transition:leave="transition ease-in duration-200"
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0"
-         class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5"
+         class="fixed inset-0 z-50 overflow-hidden bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
          x-cloak>
         
         <div @click.away="closeGroupModal()"
              x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0 scale-95"
-             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:enter-start="opacity-0 translate-y-4 sm:scale-95"
+             x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
              x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100 scale-100"
-             x-transition:leave-end="opacity-0 scale-95"
-             class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+             x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+             x-transition:leave-end="opacity-0 translate-y-4 sm:scale-95"
+             class="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 w-full max-w-4xl h-[92vh] sm:h-[88vh] flex flex-col overflow-hidden">
             
-            {{-- Modal Header --}}
-            <div class="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-4 bg-slate-50/50 dark:bg-slate-800/30 shrink-0">
-                <div>
-                    <div class="flex items-center gap-2">
-                        <span class="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider">
+            {{-- Modal Header (Sticky at top) --}}
+            <div class="px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 bg-slate-50/80 dark:bg-slate-800/40 shrink-0 z-10">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="px-2 py-0.5 bg-emerald-600 text-white rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider">
                             Eksklusif Halaqah
                         </span>
-                        <h3 class="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                        <h3 class="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
                             Atur Kelompok Santri Al-Qur'an
                         </h3>
                     </div>
-                    <p class="text-xs text-slate-500 mt-1">
+                    <p class="text-[11px] text-slate-500 mt-0.5 hidden sm:block">
                         Pilih santri untuk kelompok halaqah bersama guru pembimbing. Diatur sekali saja dan dapat diedit kapan saja.
                     </p>
                 </div>
                 <button type="button" @click="closeGroupModal()"
-                        class="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center transition shrink-0 cursor-pointer"
+                        title="Tutup Modal">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
 
-            {{-- Modal Controls: Pilihan Tingkat & Filter Guru (Sticky top) --}}
-            <div class="p-5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shrink-0">
-                
-                {{-- Baris 1: Selector Tingkat Kelas (Pill Buttons) --}}
-                <div>
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
-                            PILIH TINGKAT KELAS:
-                        </span>
-                        <span class="text-xs font-black text-emerald-700 dark:text-emerald-400">
-                            Sedang Mengatur: Tingkat Kelas <span x-text="modalGrade"></span>
-                        </span>
-                    </div>
-                    <div class="flex flex-wrap gap-2">
-                        @foreach($availableGrades as $g)
-                        <button type="button" @click="switchModalGrade({{ $g }})"
-                                :class="modalGrade === {{ $g }} ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 ring-2 ring-emerald-500 font-black' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold'"
-                                class="px-4 py-2 rounded-xl text-xs transition cursor-pointer">
-                            <span>Tingkat {{ $g }}</span>
-                        </button>
-                        @endforeach
-                    </div>
-                </div>
+            {{-- Modal Scrollable Body: Controls + Student Cards Scroll Together Smoothly --}}
+            <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-slate-50/50 dark:bg-slate-900/50 divide-y divide-slate-100 dark:divide-slate-800/60">
 
-                {{-- Baris 2: Guru Pembimbing (Jika Admin) / Info Guru --}}
-                @if($isAdmin)
-                <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center pt-1">
-                    <div class="sm:col-span-4">
-                        <label class="block text-[11px] font-extrabold text-slate-500 uppercase">Guru Pembimbing Halaqah:</label>
-                    </div>
-                    <div class="sm:col-span-8">
-                        <select x-model="modalTeacherId" @change="fetchGroupStudents()"
-                                class="w-full px-3 py-2 border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-950 dark:text-indigo-200 rounded-xl text-xs font-bold">
-                            @foreach($quranTeachers as $t)
-                                <option value="{{ $t->id }}">{{ $t->name }} (Guru Al-Qur'an)</option>
+                {{-- Section 1: Modal Controls (Tingkat, Guru, Search, Filter) --}}
+                <div class="p-3.5 sm:p-5 bg-white dark:bg-slate-900 space-y-3 sm:space-y-4">
+                    
+                    {{-- Baris 1: Selector Tingkat Kelas (Pill Buttons) --}}
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-[10px] sm:text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+                                PILIH TINGKAT KELAS:
+                            </span>
+                            <span class="text-[11px] sm:text-xs font-black text-emerald-700 dark:text-emerald-400">
+                                Sedang Mengatur: Tingkat Kelas <span x-text="modalGrade"></span>
+                            </span>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5 sm:gap-2">
+                            @foreach($availableGrades as $g)
+                            <button type="button" @click="switchModalGrade({{ $g }})"
+                                    :class="modalGrade === {{ $g }} ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 ring-2 ring-emerald-500 font-black' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold'"
+                                    class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs transition cursor-pointer">
+                                <span>Tingkat {{ $g }}</span>
+                            </button>
                             @endforeach
-                        </select>
-                    </div>
-                </div>
-                @else
-                <div class="flex items-center gap-2 p-2.5 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-xl border border-emerald-100 dark:border-emerald-800/40 text-xs">
-                    <span class="font-extrabold text-emerald-800 dark:text-emerald-300">Guru Pembimbing:</span>
-                    <span class="font-bold text-slate-700 dark:text-slate-200">{{ $activeTeacher->name }}</span>
-                </div>
-                @endif
-
-                {{-- Baris 3: Live Search, Filter Rombel Asal, & Filter Status --}}
-                <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-1">
-                    {{-- Search box --}}
-                    <div class="sm:col-span-5 relative">
-                        <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        <input type="text" x-model="searchQuery" placeholder="Cari nama santri atau NISN..."
-                               class="w-full pl-9 pr-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 transition">
+                        </div>
                     </div>
 
-                    {{-- Filter Rombel Asal Kelas --}}
-                    <div class="sm:col-span-4">
-                        <select x-model="filterClassId"
-                                class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200">
-                            <option value="">Semua Rombel (Tingkat <span x-text="modalGrade"></span>)</option>
-                            <template x-for="c in modalClasses" :key="c.id">
-                                <option :value="c.id" x-text="c.name"></option>
-                            </template>
-                        </select>
+                    {{-- Baris 2: Guru Pembimbing (Jika Admin) / Info Guru --}}
+                    @if($isAdmin)
+                    <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-3 items-center pt-0.5">
+                        <div class="sm:col-span-4">
+                            <label class="block text-[10px] sm:text-[11px] font-extrabold text-slate-500 uppercase">Guru Pembimbing Halaqah:</label>
+                        </div>
+                        <div class="sm:col-span-8">
+                            <select x-model="modalTeacherId" @change="fetchGroupStudents()"
+                                    class="w-full px-3 py-2 border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-950 dark:text-indigo-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                                @foreach($quranTeachers as $t)
+                                    <option value="{{ $t->id }}">{{ $t->name }} (Guru Al-Qur'an)</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                    @else
+                    <div class="flex items-center gap-2 p-2 sm:p-2.5 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-xl border border-emerald-100 dark:border-emerald-800/40 text-xs">
+                        <span class="font-extrabold text-emerald-800 dark:text-emerald-300 text-[11px] sm:text-xs">Guru Pembimbing:</span>
+                        <span class="font-bold text-slate-700 dark:text-slate-200 text-[11px] sm:text-xs">{{ $activeTeacher->name }}</span>
+                    </div>
+                    @endif
+
+                    {{-- Baris 3: Live Search, Filter Rombel Asal, & Bulk Actions --}}
+                    <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-2.5 pt-0.5">
+                        {{-- Search box --}}
+                        <div class="sm:col-span-5 relative">
+                            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                            <input type="text" x-model="searchQuery" placeholder="Cari nama santri atau NISN..."
+                                   class="w-full pl-9 pr-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none transition">
+                        </div>
+
+                        {{-- Filter Rombel Asal Kelas --}}
+                        <div class="sm:col-span-4">
+                            <select x-model="filterClassId"
+                                    class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500">
+                                <option value="">Semua Rombel (Tingkat <span x-text="modalGrade"></span>)</option>
+                                <template x-for="c in modalClasses" :key="c.id">
+                                    <option :value="c.id" x-text="c.name"></option>
+                                </template>
+                            </select>
+                        </div>
+
+                        {{-- Bulk Actions --}}
+                        <div class="sm:col-span-3 flex items-center gap-1.5">
+                            <button type="button" @click="selectAllFiltered()"
+                                    class="flex-1 py-2 px-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl text-[11px] font-extrabold text-slate-700 dark:text-slate-300 transition text-center cursor-pointer">
+                                Pilih Semua
+                            </button>
+                            <button type="button" @click="deselectAllFiltered()"
+                                    class="flex-1 py-2 px-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl text-[11px] font-extrabold text-slate-700 dark:text-slate-300 transition text-center cursor-pointer">
+                                Batal Pilih
+                            </button>
+                        </div>
                     </div>
 
-                    {{-- Bulk Actions --}}
-                    <div class="sm:col-span-3 flex items-center gap-1.5">
-                        <button type="button" @click="selectAllFiltered()"
-                                class="w-1/2 py-2 px-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl text-[11px] font-extrabold text-slate-700 dark:text-slate-300 transition text-center cursor-pointer">
-                            Pilih Semua
-                        </button>
-                        <button type="button" @click="deselectAllFiltered()"
-                                class="w-1/2 py-2 px-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl text-[11px] font-extrabold text-slate-700 dark:text-slate-300 transition text-center cursor-pointer">
-                            Batal Pilih
-                        </button>
-                    </div>
-                </div>
+                    {{-- Baris 4: Quick Filter Status Pills & Selected Counter --}}
+                    <div class="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <button type="button" @click="filterStatus = 'all'"
+                                    :class="filterStatus === 'all' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'"
+                                    class="px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold transition cursor-pointer">
+                                Semua (<span x-text="allGroupStudents.length"></span>)
+                            </button>
+                            <button type="button" @click="filterStatus = 'my_group'"
+                                    :class="filterStatus === 'my_group' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'"
+                                    class="px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold transition cursor-pointer">
+                                ✓ Kelompok Ini (<span x-text="selectedStudentIds.length"></span>)
+                            </button>
+                            <button type="button" @click="filterStatus = 'unassigned'"
+                                    :class="filterStatus === 'unassigned' ? 'bg-amber-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'"
+                                    class="px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold transition cursor-pointer">
+                                Belum Berkelompok
+                            </button>
+                        </div>
 
-                {{-- Baris 4: Quick Filter Status Pills & Selected Counter --}}
-                <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
-                    <div class="flex flex-wrap items-center gap-1.5">
-                        <button type="button" @click="filterStatus = 'all'"
-                                :class="filterStatus === 'all' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'"
-                                class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer">
-                            Semua (<span x-text="allGroupStudents.length"></span>)
-                        </button>
-                        <button type="button" @click="filterStatus = 'my_group'"
-                                :class="filterStatus === 'my_group' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'"
-                                class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer">
-                            ✓ Kelompok Ini (<span x-text="selectedStudentIds.length"></span>)
-                        </button>
-                        <button type="button" @click="filterStatus = 'unassigned'"
-                                :class="filterStatus === 'unassigned' ? 'bg-amber-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'"
-                                class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer">
-                            Belum Berkelompok
-                        </button>
+                        <div class="text-[11px] sm:text-xs font-black text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                            ✨ <span x-text="selectedStudentIds.length"></span> Santri Terpilih
+                        </div>
                     </div>
 
-                    <div class="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1 rounded-xl border border-emerald-200 dark:border-emerald-800">
-                        ✨ <span x-text="selectedStudentIds.length"></span> Santri Terpilih
+                </div>
+
+                {{-- Section 2: Daftar Kartu Santri --}}
+                <div class="p-3.5 sm:p-5">
+                    
+                    {{-- Loading Spinner --}}
+                    <div x-show="loadingGroupStudents" class="py-12 text-center text-slate-400 space-y-3">
+                        <svg class="animate-spin w-8 h-8 mx-auto text-emerald-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <p class="text-xs font-bold">Memuat daftar santri Tingkat Kelas <span x-text="modalGrade"></span>...</p>
                     </div>
-                </div>
 
-            </div>
+                    {{-- Empty List State --}}
+                    <div x-show="!loadingGroupStudents && filteredGroupStudents.length === 0" class="py-12 text-center text-slate-400">
+                        <p class="text-xs font-bold">Tidak ada santri yang sesuai dengan filter pencarian.</p>
+                    </div>
 
-            {{-- Modal Body: Daftar Kartu Santri (Scrollable) --}}
-            <div class="p-5 overflow-y-auto flex-1 bg-slate-50/50 dark:bg-slate-900/50 min-h-[250px]">
-                
-                {{-- Loading Spinner --}}
-                <div x-show="loadingGroupStudents" class="py-12 text-center text-slate-400 space-y-3">
-                    <svg class="animate-spin w-8 h-8 mx-auto text-emerald-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    <p class="text-xs font-bold">Memuat daftar santri Tingkat Kelas <span x-text="modalGrade"></span>...</p>
-                </div>
+                    {{-- Grid Kartu Santri --}}
+                    <div x-show="!loadingGroupStudents && filteredGroupStudents.length > 0"
+                         class="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3">
+                        <template x-for="st in filteredGroupStudents" :key="st.id">
+                            <div @click="toggleStudent(st.id)"
+                                 :class="isStudentSelected(st.id)
+                                    ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-2 border-emerald-500 shadow-xs'
+                                    : 'bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 hover:border-slate-300 dark:hover:border-slate-600'"
+                                 class="p-3 rounded-2xl transition cursor-pointer flex items-center justify-between gap-2.5 select-none">
+                                
+                                <div class="flex items-center gap-2.5 min-w-0">
+                                    {{-- Checkbox Visual --}}
+                                    <div :class="isStudentSelected(st.id) ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-transparent'"
+                                         class="w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 transition">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                    </div>
 
-                {{-- Empty List State --}}
-                <div x-show="!loadingGroupStudents && filteredGroupStudents.length === 0" class="py-12 text-center text-slate-400">
-                    <p class="text-xs font-bold">Tidak ada santri yang sesuai dengan filter pencarian.</p>
-                </div>
+                                    {{-- Avatar / Initials --}}
+                                    <div class="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 flex items-center justify-center font-black text-xs shrink-0 uppercase">
+                                        <span x-text="st.name.substring(0, 2)"></span>
+                                    </div>
 
-                {{-- Grid Kartu Santri --}}
-                <div x-show="!loadingGroupStudents && filteredGroupStudents.length > 0"
-                     class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <template x-for="st in filteredGroupStudents" :key="st.id">
-                        <div @click="toggleStudent(st.id)"
-                             :class="isStudentSelected(st.id)
-                                ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-2 border-emerald-500 shadow-xs'
-                                : 'bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 hover:border-slate-300 dark:hover:border-slate-600'"
-                             class="p-3.5 rounded-2xl transition cursor-pointer flex items-center justify-between gap-3 select-none">
-                            
-                            <div class="flex items-center gap-3 min-w-0">
-                                {{-- Checkbox Visual --}}
-                                <div :class="isStudentSelected(st.id) ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 text-transparent'"
-                                     class="w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 transition">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                                </div>
-
-                                {{-- Avatar / Initials --}}
-                                <div class="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 flex items-center justify-center font-black text-xs shrink-0 uppercase">
-                                    <span x-text="st.name.substring(0, 2)"></span>
-                                </div>
-
-                                {{-- Data Santri --}}
-                                <div class="min-w-0">
-                                    <h4 class="text-xs font-black text-slate-900 dark:text-white truncate" x-text="st.name"></h4>
-                                    <div class="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
-                                        <span class="font-bold text-slate-600 dark:text-slate-300" x-text="st.class_name"></span>
-                                        <span>•</span>
-                                        <span>NISN: <span x-text="st.nisn"></span></span>
+                                    {{-- Data Santri --}}
+                                    <div class="min-w-0">
+                                        <h4 class="text-xs font-black text-slate-900 dark:text-white truncate" x-text="st.name"></h4>
+                                        <div class="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
+                                            <span class="font-bold text-slate-600 dark:text-slate-300" x-text="st.class_name"></span>
+                                            <span>•</span>
+                                            <span>NISN: <span x-text="st.nisn"></span></span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            {{-- Status Badges --}}
-                            <div class="shrink-0 text-right">
-                                <template x-if="isStudentSelected(st.id)">
-                                    <span class="px-2.5 py-1 bg-emerald-600 text-white text-[10px] font-black rounded-lg shadow-2xs">
-                                        ✓ Di Kelompok Ini
-                                    </span>
-                                </template>
-                                <template x-if="!isStudentSelected(st.id) && st.assigned_teacher_name">
-                                    <span class="px-2 py-0.5 bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 text-[10px] font-bold rounded-lg border border-amber-200 dark:border-amber-800"
-                                          :title="'Saat ini di kelompok ' + st.assigned_teacher_name + '. Klik untuk pindahkan ke sini.'">
-                                        Kelompok: <span x-text="st.assigned_teacher_name"></span>
-                                    </span>
-                                </template>
-                                <template x-if="!isStudentSelected(st.id) && !st.assigned_teacher_name">
-                                    <span class="px-2 py-0.5 bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400 text-[10px] font-bold rounded-lg">
-                                        Belum Ada Kelompok
-                                    </span>
-                                </template>
-                            </div>
+                                {{-- Status Badges --}}
+                                <div class="shrink-0 text-right">
+                                    <template x-if="isStudentSelected(st.id)">
+                                        <span class="px-2 py-0.5 bg-emerald-600 text-white text-[9px] sm:text-[10px] font-black rounded-lg shadow-2xs">
+                                            ✓ Di Kelompok
+                                        </span>
+                                    </template>
+                                    <template x-if="!isStudentSelected(st.id) && st.assigned_teacher_name">
+                                        <span class="px-2 py-0.5 bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 text-[9px] sm:text-[10px] font-bold rounded-lg border border-amber-200 dark:border-amber-800"
+                                              :title="'Saat ini di kelompok ' + st.assigned_teacher_name + '. Klik untuk pindahkan ke sini.'">
+                                            Kelompok: <span x-text="st.assigned_teacher_name"></span>
+                                        </span>
+                                    </template>
+                                    <template x-if="!isStudentSelected(st.id) && !st.assigned_teacher_name">
+                                        <span class="px-2 py-0.5 bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400 text-[9px] sm:text-[10px] font-bold rounded-lg">
+                                            Belum Ada
+                                        </span>
+                                    </template>
+                                </div>
 
-                        </div>
-                    </template>
+                            </div>
+                        </template>
+                    </div>
+
                 </div>
 
             </div>
 
-            {{-- Modal Footer: Save & Cancel --}}
-            <div class="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-3 shrink-0">
-                <div class="text-xs text-slate-500 hidden sm:block">
-                    Total <strong class="text-slate-900 dark:text-white" x-text="selectedStudentIds.length"></strong> santri akan dimasukkan ke kelompok ini.
+            {{-- Modal Footer: Save & Cancel (PERMANENTLY STICKY AT BOTTOM) --}}
+            <div class="p-3 sm:p-4 border-t border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md flex items-center justify-between gap-2 shrink-0 z-20 shadow-lg">
+                <div class="flex items-center gap-1.5 min-w-0">
+                    <span class="text-xs font-black text-emerald-700 dark:text-emerald-400 truncate">
+                        ✨ <span x-text="selectedStudentIds.length"></span> Santri
+                    </span>
+                    <span class="text-[10px] text-slate-400 hidden sm:inline">(Tingkat <span x-text="modalGrade"></span>)</span>
                 </div>
                 
-                <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <div class="flex items-center gap-2 shrink-0">
                     <button type="button" @click="closeGroupModal()"
-                            class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
+                            class="px-3.5 py-2 sm:px-4 sm:py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
                         Batal
                     </button>
                     <button type="button" @click="saveGroupArrangement()" :disabled="savingGroup"
-                            class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-black shadow-md shadow-emerald-600/20 transition flex items-center gap-2 cursor-pointer">
+                            class="px-4 py-2 sm:px-5 sm:py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-black shadow-md shadow-emerald-600/30 transition flex items-center gap-1.5 cursor-pointer">
                         <template x-if="savingGroup">
-                            <svg class="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <svg class="animate-spin w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                         </template>
                         <template x-if="!savingGroup">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
                         </template>
-                        <span>Simpan Susunan Kelompok (<span x-text="selectedStudentIds.length"></span> Santri)</span>
+                        <span>Simpan Kelompok (<span x-text="selectedStudentIds.length"></span>)</span>
                     </button>
                 </div>
             </div>
