@@ -123,6 +123,103 @@ class HalaqahController extends Controller
     }
 
     /**
+     * Terapkan filter komprehensif ke query HalaqahRecord
+     */
+    protected function applyHalaqahFilters($query, Request $request, bool $isAdmin, $user)
+    {
+        // 1. Filter Guru Pembimbing
+        if (!$isAdmin) {
+            // Guru biasa HANYA bisa melihat santri dan riwayat yang dia bimbing sendiri
+            $query->where('teacher_id', $user->id);
+        } elseif ($request->filled('teacher_id') && $request->teacher_id !== 'all') {
+            // Admin memilih filter spesifik guru tertentu
+            $query->where('teacher_id', (int) $request->teacher_id);
+        }
+        // Jika Admin dan teacher_id == 'all' (atau kosong), tampilkan seluruh guru (tanpa filter teacher_id)
+
+        // 2. Filter Tingkat Kelas (Grade)
+        $grade = $request->get('grade', $request->get('history_grade', 'all'));
+        if ($grade !== 'all' && is_numeric($grade)) {
+            $g = (int) $grade;
+            $gClassIds = $this->getClassIdsByGrade($g);
+            $query->where(function ($q) use ($g, $gClassIds) {
+                $q->where('grade', $g);
+                if (!empty($gClassIds)) {
+                    $q->orWhereIn('class_id', $gClassIds);
+                }
+                $q->orWhereHas('student', function ($sq) use ($g, $gClassIds) {
+                    $sq->whereHas('halaqahMember', function ($hmq) use ($g) {
+                        $hmq->where('grade', $g);
+                    });
+                    if (!empty($gClassIds)) {
+                        $sq->orWhereIn('class_id', $gClassIds);
+                    }
+                });
+            });
+        }
+
+        // 3. Filter Rombel Kelas (Class ID)
+        if ($request->filled('class_id') && $request->class_id !== 'all') {
+            $clsId = (int) $request->class_id;
+            $query->where(function ($q) use ($clsId) {
+                $q->where('class_id', $clsId)
+                  ->orWhereHas('student', function ($sq) use ($clsId) {
+                      $sq->where('class_id', $clsId);
+                  });
+            });
+        }
+
+        // 4. Filter Program (Tahsin / Tahfidz)
+        $program = $request->get('program', $request->get('history_program', $request->get('filter_program', 'all')));
+        if ($program !== 'all' && in_array($program, ['tahsin', 'tahfidz'])) {
+            $query->where('program_type', $program);
+        }
+
+        // 5. Filter Jilid (Tahsin)
+        if ($request->filled('jilid') && $request->jilid !== 'all') {
+            $query->where('program_type', 'tahsin')->where('jilid_level', $request->jilid);
+        }
+
+        // 6. Filter Juz / Hafalan (Tahfidz)
+        if ($request->filled('juz') && $request->juz !== 'all') {
+            $query->where('program_type', 'tahfidz')->where('juz_number', (int) $request->juz);
+        }
+
+        // 7. Filter Waktu (Harian / Bulanan / Rentang Tanggal / Semua)
+        $timeFilter = $request->get('time_filter', 'all');
+        if ($timeFilter === 'daily' || ($request->filled('date') && !$request->filled('date_from') && !$request->filled('month') && $timeFilter !== 'all')) {
+            if ($request->filled('date')) {
+                $query->whereDate('assessment_date', $request->date);
+            }
+        } elseif ($timeFilter === 'monthly' || ($request->filled('month') && !$request->filled('date_from') && $timeFilter !== 'all')) {
+            $month = (int) ($request->month ?? Carbon::now()->month);
+            $year = (int) ($request->year ?? Carbon::now()->year);
+            $query->whereMonth('assessment_date', $month)->whereYear('assessment_date', $year);
+        } elseif ($timeFilter === 'range' || $request->filled('date_from') || $request->filled('date_to')) {
+            if ($request->filled('date_from')) {
+                $query->whereDate('assessment_date', '>=', $request->date_from);
+            }
+            if ($request->filled('date_to')) {
+                $query->whereDate('assessment_date', '<=', $request->date_to);
+            }
+        }
+
+        // 8. Pencarian Nama Santri atau NISN
+        $search = $request->get('search_student', $request->get('q'));
+        if (!empty($search)) {
+            $query->whereHas('student', function ($sq) use ($search) {
+                $sq->where('nisn', 'like', "%{$search}%")
+                   ->orWhere('nis', 'like', "%{$search}%")
+                   ->orWhereHas('user', function ($uq) use ($search) {
+                       $uq->where('name', 'like', "%{$search}%");
+                   });
+            });
+        }
+
+        return $query;
+    }
+
+    /**
      * Halaman Utama Halaqah Al-Qur'an (Tahsin & Tahfidz Eksklusif Berbasis Tingkat Kelas & Kelompok)
      */
     public function index(Request $request)
@@ -139,37 +236,44 @@ class HalaqahController extends Controller
             $rq->whereIn('slug', ['guru-quran', 'guru_quran', 'guru', 'teacher']);
         })->orderBy('name', 'asc')->get();
 
-        // Tentukan Guru Pembimbing aktif
+        $tab = $request->get('tab', 'input'); // 'input', 'history', 'reports', 'attendance'
+        $mode = $request->get('mode', 'individual'); // 'individual', 'mass'
+
+        // ── 1. Resolusi Guru Pembimbing Aktif untuk Tab Input ──
         $activeTeacherId = $user->id;
-        if ($isAdmin && $request->filled('teacher_id')) {
-            $activeTeacherId = (int) $request->teacher_id;
-        }
-
-        $activeTeacher = User::find($activeTeacherId) ?? $user;
-
-        // Daftar Tingkat Kelas yang tersedia
-        $availableGrades = $this->getAvailableGrades();
-
-        // Tentukan Tingkat Kelas terpilih
-        $selectedGrade = $request->get('grade');
-        if (!$selectedGrade && $request->filled('class_id')) {
-            // Backward-compatibility: jika ada parameter class_id lama
-            $cls = ClassModel::find($request->class_id);
-            if ($cls) {
-                $selectedGrade = !empty($cls->grade) ? (int)$cls->grade : (preg_match('/^(\d+)/', $cls->name, $m) ? (int)$m[1] : null);
+        if ($isAdmin) {
+            if ($request->filled('teacher_id') && $request->teacher_id !== 'all') {
+                $activeTeacherId = (int) $request->teacher_id;
+            } else {
+                $activeTeacherId = $quranTeachers->first()?->id ?? $user->id;
             }
         }
+        $activeTeacher = User::find($activeTeacherId) ?? $user;
 
-        if (!$selectedGrade) {
-            // Prioritaskan tingkat kelas yang sudah memiliki santri di kelompok guru ini
-            $firstAssignedGrade = QuranHalaqahMember::where('teacher_id', $activeTeacherId)
-                ->whereIn('grade', $availableGrades)
-                ->value('grade');
-            $selectedGrade = $firstAssignedGrade ?: ($availableGrades[0] ?? 1);
+        // ── 2. Filter Guru Pembimbing untuk Tab History, Reports, Attendance ──
+        // Jika Admin: default 'all' (bisa melihat seluruh guru) atau spesifik ID guru
+        // Jika Guru Biasa: terkunci ketat hanya pada user->id dirinya sendiri
+        $filterTeacherId = $isAdmin ? $request->get('teacher_id', ($tab === 'input' ? (string)$activeTeacherId : 'all')) : (string)$user->id;
+
+        // ── 3. Tingkat Kelas yang Tersedia & Pilihan Tingkat ──
+        $availableGrades = $this->getAvailableGrades();
+        
+        // Untuk Tab Input, wajib ada tingkat integer (1..6)
+        $rawGrade = $request->get('grade', $request->get('history_grade'));
+        if ($tab === 'input') {
+            if (!$rawGrade || $rawGrade === 'all') {
+                $firstAssignedGrade = QuranHalaqahMember::where('teacher_id', $activeTeacherId)
+                    ->whereIn('grade', $availableGrades)
+                    ->value('grade');
+                $selectedGrade = (int) ($firstAssignedGrade ?: ($availableGrades[0] ?? 1));
+            } else {
+                $selectedGrade = (int) $rawGrade;
+            }
+        } else {
+            $selectedGrade = ($rawGrade !== 'all' && is_numeric($rawGrade)) ? (int) $rawGrade : 'all';
         }
-        $selectedGrade = (int) $selectedGrade;
 
-        // Hitung jumlah santri halaqah per tingkat kelas untuk guru aktif
+        // Hitung jumlah santri halaqah per tingkat kelas untuk guru aktif (untuk modal & tab input)
         $gradeCounts = [];
         foreach ($availableGrades as $g) {
             $gradeClassIds = $this->getClassIdsByGrade($g);
@@ -183,27 +287,46 @@ class HalaqahController extends Controller
             $gradeCounts[$g] = $count;
         }
 
+        // Rombel kelas seluruh sekolah untuk filter kelas
+        $allClasses = ClassModel::where('is_active', true)->orderBy('grade', 'asc')->orderBy('name', 'asc')->get();
+        if ($allClasses->isEmpty()) {
+            $allClasses = ClassModel::orderBy('name', 'asc')->get();
+        }
+
         $academicYears = AcademicYear::orderBy('start_year', 'desc')->get();
         $activeAcademicYear = AcademicYear::getActive() ?? $academicYears->first();
         
-        $selectedDate = $request->get('date', Carbon::today()->format('Y-m-d'));
-        $tab = $request->get('tab', 'input'); // 'input', 'reports', 'attendance'
-        $mode = $request->get('mode', 'individual'); // 'individual', 'mass'
+        // Filter options untuk tampilan
+        $allJilidOptions = ['Jilid 1', 'Jilid 2', 'Jilid 3', 'Jilid 4', 'Jilid 5', 'Jilid 6', 'Tilawah'];
+        $allJuzOptions = [30, 29, 28, 27, 26, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25];
 
-        // Ambil santri yang HANYA terdaftar di kelompok halaqah guru ini pada tingkat kelas terpilih
-        $selectedGradeClassIds = $this->getClassIdsByGrade($selectedGrade);
+        $filterGrade = (string) $selectedGrade;
+        $filterClassId = $request->get('class_id', 'all');
+        $filterProgram = $request->get('program', $request->get('history_program', 'all'));
+        $filterJilid = $request->get('jilid', 'all');
+        $filterJuz = $request->get('juz', 'all');
+        $timeFilter = $request->get('time_filter', 'all');
+        $selectedDate = $request->get('date', Carbon::today()->format('Y-m-d'));
+        $selectedMonth = (int) $request->get('month', Carbon::now()->month);
+        $selectedYear = (int) $request->get('year', Carbon::now()->year);
+        $dateFrom = $request->get('date_from');
+        $dateTo = $request->get('date_to');
+        $searchStudent = $request->get('search_student', $request->get('q', ''));
+
+        // ── TAB 1: DATA SANTRI UNTUK INPUT EVALUASI ──
+        $inputGrade = is_numeric($selectedGrade) ? (int)$selectedGrade : ($availableGrades[0] ?? 1);
+        $inputGradeClassIds = $this->getClassIdsByGrade($inputGrade);
         
         $halaqahStudentIds = QuranHalaqahMember::where('teacher_id', $activeTeacherId)
-            ->where(function ($q) use ($selectedGrade, $selectedGradeClassIds) {
-                $q->where('grade', $selectedGrade)
-                  ->orWhereHas('student', function ($sq) use ($selectedGradeClassIds) {
-                      $sq->whereIn('class_id', $selectedGradeClassIds);
+            ->where(function ($q) use ($inputGrade, $inputGradeClassIds) {
+                $q->where('grade', $inputGrade)
+                  ->orWhereHas('student', function ($sq) use ($inputGradeClassIds) {
+                      $sq->whereIn('class_id', $inputGradeClassIds);
                   });
             })
             ->pluck('student_id')
             ->toArray();
 
-        // Jika santri ditemukan, ambil data Student lengkap beserta user dan kelas rombelnya
         $students = [];
         if (!empty($halaqahStudentIds)) {
             $students = Student::with(['user', 'class'])
@@ -217,23 +340,21 @@ class HalaqahController extends Controller
             ->latest('assessment_date')
             ->latest('id');
 
-        // Filter riwayat berdasarkan guru (kecuali admin memilih 'all')
-        if (!$isAdmin || $request->filled('teacher_id')) {
+        if (!$isAdmin || ($request->filled('teacher_id') && $request->teacher_id !== 'all')) {
             $historyQuery->where('teacher_id', $activeTeacherId);
         }
 
-        // Filter riwayat berdasarkan tingkat kelas terpilih (fleksibel: cek kolom grade, rombel kelas, atau keanggotaan santri)
-        $historyQuery->where(function ($q) use ($selectedGrade, $selectedGradeClassIds) {
-            $q->where('grade', $selectedGrade);
-            if (!empty($selectedGradeClassIds)) {
-                $q->orWhereIn('class_id', $selectedGradeClassIds);
+        $historyQuery->where(function ($q) use ($inputGrade, $inputGradeClassIds) {
+            $q->where('grade', $inputGrade);
+            if (!empty($inputGradeClassIds)) {
+                $q->orWhereIn('class_id', $inputGradeClassIds);
             }
-            $q->orWhereHas('student', function ($sq) use ($selectedGrade, $selectedGradeClassIds) {
-                $sq->whereHas('halaqahMember', function ($hmq) use ($selectedGrade) {
-                    $hmq->where('grade', $selectedGrade);
+            $q->orWhereHas('student', function ($sq) use ($inputGrade, $inputGradeClassIds) {
+                $sq->whereHas('halaqahMember', function ($hmq) use ($inputGrade) {
+                    $hmq->where('grade', $inputGrade);
                 });
-                if (!empty($selectedGradeClassIds)) {
-                    $sq->orWhereIn('class_id', $selectedGradeClassIds);
+                if (!empty($inputGradeClassIds)) {
+                    $sq->orWhereIn('class_id', $inputGradeClassIds);
                 }
             });
         });
@@ -248,131 +369,12 @@ class HalaqahController extends Controller
         $records = $historyQuery->paginate(15)->withQueryString();
         $totalRecordsCount = (clone $historyQuery)->count();
 
-        // ── Data Agregasi untuk Tab 2: Laporan & Grafik Statistik ──
-        $month = $request->get('month', Carbon::now()->month);
-        $year = $request->get('year', Carbon::now()->year);
-
-        $statsQuery = HalaqahRecord::query();
-        if (!$isAdmin || $request->filled('teacher_id')) {
-            $statsQuery->where('teacher_id', $activeTeacherId);
-        }
-        $statsQuery->where(function ($q) use ($selectedGrade, $selectedGradeClassIds) {
-            $q->where('grade', $selectedGrade);
-            if (!empty($selectedGradeClassIds)) {
-                $q->orWhereIn('class_id', $selectedGradeClassIds);
-            }
-            $q->orWhereHas('student', function ($sq) use ($selectedGrade, $selectedGradeClassIds) {
-                $sq->whereHas('halaqahMember', function ($hmq) use ($selectedGrade) {
-                    $hmq->where('grade', $selectedGrade);
-                });
-                if (!empty($selectedGradeClassIds)) {
-                    $sq->orWhereIn('class_id', $selectedGradeClassIds);
-                }
-            });
-        });
-        if ($request->filled('filter_student_id')) {
-            $statsQuery->where('student_id', $request->filter_student_id);
-        }
-
-        $totalSetoran = (clone $statsQuery)->count();
-        $tahsinCount = (clone $statsQuery)->where('program_type', 'tahsin')->count();
-        $tahfidzCount = (clone $statsQuery)->where('program_type', 'tahfidz')->count();
-
-        $avgScore = (clone $statsQuery)->avg('score_cognitive') ?? 0;
-        $avgScore = round($avgScore, 1);
-
-        $mumtazCount = (clone $statsQuery)->where('predicate', 'Mumtaz')->count();
-        $mumtazPercentage = $totalSetoran > 0 ? round(($mumtazCount / $totalSetoran) * 100) : 0;
-
-        // Predikat Sebaran
-        $predicateDistribution = [
-            'Mumtaz' => (clone $statsQuery)->where('predicate', 'Mumtaz')->count(),
-            'Jayyid Jiddan' => (clone $statsQuery)->where('predicate', 'Jayyid Jiddan')->count(),
-            'Jayyid' => (clone $statsQuery)->where('predicate', 'Jayyid')->count(),
-            'Maqbul' => (clone $statsQuery)->where('predicate', 'Maqbul')->count(),
-        ];
-
-        // Sebaran Jilid Tahsin
-        $jilidList = ['Jilid 1', 'Jilid 2', 'Jilid 3', 'Jilid 4', 'Tilawah'];
-        $jilidStats = [];
-        foreach ($jilidList as $jld) {
-            $jilidStats[$jld] = (clone $statsQuery)->where('program_type', 'tahsin')->where('jilid_level', $jld)->count();
-        }
-
-        // Sebaran Juz Tahfidz
-        $juzStats = [
-            'Juz 30' => (clone $statsQuery)->where('program_type', 'tahfidz')->where('juz_number', 30)->count(),
-            'Juz 29' => (clone $statsQuery)->where('program_type', 'tahfidz')->where('juz_number', 29)->count(),
-            'Juz 1'  => (clone $statsQuery)->where('program_type', 'tahfidz')->where('juz_number', 1)->count(),
-            'Juz 2'  => (clone $statsQuery)->where('program_type', 'tahfidz')->where('juz_number', 2)->count(),
-            'Juz 3-28' => (clone $statsQuery)->where('program_type', 'tahfidz')->whereNotIn('juz_number', [1, 2, 29, 30])->count(),
-        ];
-
-        // ── Data Tab 3: Rekap Kehadiran Halaqah ──
-        $attendanceStats = [
-            'hadir' => (clone $statsQuery)->where('attendance_status', 'hadir')->count(),
-            'sakit' => (clone $statsQuery)->where('attendance_status', 'sakit')->count(),
-            'izin'  => (clone $statsQuery)->where('attendance_status', 'izin')->count(),
-            'alpa'  => (clone $statsQuery)->where('attendance_status', 'alpa')->count(),
-        ];
-
-        // ── Data Tab 4 (BARU): History Mengajar Halaqah (Logbook Bimbingan Guru) ──
+        // ── TAB 2: DATA HISTORY & LOGBOOK MENGAJAR (MULTI-FILTER) ──
         $historyTeachingQuery = HalaqahRecord::with(['student.user', 'class', 'teacher'])
             ->latest('assessment_date')
             ->latest('id');
 
-        if (!$isAdmin || $request->filled('teacher_id')) {
-            $historyTeachingQuery->where('teacher_id', $activeTeacherId);
-        }
-
-        // Filter Tingkat Kelas di History Mengajar (bisa 'all' atau nomor tingkat)
-        $historyGrade = $request->get('history_grade', 'all');
-        if ($historyGrade !== 'all' && is_numeric($historyGrade)) {
-            $hGrade = (int) $historyGrade;
-            $hGradeClassIds = $this->getClassIdsByGrade($hGrade);
-            $historyTeachingQuery->where(function ($q) use ($hGrade, $hGradeClassIds) {
-                $q->where('grade', $hGrade);
-                if (!empty($hGradeClassIds)) {
-                    $q->orWhereIn('class_id', $hGradeClassIds);
-                }
-                $q->orWhereHas('student', function ($sq) use ($hGrade, $hGradeClassIds) {
-                    $sq->whereHas('halaqahMember', function ($hmq) use ($hGrade) {
-                        $hmq->where('grade', $hGrade);
-                    });
-                    if (!empty($hGradeClassIds)) {
-                        $sq->orWhereIn('class_id', $hGradeClassIds);
-                    }
-                });
-            });
-        }
-
-        // Filter Program di History Mengajar
-        $historyProgram = $request->get('history_program', 'all');
-        if ($historyProgram !== 'all' && in_array($historyProgram, ['tahsin', 'tahfidz'])) {
-            $historyTeachingQuery->where('program_type', $historyProgram);
-        }
-
-        // Filter Rentang Tanggal
-        $dateFrom = $request->get('date_from');
-        $dateTo = $request->get('date_to');
-        if ($dateFrom) {
-            $historyTeachingQuery->whereDate('assessment_date', '>=', $dateFrom);
-        }
-        if ($dateTo) {
-            $historyTeachingQuery->whereDate('assessment_date', '<=', $dateTo);
-        }
-
-        // Pencarian Nama / NISN Santri di History Mengajar
-        $searchStudent = $request->get('search_student');
-        if (!empty($searchStudent)) {
-            $historyTeachingQuery->whereHas('student', function ($sq) use ($searchStudent) {
-                $sq->where('nisn', 'like', "%{$searchStudent}%")
-                   ->orWhere('nis', 'like', "%{$searchStudent}%")
-                   ->orWhereHas('user', function ($uq) use ($searchStudent) {
-                       $uq->where('name', 'like', "%{$searchStudent}%");
-                   });
-            });
-        }
+        $this->applyHalaqahFilters($historyTeachingQuery, $request, $isAdmin, $user);
 
         $totalTeachingCount = (clone $historyTeachingQuery)->count();
         $historyUniqueStudentsCount = (clone $historyTeachingQuery)->distinct('student_id')->count('student_id');
@@ -384,10 +386,93 @@ class HalaqahController extends Controller
 
         $historyTeachingRecords = $historyTeachingQuery->paginate(20)->withQueryString();
 
-        $surahOptions = \App\Helpers\QuranHelper::getDropdownOptions();
+        // ── TAB 3: DATA LAPORAN & GRAFIK STATISTIK (MULTI-FILTER) ──
+        $statsQuery = HalaqahRecord::query();
+        $this->applyHalaqahFilters($statsQuery, $request, $isAdmin, $user);
 
-        // Rombel kelas untuk tingkat yang dipilih (untuk filter asal kelas pada modal kelompok)
-        $classesInSelectedGrade = ClassModel::whereIn('id', $selectedGradeClassIds)->orderBy('name', 'asc')->get();
+        $totalSetoran = (clone $statsQuery)->count();
+        $tahsinCount = (clone $statsQuery)->where('program_type', 'tahsin')->count();
+        $tahfidzCount = (clone $statsQuery)->where('program_type', 'tahfidz')->count();
+
+        $avgScore = round((clone $statsQuery)->avg('score_cognitive') ?? 0, 1);
+        $mumtazCount = (clone $statsQuery)->where('predicate', 'Mumtaz')->count();
+        $mumtazPercentage = $totalSetoran > 0 ? round(($mumtazCount / $totalSetoran) * 100) : 0;
+        $reportUniqueStudentsCount = (clone $statsQuery)->distinct('student_id')->count('student_id');
+
+        // Predikat Sebaran
+        $predicateDistribution = [
+            'Mumtaz' => (clone $statsQuery)->where('predicate', 'Mumtaz')->count(),
+            'Jayyid Jiddan' => (clone $statsQuery)->where('predicate', 'Jayyid Jiddan')->count(),
+            'Jayyid' => (clone $statsQuery)->where('predicate', 'Jayyid')->count(),
+            'Maqbul' => (clone $statsQuery)->where('predicate', 'Maqbul')->count(),
+        ];
+
+        // Sebaran Jilid Tahsin
+        $jilidStats = [];
+        foreach ($allJilidOptions as $jld) {
+            $jilidStats[$jld] = (clone $statsQuery)->where('program_type', 'tahsin')->where('jilid_level', $jld)->count();
+        }
+
+        // Sebaran Juz Tahfidz
+        $juzStats = [
+            'Juz 30' => (clone $statsQuery)->where('program_type', 'tahfidz')->where('juz_number', 30)->count(),
+            'Juz 29' => (clone $statsQuery)->where('program_type', 'tahfidz')->where('juz_number', 29)->count(),
+            'Juz 28' => (clone $statsQuery)->where('program_type', 'tahfidz')->where('juz_number', 28)->count(),
+            'Juz 1'  => (clone $statsQuery)->where('program_type', 'tahfidz')->where('juz_number', 1)->count(),
+            'Juz 2'  => (clone $statsQuery)->where('program_type', 'tahfidz')->where('juz_number', 2)->count(),
+            'Juz Lainnya (3-27)' => (clone $statsQuery)->where('program_type', 'tahfidz')->whereNotIn('juz_number', [1, 2, 28, 29, 30])->count(),
+        ];
+
+        // Rekapitulasi Capaian Siswa di Tab Laporan
+        $studentReportList = collect();
+        if ($tab === 'reports') {
+            $studentReportList = (clone $statsQuery)
+                ->select(
+                    'student_id',
+                    DB::raw("COUNT(*) as total_setoran"),
+                    DB::raw("ROUND(AVG(score_cognitive), 1) as avg_score"),
+                    DB::raw("MAX(assessment_date) as last_date")
+                )
+                ->groupBy('student_id')
+                ->with(['student.user', 'student.class'])
+                ->orderBy('total_setoran', 'desc')
+                ->paginate(20, ['*'], 'report_page')
+                ->withQueryString();
+        }
+
+        // ── TAB 4: REKAP KEHADIRAN HALAQAH (MULTI-FILTER) ──
+        $attendanceQuery = HalaqahRecord::query();
+        $this->applyHalaqahFilters($attendanceQuery, $request, $isAdmin, $user);
+
+        $attendanceStats = [
+            'hadir' => (clone $attendanceQuery)->where('attendance_status', 'hadir')->count(),
+            'sakit' => (clone $attendanceQuery)->where('attendance_status', 'sakit')->count(),
+            'izin'  => (clone $attendanceQuery)->where('attendance_status', 'izin')->count(),
+            'alpa'  => (clone $attendanceQuery)->where('attendance_status', 'alpa')->count(),
+        ];
+        $totalAttendanceEntries = array_sum($attendanceStats);
+        $attendancePercentage = $totalAttendanceEntries > 0 ? round(($attendanceStats['hadir'] / $totalAttendanceEntries) * 100, 1) : 0;
+
+        // Detail Rekap Kehadiran Per Santri
+        $studentAttendanceList = collect();
+        if ($tab === 'attendance') {
+            $studentAttendanceList = (clone $attendanceQuery)
+                ->select(
+                    'student_id',
+                    DB::raw("COUNT(*) as total_meetings"),
+                    DB::raw("SUM(CASE WHEN attendance_status = 'hadir' THEN 1 ELSE 0 END) as count_hadir"),
+                    DB::raw("SUM(CASE WHEN attendance_status = 'sakit' THEN 1 ELSE 0 END) as count_sakit"),
+                    DB::raw("SUM(CASE WHEN attendance_status = 'izin' THEN 1 ELSE 0 END) as count_izin"),
+                    DB::raw("SUM(CASE WHEN attendance_status = 'alpa' THEN 1 ELSE 0 END) as count_alpa")
+                )
+                ->groupBy('student_id')
+                ->with(['student.user', 'student.class'])
+                ->paginate(25, ['*'], 'attendance_page')
+                ->withQueryString();
+        }
+
+        $surahOptions = \App\Helpers\QuranHelper::getDropdownOptions();
+        $classesInSelectedGrade = ClassModel::whereIn('id', $inputGradeClassIds)->orderBy('name', 'asc')->get();
 
         return view('admin.halaqah.index', compact(
             'availableGrades',
@@ -397,6 +482,7 @@ class HalaqahController extends Controller
             'activeTeacherId',
             'activeTeacher',
             'isAdmin',
+            'allClasses',
             'classesInSelectedGrade',
             'academicYears',
             'activeAcademicYear',
@@ -412,10 +498,15 @@ class HalaqahController extends Controller
             'avgScore',
             'mumtazCount',
             'mumtazPercentage',
+            'reportUniqueStudentsCount',
             'predicateDistribution',
             'jilidStats',
             'juzStats',
+            'studentReportList',
             'attendanceStats',
+            'totalAttendanceEntries',
+            'attendancePercentage',
+            'studentAttendanceList',
             'surahOptions',
             'historyTeachingRecords',
             'totalTeachingCount',
@@ -425,11 +516,20 @@ class HalaqahController extends Controller
             'historyTahfidzCount',
             'historyMumtazCount',
             'historyExcellentPct',
-            'historyGrade',
-            'historyProgram',
+            'filterGrade',
+            'filterClassId',
+            'filterTeacherId',
+            'filterProgram',
+            'filterJilid',
+            'filterJuz',
+            'timeFilter',
+            'selectedMonth',
+            'selectedYear',
             'dateFrom',
             'dateTo',
-            'searchStudent'
+            'searchStudent',
+            'allJilidOptions',
+            'allJuzOptions'
         ));
     }
 
@@ -703,22 +803,10 @@ class HalaqahController extends Controller
         $isAdmin = $user->hasRole(['super-admin', 'admin', 'kepala-sekolah']);
         
         $query = HalaqahRecord::with(['student.user', 'class', 'teacher'])
-            ->latest('assessment_date');
+            ->latest('assessment_date')
+            ->latest('id');
 
-        if (!$isAdmin || $request->filled('teacher_id')) {
-            $teacherId = $request->filled('teacher_id') ? $request->teacher_id : $user->id;
-            $query->where('teacher_id', $teacherId);
-        }
-
-        if ($request->filled('grade')) {
-            $grade = (int) $request->grade;
-            $gradeClassIds = $this->getClassIdsByGrade($grade);
-            if (!empty($gradeClassIds)) {
-                $query->whereIn('class_id', $gradeClassIds);
-            }
-        } elseif ($request->filled('class_id')) {
-            $query->where('class_id', $request->class_id);
-        }
+        $this->applyHalaqahFilters($query, $request, $isAdmin, $user);
 
         $records = $query->get();
 

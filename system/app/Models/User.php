@@ -300,7 +300,7 @@ class User extends Authenticatable implements CanResetPassword
      */
     public function getAssignedClassIds(): ?array
     {
-        if ($this->hasRole('super-admin') || $this->hasRole('admin')) {
+        if ($this->hasRole('super-admin') || $this->hasRole('admin') || $this->hasRole('kepala-sekolah')) {
             return null; // Bebas akses semua kelas
         }
 
@@ -327,12 +327,22 @@ class User extends Authenticatable implements CanResetPassword
             $classIds = $classIds->merge($scheduleIds);
         } catch (\Throwable $e) {}
 
+        // 4. Kelas santri dari kelompok halaqah yang diampu (quran_halaqah_members)
+        try {
+            $halaqahClassIds = Student::whereIn('id', function($sub) {
+                $sub->select('student_id')
+                    ->from('quran_halaqah_members')
+                    ->where('teacher_id', $this->id);
+            })->pluck('class_id');
+            $classIds = $classIds->merge($halaqahClassIds);
+        } catch (\Throwable $e) {}
+
         return $classIds->unique()->filter()->values()->toArray();
     }
 
     public function getAssignedSubjects(): ?array
     {
-        if ($this->hasRole('super-admin') || $this->hasRole('admin')) {
+        if ($this->hasRole('super-admin') || $this->hasRole('admin') || $this->hasRole('kepala-sekolah')) {
             return null; // Bebas akses semua mapel
         }
 

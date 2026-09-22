@@ -171,25 +171,25 @@
     {{-- Top Bar Tabs (Input & Evaluasi | Laporan & Grafik | Rekap Kehadiran) --}}
     <div class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900 p-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
         <div class="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-            <a href="{{ route('admin.halaqah.index', ['tab' => 'input', 'grade' => $selectedGrade, 'mode' => $mode, 'teacher_id' => $activeTeacherId]) }}"
+            <a href="{{ route('admin.halaqah.index', ['tab' => 'input', 'grade' => is_numeric($selectedGrade) ? $selectedGrade : 1, 'mode' => $mode, 'teacher_id' => $activeTeacherId]) }}"
                class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'input' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                 <span>Input &amp; Catatan Evaluasi</span>
             </a>
 
-            <a href="{{ route('admin.halaqah.index', ['tab' => 'history', 'grade' => $selectedGrade, 'teacher_id' => $activeTeacherId]) }}"
+            <a href="{{ route('admin.halaqah.index', array_filter(['tab' => 'history', 'grade' => $filterGrade !== 'all' ? $filterGrade : null, 'teacher_id' => ($isAdmin && $filterTeacherId !== 'all') ? $filterTeacherId : null])) }}"
                class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'history' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 <span>History Mengajar</span>
             </a>
 
-            <a href="{{ route('admin.halaqah.index', ['tab' => 'reports', 'grade' => $selectedGrade, 'teacher_id' => $activeTeacherId]) }}"
+            <a href="{{ route('admin.halaqah.index', array_filter(['tab' => 'reports', 'grade' => $filterGrade !== 'all' ? $filterGrade : null, 'teacher_id' => ($isAdmin && $filterTeacherId !== 'all') ? $filterTeacherId : null])) }}"
                class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'reports' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                 <span>Laporan Harian &amp; Bulanan + Grafik</span>
             </a>
 
-            <a href="{{ route('admin.halaqah.index', ['tab' => 'attendance', 'grade' => $selectedGrade, 'teacher_id' => $activeTeacherId]) }}"
+            <a href="{{ route('admin.halaqah.index', array_filter(['tab' => 'attendance', 'grade' => $filterGrade !== 'all' ? $filterGrade : null, 'teacher_id' => ($isAdmin && $filterTeacherId !== 'all') ? $filterTeacherId : null])) }}"
                class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'attendance' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 <span>Rekap Kehadiran</span>
@@ -198,13 +198,27 @@
 
         <div class="flex items-center gap-2 shrink-0">
             {{-- Tombol Atur Kelompok Santri --}}
-            <button type="button" @click="openGroupModal({{ $selectedGrade }})"
+            <button type="button" @click="openGroupModal({{ is_numeric($selectedGrade) ? $selectedGrade : 1 }})"
                     class="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black shadow-xs transition flex items-center gap-1.5 cursor-pointer">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                 <span>Atur Kelompok Halaqah</span>
             </button>
 
-            <a href="{{ route('admin.halaqah.export-excel', ['grade' => $selectedGrade, 'teacher_id' => $activeTeacherId]) }}"
+            <a href="{{ route('admin.halaqah.export-excel', array_filter([
+                'grade' => $filterGrade !== 'all' ? $filterGrade : null,
+                'class_id' => $filterClassId !== 'all' ? $filterClassId : null,
+                'teacher_id' => ($isAdmin && $filterTeacherId !== 'all') ? $filterTeacherId : ($isAdmin ? null : $activeTeacherId),
+                'program' => $filterProgram !== 'all' ? $filterProgram : null,
+                'jilid' => $filterJilid !== 'all' ? $filterJilid : null,
+                'juz' => $filterJuz !== 'all' ? $filterJuz : null,
+                'time_filter' => $timeFilter !== 'all' ? $timeFilter : null,
+                'date' => $timeFilter === 'daily' ? $selectedDate : null,
+                'month' => $timeFilter === 'monthly' ? $selectedMonth : null,
+                'year' => $timeFilter === 'monthly' ? $selectedYear : null,
+                'date_from' => $timeFilter === 'range' ? $dateFrom : null,
+                'date_to' => $timeFilter === 'range' ? $dateTo : null,
+                'search_student' => !empty($searchStudent) ? $searchStudent : null,
+               ])) }}"
                class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-bold rounded-xl border border-emerald-200 dark:border-emerald-800 transition flex items-center gap-1.5">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                 <span>Export Excel</span>
@@ -820,63 +834,7 @@
         </div>
 
         {{-- Filter & Search Form --}}
-        <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs">
-            <form action="{{ route('admin.halaqah.index') }}" method="GET" class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
-                <input type="hidden" name="tab" value="history">
-                @if($isAdmin)
-                    <input type="hidden" name="teacher_id" value="{{ $activeTeacherId }}">
-                @endif
-
-                {{-- Filter Tingkat Kelas --}}
-                <div class="sm:col-span-2">
-                    <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Tingkat Kelas</label>
-                    <select name="history_grade" class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500">
-                        <option value="all">Semua Tingkat</option>
-                        @foreach($availableGrades as $g)
-                            <option value="{{ $g }}" {{ (string)$historyGrade === (string)$g ? 'selected' : '' }}>Tingkat {{ $g }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                {{-- Filter Program Materi --}}
-                <div class="sm:col-span-2">
-                    <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Program</label>
-                    <select name="history_program" class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500">
-                        <option value="all" {{ $historyProgram === 'all' ? 'selected' : '' }}>Semua Program</option>
-                        <option value="tahsin" {{ $historyProgram === 'tahsin' ? 'selected' : '' }}>Tahsin (Bimbingan)</option>
-                        <option value="tahfidz" {{ $historyProgram === 'tahfidz' ? 'selected' : '' }}>Tahfidz (Hafalan)</option>
-                    </select>
-                </div>
-
-                {{-- Filter Tanggal Mulai --}}
-                <div class="sm:col-span-2">
-                    <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Dari Tanggal</label>
-                    <input type="date" name="date_from" value="{{ $dateFrom }}" class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500">
-                </div>
-
-                {{-- Filter Tanggal Selesai --}}
-                <div class="sm:col-span-2">
-                    <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Sampai Tanggal</label>
-                    <input type="date" name="date_to" value="{{ $dateTo }}" class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500">
-                </div>
-
-                {{-- Search Box Santri --}}
-                <div class="sm:col-span-3">
-                    <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Cari Santri / NISN</label>
-                    <input type="text" name="search_student" value="{{ $searchStudent }}" placeholder="Ketik nama atau NISN..." class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500">
-                </div>
-
-                {{-- Tombol Filter & Reset --}}
-                <div class="sm:col-span-1 flex items-center gap-1">
-                    <button type="submit" class="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center" title="Terapkan Filter">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                    </button>
-                    <a href="{{ route('admin.halaqah.index', ['tab' => 'history', 'grade' => $selectedGrade, 'teacher_id' => $activeTeacherId]) }}" class="py-2 px-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 rounded-xl text-xs font-bold transition flex items-center justify-center" title="Reset Filter">
-                        ↺
-                    </a>
-                </div>
-            </form>
-        </div>
+        @include('admin.halaqah.partials.filter-bar')
 
         {{-- Tabel & List History Mengajar --}}
         <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
@@ -892,8 +850,12 @@
                     </span>
                 </div>
                 @if($isAdmin)
-                <span class="text-xs font-bold text-slate-400 hidden sm:inline">
-                    Mode Admin: Menampilkan catatan Ust. {{ $activeTeacher->name }}
+                <span class="text-xs font-bold text-slate-500 dark:text-slate-400 hidden sm:inline">
+                    @if($filterTeacherId === 'all')
+                        👑 Mode Admin: Menampilkan riwayat seluruh guru pembimbing
+                    @else
+                        Mode Admin: Menampilkan catatan Ust. {{ $quranTeachers->firstWhere('id', $filterTeacherId)?->name ?? $activeTeacher->name }}
+                    @endif
                 </span>
                 @endif
             </div>
@@ -907,6 +869,9 @@
                                 <th class="py-3 px-4">Tanggal</th>
                                 <th class="py-3 px-4">Santri</th>
                                 <th class="py-3 px-4">Tingkat/Kelas</th>
+                                @if($isAdmin)
+                                <th class="py-3 px-4">Guru Pembimbing</th>
+                                @endif
                                 <th class="py-3 px-4">Program &amp; Materi</th>
                                 <th class="py-3 px-4 text-center">Kehadiran</th>
                                 <th class="py-3 px-4 text-center">Nilai</th>
@@ -941,6 +906,13 @@
                                         <p class="text-[10px] text-slate-400">{{ $item->class->name }}</p>
                                     @endif
                                 </td>
+                                @if($isAdmin)
+                                <td class="py-3 px-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                                        Ust. {{ $item->teacher?->name ?? 'Guru' }}
+                                    </span>
+                                </td>
+                                @endif
                                 <td class="py-3 px-4">
                                     @if($item->program_type === 'tahsin')
                                         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 text-[10px] font-black uppercase">
@@ -1050,6 +1022,9 @@
                                 </h4>
                                 <p class="text-[10px] text-slate-400">
                                     Tingkat {{ $item->grade ?: ($item->class?->grade ?: 'Kelas') }} • {{ $item->class?->name ?? '-' }}
+                                    @if($isAdmin)
+                                        • <span class="text-indigo-600 dark:text-indigo-400 font-bold">Ust. {{ $item->teacher?->name ?? '-' }}</span>
+                                    @endif
                                 </p>
                             </div>
                             <div class="text-right shrink-0">
@@ -1126,49 +1101,103 @@
     {{-- ========================================================================= --}}
     {{-- TAB 2: LAPORAN HARIAN & BULANAN + GRAFIK STATISTIK --}}
     {{-- ========================================================================= --}}
+    {{-- ========================================================================= --}}
+    {{-- TAB 3: LAPORAN HARIAN & BULANAN + GRAFIK STATISTIK --}}
+    {{-- ========================================================================= --}}
     @if($tab === 'reports')
     <div class="space-y-6">
         
-        {{-- KPI Summary Cards --}}
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {{-- KPI 1: Total Keaktifan Selesai --}}
-            <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2">
-                <p class="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">TOTAL KEAKTIFAN SELESAI</p>
+        {{-- Header Tab Laporan --}}
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="px-2.5 py-1 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider">
+                        Analitik &amp; Laporan
+                    </span>
+                    <h2 class="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                        Laporan Harian &amp; Bulanan + Grafik Statistik
+                    </h2>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Analisis komprehensif capaian bimbingan Al-Qur'an santri, distribusi jilid, juz tahfidz, dan mutu kelancaran bacaan.
+                </p>
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap">
+                <a href="{{ route('admin.halaqah.export-excel', array_filter([
+                    'grade' => $filterGrade !== 'all' ? $filterGrade : null,
+                    'class_id' => $filterClassId !== 'all' ? $filterClassId : null,
+                    'teacher_id' => ($isAdmin && $filterTeacherId !== 'all') ? $filterTeacherId : ($isAdmin ? null : $activeTeacherId),
+                    'program' => $filterProgram !== 'all' ? $filterProgram : null,
+                    'jilid' => $filterJilid !== 'all' ? $filterJilid : null,
+                    'juz' => $filterJuz !== 'all' ? $filterJuz : null,
+                    'time_filter' => $timeFilter !== 'all' ? $timeFilter : null,
+                    'date' => $timeFilter === 'daily' ? $selectedDate : null,
+                    'month' => $timeFilter === 'monthly' ? $selectedMonth : null,
+                    'year' => $timeFilter === 'monthly' ? $selectedYear : null,
+                    'date_from' => $timeFilter === 'range' ? $dateFrom : null,
+                    'date_to' => $timeFilter === 'range' ? $dateTo : null,
+                    'search_student' => !empty($searchStudent) ? $searchStudent : null,
+                   ])) }}"
+                   class="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-xl text-xs font-bold border border-emerald-200 dark:border-emerald-800 transition inline-flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    <span>Export Laporan Excel</span>
+                </a>
+            </div>
+        </div>
+
+        {{-- Menu Filter Komprehensif --}}
+        @include('admin.halaqah.partials.filter-bar')
+
+        {{-- 4 Kartu KPI Ringkasan Laporan --}}
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1">
+                <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">TOTAL KEAKTIFAN SELESAI</span>
                 <div class="flex items-baseline gap-2">
-                    <span class="text-4xl font-black text-slate-900 dark:text-white">{{ $totalSetoran }}</span>
+                    <span class="text-3xl font-black text-slate-900 dark:text-white">{{ $totalSetoran }}</span>
                     <span class="text-xs text-slate-400 font-bold">Kali Setoran</span>
                 </div>
-                <div class="pt-2 flex items-center justify-between text-xs font-bold border-t border-slate-100 dark:border-slate-800">
-                    <span class="text-amber-600">Materi Tahsin: {{ $tahsinCount }}</span>
-                    <span class="text-emerald-600">Materi Tahfidz: {{ $tahfidzCount }}</span>
+                <div class="pt-2 flex items-center justify-between text-[11px] font-bold border-t border-slate-100 dark:border-slate-800">
+                    <span class="text-amber-600">Tahsin: {{ $tahsinCount }}</span>
+                    <span class="text-emerald-600">Tahfidz: {{ $tahfidzCount }}</span>
                 </div>
             </div>
 
-            {{-- KPI 2: Nilai Evaluasi Rata-rata --}}
-            <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2">
-                <p class="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">NILAI EVALUASI RATA-RATA</p>
+            <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1">
+                <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">NILAI EVALUASI RATA-RATA</span>
                 <div class="flex items-baseline gap-2">
-                    <span class="text-4xl font-black text-emerald-600 dark:text-emerald-400">{{ $avgScore }}</span>
+                    <span class="text-3xl font-black text-emerald-600 dark:text-emerald-400">{{ $avgScore }}</span>
                     <span class="text-xs text-slate-400 font-bold">/ 100</span>
                 </div>
-                <div class="pt-2 flex items-center justify-between text-xs font-bold border-t border-slate-100 dark:border-slate-800">
-                    <span class="text-slate-500">Predikat Capaian:</span>
-                    <span class="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 rounded text-[10px] font-extrabold">
+                <div class="pt-2 flex items-center justify-between text-[11px] font-bold border-t border-slate-100 dark:border-slate-800">
+                    <span class="text-slate-400">Predikat:</span>
+                    <span class="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 rounded text-[10px] font-black">
                         {{ \App\Models\HalaqahRecord::calculatePredicate($avgScore) }}
                     </span>
                 </div>
             </div>
 
-            {{-- KPI 3: Persentase Kelancaran Excellent --}}
-            <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2">
-                <p class="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">PERSENTASE KELANCARAN EXCELLENT</p>
+            <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1">
+                <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">KELANCARAN EXCELLENT</span>
                 <div class="flex items-baseline gap-2">
-                    <span class="text-4xl font-black text-indigo-600 dark:text-indigo-400">{{ $mumtazPercentage }}%</span>
-                    <span class="text-xs text-slate-400 font-bold">Lancar (Mumtaz)</span>
+                    <span class="text-3xl font-black text-indigo-600 dark:text-indigo-400">{{ $mumtazPercentage }}%</span>
+                    <span class="text-xs text-slate-400 font-bold">Mumtaz</span>
                 </div>
-                <div class="pt-2 flex items-center justify-between text-xs font-bold border-t border-slate-100 dark:border-slate-800">
-                    <span class="text-slate-500">Batas Standar Mumtaz:</span>
-                    <span class="text-slate-700 dark:text-slate-300 font-extrabold">&gt;= 90 Skala Angka</span>
+                <div class="pt-2 flex items-center justify-between text-[11px] font-bold border-t border-slate-100 dark:border-slate-800">
+                    <span class="text-slate-400">Standar Mumtaz:</span>
+                    <span class="text-indigo-600 dark:text-indigo-400 font-black">&gt;= 90</span>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1">
+                <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">SANTRI TERBIMBING</span>
+                <div class="flex items-baseline gap-2">
+                    <span class="text-3xl font-black text-teal-600 dark:text-teal-400">{{ $reportUniqueStudentsCount }}</span>
+                    <span class="text-xs text-slate-400 font-bold">Santri Aktif</span>
+                </div>
+                <div class="pt-2 flex items-center justify-between text-[11px] font-bold border-t border-slate-100 dark:border-slate-800">
+                    <span class="text-slate-400">Tercatat:</span>
+                    <span class="text-teal-600 dark:text-teal-400 font-black">Terdata Aktif</span>
                 </div>
             </div>
         </div>
@@ -1283,39 +1312,275 @@
             </div>
         </div>
 
+        {{-- TABEL REKAPITULASI CAPAIAN PEMBELAJARAN SANTRI (DATA TERATAS & DETAIL) --}}
+        <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
+            <div class="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs sm:text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">
+                        Rekapitulasi Capaian &amp; Keaktifan Santri
+                    </span>
+                    <span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 rounded-md text-[10px] font-bold">
+                        {{ $studentReportList->total() }} Santri
+                    </span>
+                </div>
+            </div>
+
+            @if($studentReportList->count() > 0)
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="text-[10px] font-black text-slate-400 uppercase tracking-wider bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                            <th class="py-3 px-4 text-center">No</th>
+                            <th class="py-3 px-4">Santri</th>
+                            <th class="py-3 px-4">Kelas Asal</th>
+                            <th class="py-3 px-4 text-center">Total Setoran</th>
+                            <th class="py-3 px-4 text-center">Rata-rata Nilai</th>
+                            <th class="py-3 px-4 text-center">Predikat</th>
+                            <th class="py-3 px-4">Setoran Terakhir</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                        @foreach($studentReportList as $idx => $stRep)
+                        @php
+                            $studentObj = $stRep->student;
+                            $pred = \App\Models\HalaqahRecord::calculatePredicate($stRep->avg_score);
+                            $predBadge = match($pred) {
+                                'Mumtaz' => 'bg-emerald-600 text-white',
+                                'Jayyid Jiddan' => 'bg-teal-600 text-white',
+                                'Jayyid' => 'bg-blue-600 text-white',
+                                default => 'bg-amber-500 text-white',
+                            };
+                        @endphp
+                        <tr class="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition">
+                            <td class="py-3 px-4 text-center font-bold text-slate-400">
+                                {{ $studentReportList->firstItem() + $idx }}
+                            </td>
+                            <td class="py-3 px-4">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-200 flex items-center justify-center font-black text-[10px] uppercase shrink-0">
+                                        {{ substr($studentObj?->user?->name ?? 'S', 0, 2) }}
+                                    </div>
+                                    <div class="min-w-0">
+                                        <h4 class="font-black text-slate-900 dark:text-white truncate">{{ $studentObj?->user?->name ?? 'Santri' }}</h4>
+                                        <span class="text-[10px] text-slate-400">NISN: {{ $studentObj?->nisn ?? '-' }}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-3 px-4 whitespace-nowrap">
+                                <span class="font-bold text-slate-700 dark:text-slate-300">{{ $studentObj?->class?->name ?? '-' }}</span>
+                            </td>
+                            <td class="py-3 px-4 text-center whitespace-nowrap">
+                                <span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 font-extrabold rounded-lg text-xs">
+                                    {{ $stRep->total_setoran }}x Setoran
+                                </span>
+                            </td>
+                            <td class="py-3 px-4 text-center whitespace-nowrap font-black text-slate-800 dark:text-white text-xs">
+                                {{ $stRep->avg_score }}
+                            </td>
+                            <td class="py-3 px-4 text-center whitespace-nowrap">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-black {{ $predBadge }}">
+                                    {{ $pred }}
+                                </span>
+                            </td>
+                            <td class="py-3 px-4 whitespace-nowrap text-slate-500 font-medium">
+                                {{ $stRep->last_date ? \Carbon\Carbon::parse($stRep->last_date)->format('d/m/Y') : '-' }}
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            <div class="p-4 border-t border-slate-100 dark:border-slate-800">
+                {{ $studentReportList->links() }}
+            </div>
+            @else
+            <div class="p-12 text-center text-slate-400">
+                <p class="text-xs font-bold">Tidak ada data capaian santri yang sesuai dengan filter yang dipilih.</p>
+            </div>
+            @endif
+        </div>
+
     </div>
     @endif
 
     {{-- ========================================================================= --}}
-    {{-- TAB 3: REKAP KEHADIRAN HALAQAH --}}
+    {{-- TAB 4: REKAP KEHADIRAN HALAQAH --}}
     {{-- ========================================================================= --}}
     @if($tab === 'attendance')
-    <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-6">
-        <div>
-            <h3 class="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <span>🗓️ REKAPITULASI KEHADIRAN HALAQAH SANTRI (TINGKAT {{ $selectedGrade }})</span>
-            </h3>
-            <p class="text-xs text-slate-400">Tingkat kehadiran santri dalam mengikuti majelis Al-Qur'an harian</p>
+    <div class="space-y-6">
+        
+        {{-- Header Tab Kehadiran --}}
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider">
+                        Presensi Halaqah
+                    </span>
+                    <h2 class="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                        Rekapitulasi Kehadiran Santri Al-Qur'an
+                    </h2>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Pemantauan kedisiplinan dan absensi harian santri dalam majelis Halaqah Tahsin dan Tahfidz.
+                </p>
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap">
+                <a href="{{ route('admin.halaqah.export-excel', array_filter([
+                    'grade' => $filterGrade !== 'all' ? $filterGrade : null,
+                    'class_id' => $filterClassId !== 'all' ? $filterClassId : null,
+                    'teacher_id' => ($isAdmin && $filterTeacherId !== 'all') ? $filterTeacherId : ($isAdmin ? null : $activeTeacherId),
+                    'program' => $filterProgram !== 'all' ? $filterProgram : null,
+                    'jilid' => $filterJilid !== 'all' ? $filterJilid : null,
+                    'juz' => $filterJuz !== 'all' ? $filterJuz : null,
+                    'time_filter' => $timeFilter !== 'all' ? $timeFilter : null,
+                    'date' => $timeFilter === 'daily' ? $selectedDate : null,
+                    'month' => $timeFilter === 'monthly' ? $selectedMonth : null,
+                    'year' => $timeFilter === 'monthly' ? $selectedYear : null,
+                    'date_from' => $timeFilter === 'range' ? $dateFrom : null,
+                    'date_to' => $timeFilter === 'range' ? $dateTo : null,
+                    'search_student' => !empty($searchStudent) ? $searchStudent : null,
+                   ])) }}"
+                   class="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-xl text-xs font-bold border border-emerald-200 dark:border-emerald-800 transition inline-flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    <span>Export Rekap Excel</span>
+                </a>
+            </div>
         </div>
 
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {{-- Menu Filter Komprehensif --}}
+        @include('admin.halaqah.partials.filter-bar')
+
+        {{-- 5 Kartu Ringkasan Kehadiran --}}
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4">
             <div class="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-center">
-                <span class="text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 uppercase">HADIR</span>
-                <p class="text-3xl font-black text-emerald-600 mt-1">{{ $attendanceStats['hadir'] }}</p>
+                <span class="text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">HADIR</span>
+                <p class="text-2xl sm:text-3xl font-black text-emerald-600 mt-1">{{ $attendanceStats['hadir'] }}</p>
+                <span class="text-[10px] text-emerald-700 font-bold">{{ $attendancePercentage }}% dari total</span>
             </div>
             <div class="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-center">
-                <span class="text-[11px] font-extrabold text-blue-700 dark:text-blue-300 uppercase">SAKIT</span>
-                <p class="text-3xl font-black text-blue-600 mt-1">{{ $attendanceStats['sakit'] }}</p>
+                <span class="text-[10px] font-extrabold text-blue-700 dark:text-blue-300 uppercase tracking-wider">SAKIT</span>
+                <p class="text-2xl sm:text-3xl font-black text-blue-600 mt-1">{{ $attendanceStats['sakit'] }}</p>
+                <span class="text-[10px] text-blue-700 font-bold">Surat Dokter / Izin</span>
             </div>
             <div class="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-center">
-                <span class="text-[11px] font-extrabold text-amber-700 dark:text-amber-300 uppercase">IZIN</span>
-                <p class="text-3xl font-black text-amber-600 mt-1">{{ $attendanceStats['izin'] }}</p>
+                <span class="text-[10px] font-extrabold text-amber-700 dark:text-amber-300 uppercase tracking-wider">IZIN</span>
+                <p class="text-2xl sm:text-3xl font-black text-amber-600 mt-1">{{ $attendanceStats['izin'] }}</p>
+                <span class="text-[10px] text-amber-700 font-bold">Pemberitahuan Wali</span>
             </div>
             <div class="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-center">
-                <span class="text-[11px] font-extrabold text-rose-700 dark:text-rose-300 uppercase">ALPA</span>
-                <p class="text-3xl font-black text-rose-600 mt-1">{{ $attendanceStats['alpa'] }}</p>
+                <span class="text-[10px] font-extrabold text-rose-700 dark:text-rose-300 uppercase tracking-wider">ALPA</span>
+                <p class="text-2xl sm:text-3xl font-black text-rose-600 mt-1">{{ $attendanceStats['alpa'] }}</p>
+                <span class="text-[10px] text-rose-700 font-bold">Tanpa Keterangan</span>
+            </div>
+            <div class="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-center col-span-2 sm:col-span-1">
+                <span class="text-[10px] font-extrabold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider">TOTAL PRESENSI</span>
+                <p class="text-2xl sm:text-3xl font-black text-indigo-600 mt-1">{{ $totalAttendanceEntries }}</p>
+                <span class="text-[10px] text-indigo-700 font-bold">Catatan Masuk</span>
             </div>
         </div>
+
+        {{-- Tabel Rekapitulasi Presensi Per Santri --}}
+        <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
+            <div class="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs sm:text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">
+                        Rincian Kehadiran Per Santri
+                    </span>
+                    <span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-md text-[10px] font-bold">
+                        {{ $studentAttendanceList->total() }} Santri
+                    </span>
+                </div>
+            </div>
+
+            @if($studentAttendanceList->count() > 0)
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="text-[10px] font-black text-slate-400 uppercase tracking-wider bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                            <th class="py-3 px-4 text-center">No</th>
+                            <th class="py-3 px-4">Santri</th>
+                            <th class="py-3 px-4">Kelas</th>
+                            <th class="py-3 px-4 text-center">Hadir (H)</th>
+                            <th class="py-3 px-4 text-center">Sakit (S)</th>
+                            <th class="py-3 px-4 text-center">Izin (I)</th>
+                            <th class="py-3 px-4 text-center">Alpa (A)</th>
+                            <th class="py-3 px-4 text-center">Total Pertemuan</th>
+                            <th class="py-3 px-4 text-center">% Kehadiran</th>
+                            <th class="py-3 px-4 text-center">Status Kelayakan</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                        @foreach($studentAttendanceList as $idx => $stAtt)
+                        @php
+                            $stObj = $stAtt->student;
+                            $pct = $stAtt->total_meetings > 0 ? round(($stAtt->count_hadir / $stAtt->total_meetings) * 100) : 0;
+                            $statusBadge = $pct >= 85 
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                : ($pct >= 70 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-800' : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-800');
+                            $statusLabel = $pct >= 85 ? 'Sangat Baik' : ($pct >= 70 ? 'Cukup' : 'Perlu Pembinaan');
+                        @endphp
+                        <tr class="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition">
+                            <td class="py-3 px-4 text-center font-bold text-slate-400">
+                                {{ $studentAttendanceList->firstItem() + $idx }}
+                            </td>
+                            <td class="py-3 px-4">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 flex items-center justify-center font-black text-[10px] uppercase shrink-0">
+                                        {{ substr($stObj?->user?->name ?? 'S', 0, 2) }}
+                                    </div>
+                                    <div class="min-w-0">
+                                        <h4 class="font-black text-slate-900 dark:text-white truncate">{{ $stObj?->user?->name ?? 'Santri' }}</h4>
+                                        <span class="text-[10px] text-slate-400">NISN: {{ $stObj?->nisn ?? '-' }}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-3 px-4 whitespace-nowrap font-bold text-slate-700 dark:text-slate-300">
+                                {{ $stObj?->class?->name ?? '-' }}
+                            </td>
+                            <td class="py-3 px-4 text-center font-bold text-emerald-600">
+                                {{ $stAtt->count_hadir }}
+                            </td>
+                            <td class="py-3 px-4 text-center font-bold text-blue-600">
+                                {{ $stAtt->count_sakit }}
+                            </td>
+                            <td class="py-3 px-4 text-center font-bold text-amber-600">
+                                {{ $stAtt->count_izin }}
+                            </td>
+                            <td class="py-3 px-4 text-center font-bold text-rose-600">
+                                {{ $stAtt->count_alpa }}
+                            </td>
+                            <td class="py-3 px-4 text-center font-black text-slate-800 dark:text-white">
+                                {{ $stAtt->total_meetings }}
+                            </td>
+                            <td class="py-3 px-4 text-center whitespace-nowrap">
+                                <div class="inline-flex items-center gap-1.5">
+                                    <span class="font-black text-xs text-slate-800 dark:text-white">{{ $pct }}%</span>
+                                    <div class="w-12 bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                        <div class="bg-emerald-500 h-1.5 rounded-full" style="width: {{ $pct }}%"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-3 px-4 text-center whitespace-nowrap">
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black border {{ $statusBadge }}">
+                                    {{ $statusLabel }}
+                                </span>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            <div class="p-4 border-t border-slate-100 dark:border-slate-800">
+                {{ $studentAttendanceList->links() }}
+            </div>
+            @else
+            <div class="p-12 text-center text-slate-400">
+                <p class="text-xs font-bold">Tidak ada data kehadiran yang sesuai dengan filter yang dipilih.</p>
+            </div>
+            @endif
+        </div>
+
     </div>
     @endif
 
