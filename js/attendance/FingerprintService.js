@@ -31,8 +31,8 @@
             this.isAcquiring = false;
             this.isStartingCapture = false;
             this.isProcessingSample = false;
-            // Native format for U.are.U 4500 is Intermediate (2 - Minutiae features)
-            this.workingFormat = 2;
+            // Default to PngImage (5) for guaranteed U.are.U 4500 WebSDK compatibility; can switch to 2 or 1
+            this.workingFormat = 5;
             this.lastSampleImage = null;
 
             this.listeners = {
@@ -263,7 +263,7 @@
                 global.AttendanceLogger?.fingerprint('Event: SamplesAcquired - Fingerprint scan success!', event);
                 this.isAcquiring = false;
                 this.isProcessingSample = true;
-                this._setStatus('sample_acquired', '✅ Fingerprint berhasil dibaca');
+                this._setStatus('sample_acquired', '✅ Fingerprint berhasil dibaca', { format: event.sampleFormat || this.workingFormat });
 
                 let sampleData = null;
                 if (event.samples && event.samples.length > 0) {
@@ -275,7 +275,14 @@
                     }
                 }
 
-                if (sampleData) {
+                if (sampleData && typeof sampleData === 'string') {
+                    const cleanData = sampleData.replace(/-/g, '+').replace(/_/g, '/');
+                    if (this.workingFormat === 5 || cleanData.startsWith('iVBORw0KGgo') || cleanData.startsWith('/9j/')) {
+                        this.lastSampleImage = 'data:image/png;base64,' + cleanData;
+                    } else {
+                        this.lastSampleImage = sampleData;
+                    }
+                } else {
                     this.lastSampleImage = sampleData;
                 }
 
@@ -321,15 +328,19 @@
 
         /**
          * Start biometric fingerprint acquisition
-         * Optimized for U.are.U 4500: uses SampleFormat.Intermediate (2)
+         * Supports PngImage (5), Intermediate (2), and Raw (1)
          * DigitalPersona Web SDK expects wildcard reader ID ("00000000-0000-0000-0000-000000000000").
-         * Never pass device GUID with braces as it causes driver rejection (E_INVALIDARG).
          * @param {boolean} force - Force stop and re-arm even if previously marked as acquiring
+         * @param {number|null} requestedFormat - Specific SampleFormat to prioritize
          */
-        async startCapture(force = false) {
+        async startCapture(force = false, requestedFormat = null) {
             if (!this.reader || !this.deviceConnected) {
                 global.AttendanceLogger?.warn('FINGERPRINT', 'Cannot start capture: reader not ready or device disconnected.');
                 return false;
+            }
+
+            if (requestedFormat !== null) {
+                this.workingFormat = requestedFormat;
             }
 
             // If already actively acquiring and not forced, keep running without disrupting driver
@@ -359,17 +370,23 @@
                     this.isAcquiring = false;
                 }
 
-                // Native format for HID DigitalPersona U.are.U 4500:
-                // Primary: SampleFormat.Intermediate (2) - standard minutiae extraction
-                // Fallback: SampleFormat.Raw (1)
+                // Format candidate order:
+                // Primary: PngImage (5) - standard optical capture supported by all U.are.U 4500 WebSDK installations
+                // Secondary: Intermediate (2) - minutiae features
+                // Fallback: Raw (1) - uncompressed raw optical
                 const SF = global.dp?.devices?.SampleFormat || {};
-                const primaryFormat = SF.Intermediate ?? 2;
-                const fallbackFormat = SF.Raw ?? 1;
+                const pngFormat = SF.PngImage ?? 5;
+                const intermediateFormat = SF.Intermediate ?? 2;
+                const rawFormat = SF.Raw ?? 1;
 
-                const candidates = [primaryFormat];
-                if (fallbackFormat !== primaryFormat) {
-                    candidates.push(fallbackFormat);
+                const allFormats = [pngFormat, intermediateFormat, rawFormat];
+                const candidates = [];
+                if (this.workingFormat !== null && allFormats.includes(this.workingFormat)) {
+                    candidates.push(this.workingFormat);
                 }
+                allFormats.forEach((fmt) => {
+                    if (!candidates.includes(fmt)) candidates.push(fmt);
+                });
 
                 let lastError = null;
 
@@ -403,6 +420,16 @@
             } finally {
                 this.isStartingCapture = false;
             }
+        }
+
+        /**
+         * Switch active capture format on demand
+         * @param {number} format - 5 (PNG Image), 2 (Intermediate), 1 (Raw)
+         */
+        async changeFormat(format) {
+            this.workingFormat = format;
+            global.AttendanceLogger?.fingerprint(`Format manually changed to ${format}`);
+            return await this.startCapture(true, format);
         }
 
         /**

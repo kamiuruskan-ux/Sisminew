@@ -66,7 +66,9 @@
     deviceName: 'HID DigitalPersona U.are.U 4500',
     deviceStatus: 'Disconnected', // 'Ready', 'Busy', 'Capturing Fingerprint', 'Disconnected', 'Error', 'Timeout'
     sensorArmed: false,
-    activeFormatName: 'Intermediate (Format 2)',
+    activeFormatNumber: 5,
+    activeFormatName: 'PNG Image (Format 5)',
+    lastSamplePreview: null,
     dpDeviceUid: null,
     webSocket: null,
     reconnectTimer: null,
@@ -98,6 +100,21 @@
     init() {
         this.updateClock();
         setInterval(() => this.updateClock(), 1000);
+
+        // Pre-unlock AudioContext on first user interaction anywhere to ensure beep sound plays
+        const unlockAudio = () => {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                if (ctx.state === 'suspended') {
+                    ctx.resume();
+                }
+            } catch(e) {}
+            document.removeEventListener('click', unlockAudio);
+            document.removeEventListener('touchstart', unlockAudio);
+        };
+        document.addEventListener('click', unlockAudio);
+        document.addEventListener('touchstart', unlockAudio);
+
         this.initDigitalPersonaSdk();
         this.initLiveAttendanceStream();
     },
@@ -112,8 +129,9 @@
                 this.sensorArmed = window.AttendanceFingerprintService.isAcquiring || 
                                   (state.status === 'waiting_finger' || state.status === 'reading' || state.status === 'sample_acquired');
                 
-                const fmt = window.AttendanceFingerprintService.workingFormat || state.format;
-                this.activeFormatName = fmt === 2 ? 'Intermediate (Format 2)' : (fmt === 1 ? 'Raw Sensor (1)' : (fmt === 5 ? 'PNG Image (5)' : 'Intermediate (Format 2)'));
+                const fmt = window.AttendanceFingerprintService.workingFormat || state.format || 5;
+                this.activeFormatNumber = fmt;
+                this.activeFormatName = fmt === 5 ? 'PNG Image (5)' : (fmt === 2 ? 'Intermediate (2)' : (fmt === 1 ? 'Raw Sensor (1)' : 'PNG Image (5)'));
 
                 if (state.status === 'device_connected') {
                     this.scanStage = 'idle';
@@ -134,6 +152,7 @@
                 } else if (state.status === 'sample_acquired') {
                     this.scanStage = 'capturing';
                     this.scanMessage = '✅ Fingerprint berhasil dibaca! Memverifikasi...';
+                    this.playAudio('touch');
                 } else if (state.status === 'ssl_unauthorized') {
                     this.scanStage = 'error';
                     this.sslUnauthorized = true;
@@ -153,6 +172,10 @@
             });
 
             window.AttendanceFingerprintService.on('sampleCaptured', (sampleData) => {
+                if (window.AttendanceFingerprintService.lastSampleImage && typeof window.AttendanceFingerprintService.lastSampleImage === 'string' && window.AttendanceFingerprintService.lastSampleImage.startsWith('data:image/')) {
+                    this.lastSamplePreview = window.AttendanceFingerprintService.lastSampleImage;
+                }
+                this.playAudio('touch');
                 this.onHardwareSampleCaptured(sampleData);
             });
 
@@ -160,10 +183,24 @@
         }
     },
 
+    async switchFormat(fmt) {
+        if (window.AttendanceFingerprintService) {
+            this.activeFormatNumber = fmt;
+            const name = fmt === 5 ? 'PNG Image (5)' : (fmt === 2 ? 'Intermediate (2)' : 'Raw Sensor (1)');
+            this.scanMessage = `🔄 Mengubah mode sensor ke ${name}...`;
+            const ok = await window.AttendanceFingerprintService.changeFormat(fmt);
+            if (ok) {
+                this.sensorArmed = true;
+                this.activeFormatName = name;
+                this.scanMessage = `🟡 Sensor aktif dalam format ${name}. Tempelkan jari pada kaca scanner...`;
+            }
+        }
+    },
+
     async rearmSensor() {
         if (window.AttendanceFingerprintService) {
             this.scanMessage = '🔄 Mengaktifkan sensor optik scanner...';
-            const ok = await window.AttendanceFingerprintService.startCapture(true);
+            const ok = await window.AttendanceFingerprintService.startCapture(true, this.activeFormatNumber);
             if (ok) {
                 this.sensorArmed = true;
                 if (this.activeTab === 'standby') {
@@ -632,18 +669,24 @@
                             <div class="absolute w-28 h-28 rounded-full border"
                                  :class="sensorArmed ? 'border-emerald-500/50' : 'border-slate-800'"></div>
 
-                            <svg class="w-24 h-24 transition-colors duration-300 group-hover:scale-105 transform"
-                                 :class="{
-                                     'text-emerald-400/90': deviceConnected && sensorArmed && scanStage === 'idle',
-                                     'text-amber-400/70': deviceConnected && !sensorArmed,
-                                     'text-amber-400 animate-pulse': scanStage === 'finger_detected',
-                                     'text-cyan-400 animate-pulse': scanStage === 'capturing' || scanStage === 'extracting',
-                                     'text-emerald-400': scanStage === 'success',
-                                     'text-rose-400': !deviceConnected || scanStage === 'error'
-                                 }"
-                                 fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11a8.136 8.136 0 00.99 3.845"/>
-                            </svg>
+                            <template x-if="lastSamplePreview">
+                                <img :src="lastSamplePreview" class="w-24 h-24 object-contain rounded-2xl border border-emerald-400/80 shadow-[0_0_25px_rgba(16,185,129,0.5)] z-20 animate-pulse bg-slate-900" alt="Preview Sidik Jari">
+                            </template>
+
+                            <template x-if="!lastSamplePreview">
+                                <svg class="w-24 h-24 transition-colors duration-300 group-hover:scale-105 transform"
+                                     :class="{
+                                         'text-emerald-400/90': deviceConnected && sensorArmed && scanStage === 'idle',
+                                         'text-amber-400/70': deviceConnected && !sensorArmed,
+                                         'text-amber-400 animate-pulse': scanStage === 'finger_detected',
+                                         'text-cyan-400 animate-pulse': scanStage === 'capturing' || scanStage === 'extracting',
+                                         'text-emerald-400': scanStage === 'success',
+                                         'text-rose-400': !deviceConnected || scanStage === 'error'
+                                     }"
+                                     fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11a8.136 8.136 0 00.99 3.845"/>
+                                </svg>
+                            </template>
                         </div>
 
                         <!-- Hardware Logo Caption & Format -->
@@ -767,14 +810,37 @@
                 </div>
 
                 <!-- Hardware Device Diagnostics Bar (No Fake Simulation) -->
-                <div class="mt-6 pt-5 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                <div class="mt-6 pt-5 border-t border-slate-800/80 flex flex-col md:flex-row items-center justify-between gap-3 text-xs">
                     <div class="flex items-center space-x-2 text-slate-400">
                         <span class="w-2 h-2 rounded-full" :class="deviceConnected ? (sensorArmed ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400') : (sslUnauthorized ? 'bg-amber-400' : 'bg-rose-500')"></span>
                         <span>Perangkat: <strong class="text-white" x-text="deviceName"></strong></span>
                     </div>
-                    <div class="flex items-center space-x-3 text-slate-400 font-mono text-[11px]">
+                    <div class="flex flex-wrap items-center gap-2.5 text-slate-400 font-mono text-[11px]">
                         <span>Status: <strong :class="sensorArmed ? 'text-emerald-400' : 'text-amber-400'" x-text="deviceStatus"></strong></span>
-                        <span>Format: <strong class="text-indigo-400" x-text="activeFormatName"></strong></span>
+                        
+                        <!-- Interactive Format Switcher -->
+                        <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                            <span class="text-[10px] text-slate-500 px-1 font-sans">Format:</span>
+                            <button type="button" @click="switchFormat(5)"
+                                    class="px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer"
+                                    :class="activeFormatNumber === 5 ? 'bg-emerald-600 text-white shadow shadow-emerald-500/30' : 'text-slate-400 hover:text-white'"
+                                    title="Format PNG Image (5) - Rekomendasi Utama U.are.U 4500 WebSDK">
+                                PNG (5) ⭐
+                            </button>
+                            <button type="button" @click="switchFormat(2)"
+                                    class="px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer"
+                                    :class="activeFormatNumber === 2 ? 'bg-indigo-600 text-white shadow shadow-indigo-500/30' : 'text-slate-400 hover:text-white'"
+                                    title="Format Intermediate Minutiae (2)">
+                                Intermediate (2)
+                            </button>
+                            <button type="button" @click="switchFormat(1)"
+                                    class="px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer"
+                                    :class="activeFormatNumber === 1 ? 'bg-indigo-600 text-white shadow shadow-indigo-500/30' : 'text-slate-400 hover:text-white'"
+                                    title="Format Raw Optical Sensor (1)">
+                                Raw (1)
+                            </button>
+                        </div>
+
                         <div class="flex items-center gap-1.5">
                             <button type="button" @click="rearmSensor()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer" title="Picukan ulang sensor">
                                 <span>⚡</span>
