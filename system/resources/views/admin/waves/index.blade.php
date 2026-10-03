@@ -77,6 +77,7 @@
                         <th class="px-5 py-3">Tahun Akademik</th>
                         <th class="px-5 py-3">Periode Tanggal Efektif</th>
                         <th class="px-5 py-3 text-center">Kuota Daya Tampung</th>
+                        <th class="px-5 py-3 text-right">Biaya Formulir</th>
                         <th class="px-5 py-3 text-right">Potongan SPP</th>
                         <th class="px-5 py-3 text-center">Status</th>
                         <th class="px-5 py-3 text-right">Aksi</th>
@@ -123,6 +124,11 @@
                                 </span>
                             </td>
 
+                            <!-- Biaya Formulir -->
+                            <td class="px-5 py-3.5 text-right font-bold text-indigo-600">
+                                Rp {{ number_format($wave->registration_fee, 0, ',', '.') }}
+                            </td>
+
                             <!-- Potongan SPP -->
                             <td class="px-5 py-3.5 text-right font-bold text-emerald-700">
                                 Rp {{ number_format($wave->spp_discount, 0, ',', '.') }}
@@ -166,7 +172,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-5 py-12 text-center text-slate-400 text-xs font-medium">
+                            <td colspan="8" class="px-5 py-12 text-center text-slate-400 text-xs font-medium">
                                 Belum ada gelombang pendaftaran yang dibuat.
                             </td>
                         </tr>
@@ -232,10 +238,16 @@
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
+                    <!-- Biaya Formulir / Pendaftaran -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Biaya Formulir (Rp) <span class="text-rose-500">*</span></label>
+                        <input type="number" name="registration_fee" x-model="formData.registration_fee" placeholder="Contoh: 350000" min="0" required class="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl p-2.5 focus:bg-white focus:ring-1 focus:ring-indigo-500 font-bold text-indigo-700">
+                    </div>
+
                     <!-- Potongan SPP -->
                     <div>
                         <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Potongan SPP (Rp)</label>
-                        <input type="number" name="spp_discount" x-model="formData.spp_discount" placeholder="Contoh: 100000" class="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl p-2.5 focus:bg-white focus:ring-1 focus:ring-indigo-500 font-bold text-emerald-600">
+                        <input type="number" name="spp_discount" x-model="formData.spp_discount" placeholder="Contoh: 100000" min="0" class="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl p-2.5 focus:bg-white focus:ring-1 focus:ring-indigo-500 font-bold text-emerald-600">
                     </div>
 
                     <!-- Kuota -->
@@ -302,7 +314,7 @@ function waveData() {
         editMode: false,
         deleteTarget: null,
         deleteFormAction: '',
-        formData: { id: null, name: '', academic_year_id: '', start_date: '', end_date: '', quota: '', spp_discount: '', status: 'draft' },
+        formData: { id: null, name: '', academic_year_id: '', start_date: '', end_date: '', quota: '', registration_fee: '', spp_discount: '', status: 'draft' },
         openModal(edit = false, waveId = null) {
             this.editMode = edit;
             if (edit && waveId) {
@@ -314,11 +326,12 @@ function waveData() {
                     start_date: waveData.start_date ? waveData.start_date.substring(0, 10) : '',
                     end_date: waveData.end_date ? waveData.end_date.substring(0, 10) : '',
                     quota: waveData.quota ?? '',
+                    registration_fee: waveData.registration_fee ?? {{ (float)\App\Models\Setting::get('spmb_registration_fee', 350000) }},
                     spp_discount: waveData.spp_discount ?? 0,
                     status: waveData.status || 'draft'
                 };
             } else {
-                this.formData = { id: null, name: '', academic_year_id: '', start_date: '', end_date: '', quota: '', spp_discount: '', status: 'draft' };
+                this.formData = { id: null, name: '', academic_year_id: '', start_date: '', end_date: '', quota: '', registration_fee: {{ (float)\App\Models\Setting::get('spmb_registration_fee', 350000) }}, spp_discount: '', status: 'draft' };
             }
             this.showModal = true;
         },

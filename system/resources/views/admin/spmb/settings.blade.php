@@ -169,9 +169,15 @@
                     <!-- Badge Text -->
                     <div class="space-y-2">
                         <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">Teks Badge / Sub-Header Hero</label>
-                        <input type="text" name="spmb_hero_badge" value="{{ old('spmb_hero_badge', Setting::get('spmb_hero_badge', 'PENERIMAAN SISWA BARU T.A. ' . date('Y') . '/' . (date('Y')+1))) }}" placeholder="PENERIMAAN SISWA BARU T.A. 2026/2027"
+                        @php
+                            $currentBadge = Setting::get('spmb_hero_badge');
+                            if (!$currentBadge || str_contains($currentBadge, '2026/2027')) {
+                                $currentBadge = 'PENERIMAAN SISWA BARU T.A. ' . ($spmbAcademicYear ?? '2027/2028');
+                            }
+                        @endphp
+                        <input type="text" name="spmb_hero_badge" value="{{ old('spmb_hero_badge', $currentBadge) }}" placeholder="PENERIMAAN SISWA BARU T.A. {{ $spmbAcademicYear ?? '2027/2028' }}"
                                class="w-full px-4 h-11 bg-slate-50/80 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-2xs">
-                        <p class="text-[11px] text-slate-400 font-medium">Teks badge kecil di bagian paling atas hero banner.</p>
+                        <p class="text-[11px] text-slate-400 font-medium">Teks badge kecil di bagian paling atas hero banner. Otomatis tersinkronisasi dengan Tahun Akademik Gelombang aktif ({{ $spmbAcademicYear ?? '2027/2028' }}).</p>
                     </div>
 
                     <!-- Judul Utama Hero -->
@@ -188,23 +194,93 @@
                         <textarea name="spmb_hero_subtitle" rows="3" class="w-full p-4 bg-slate-50/80 border border-slate-200 rounded-2xl text-xs font-medium text-slate-700 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-2xs">{{ old('spmb_hero_subtitle', Setting::get('spmb_hero_subtitle', 'Bergabunglah dengan institusi pendidikan unggulan terakreditasi A. Kami membuka kesempatan emas pendaftaran murid baru secara online untuk semua jalur seleksi.')) }}</textarea>
                     </div>
 
-                    <!-- Teks CTA Tombol -->
+                    <!-- Teks Tombol Aksi Hero (CTA) -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="space-y-2">
-                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">Teks Tombol Pendaftaran (CTA)</label>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">Teks Tombol Pendaftaran Utama</label>
                             <input type="text" name="spmb_hero_cta_text" value="{{ old('spmb_hero_cta_text', Setting::get('spmb_hero_cta_text', 'Daftar SPMB Online Now')) }}" placeholder="Daftar SPMB Online Now"
                                    class="w-full px-4 h-11 bg-slate-50/80 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-2xs">
                         </div>
 
                         <div class="space-y-2">
-                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">Keterangan Beasiswa (Pill Card)</label>
-                            <input type="text" name="spmb_scholarship_info" value="{{ old('spmb_scholarship_info', Setting::get('spmb_scholarship_info', 's.d. 100% Bebas SPP')) }}" placeholder="s.d. 100% Bebas SPP"
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">Teks Tombol Konsultasi</label>
+                            <input type="text" name="spmb_hero_consult_text" value="{{ old('spmb_hero_consult_text', Setting::get('spmb_hero_consult_text', 'Konsultasi Pendaftaran')) }}" placeholder="Konsultasi Pendaftaran"
                                    class="w-full px-4 h-11 bg-slate-50/80 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-2xs">
                         </div>
                     </div>
 
+                    <!-- 3 Poin Keunggulan (Checkmark) di Bawah Tombol -->
+                    <div class="pt-2 border-t border-slate-100">
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">3 Poin Fitur / Keunggulan (Di Bawah Tombol Hero)</label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="space-y-1.5">
+                                <span class="text-[11px] font-bold text-slate-500">Poin 1 (Kiri)</span>
+                                <input type="text" name="spmb_hero_feature_1" value="{{ old('spmb_hero_feature_1', Setting::get('spmb_hero_feature_1', 'Pendaftaran 100% Online')) }}" placeholder="Pendaftaran 100% Online"
+                                       class="w-full px-3 h-10 bg-slate-50/80 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div class="space-y-1.5">
+                                <span class="text-[11px] font-bold text-slate-500">Poin 2 (Tengah) / Beasiswa</span>
+                                <input type="text" name="spmb_scholarship_info" value="{{ old('spmb_scholarship_info', Setting::get('spmb_scholarship_info', 'Potongan SPP Beasiswa')) }}" placeholder="Potongan SPP Beasiswa"
+                                       class="w-full px-3 h-10 bg-slate-50/80 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div class="space-y-1.5">
+                                <span class="text-[11px] font-bold text-slate-500">Poin 3 (Kanan)</span>
+                                <input type="text" name="spmb_hero_feature_3" value="{{ old('spmb_hero_feature_3', Setting::get('spmb_hero_feature_3', 'Proses Seleksi Transparan')) }}" placeholder="Proses Seleksi Transparan"
+                                       class="w-full px-3 h-10 bg-slate-50/80 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kartu Informasi Pendaftaran (Kotak Kanan Hero) -->
+                    <div class="pt-4 border-t border-slate-100 space-y-4">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs font-extrabold uppercase tracking-wider text-slate-800">Kartu Kanan Hero (Kotak Status Pendaftaran)</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="space-y-1.5">
+                                <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wide">Label Status Atas</label>
+                                <input type="text" name="spmb_card_badge" value="{{ old('spmb_card_badge', Setting::get('spmb_card_badge', 'STATUS PENDAFTARAN')) }}" placeholder="STATUS PENDAFTARAN"
+                                       class="w-full px-3 h-10 bg-slate-50/80 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div class="space-y-1.5">
+                                <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wide">Judul Kartu</label>
+                                <input type="text" name="spmb_card_title" value="{{ old('spmb_card_title', Setting::get('spmb_card_title', 'Gelombang Pendaftaran')) }}" placeholder="Gelombang Pendaftaran"
+                                       class="w-full px-3 h-10 bg-slate-50/80 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div class="space-y-1.5">
+                                <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wide">Teks Tombol Kartu</label>
+                                <input type="text" name="spmb_card_cta_text" value="{{ old('spmb_card_cta_text', Setting::get('spmb_card_cta_text', 'Isi Formulir Pendaftaran Sekarang')) }}" placeholder="Isi Formulir Pendaftaran Sekarang"
+                                       class="w-full px-3 h-10 bg-slate-50/80 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bagian Judul Pilihan Gelombang Pendaftaran (Section 2) -->
+                    <div class="pt-4 border-t border-slate-100 space-y-4">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs font-extrabold uppercase tracking-wider text-slate-800">Bagian Pilihan Gelombang Pendaftaran (Di Bawah Hero)</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="space-y-1.5">
+                                <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wide">Badge Sub-Judul</label>
+                                <input type="text" name="spmb_wave_badge" value="{{ old('spmb_wave_badge', Setting::get('spmb_wave_badge', 'GELOMBANG & JALUR SELEKSI')) }}" placeholder="GELOMBANG & JALUR SELEKSI"
+                                       class="w-full px-3 h-10 bg-slate-50/80 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div class="space-y-1.5">
+                                <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wide">Judul Utama Bagian</label>
+                                <input type="text" name="spmb_wave_title" value="{{ old('spmb_wave_title', Setting::get('spmb_wave_title', 'Pilihan Gelombang Pendaftaran')) }}" placeholder="Pilihan Gelombang Pendaftaran"
+                                       class="w-full px-3 h-10 bg-slate-50/80 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wide">Deskripsi Singkat Bagian Gelombang</label>
+                            <input type="text" name="spmb_wave_subtitle" value="{{ old('spmb_wave_subtitle', Setting::get('spmb_wave_subtitle', 'Membuka beberapa jalur pendaftaran dengan fasilitas beasiswa menarik pada setiap gelombangnya.')) }}" placeholder="Membuka beberapa jalur pendaftaran..."
+                                   class="w-full px-3 h-10 bg-slate-50/80 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+
                     <!-- Catatan Tambahan -->
-                    <div class="space-y-2 pt-2">
+                    <div class="space-y-2 pt-4 border-t border-slate-100">
                         <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">Catatan / Informasi Pengumuman Penting</label>
                         <textarea name="spmb_info_text" rows="3" placeholder="Informasi pendaftaran siswa baru..."
                                   class="w-full p-4 bg-slate-50/80 border border-slate-200 rounded-2xl text-xs font-medium text-slate-700 outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-2xs">{{ old('spmb_info_text', Setting::get('spmb_info_text', 'Pendaftaran Siswa Baru telah dibuka. Segera daftarkan diri Anda!')) }}</textarea>

@@ -23,8 +23,15 @@
             <p class="text-slate-600 text-sm sm:text-base leading-relaxed font-normal">
                 Ketentuan regulasi pendaftaran, kewajiban calon peserta didik, dan tata tertib penerimaan siswa baru di {{ Setting::get('school_name', 'SDIT AL-FAHMI PALU') }}.
             </p>
+            @php
+                $termsActiveWave = \App\Models\Wave::with('academicYear')->where('status', 'active')->first() ?? \App\Models\Wave::with('academicYear')->latest()->first();
+                $termsAcademicYear = $termsActiveWave?->academicYear?->name 
+                    ?? \App\Models\AcademicYear::where('is_active', true)->value('name') 
+                    ?? (date('Y') . '/' . (date('Y') + 1));
+                $termsAcademicYear = str_replace('-', '/', $termsAcademicYear);
+            @endphp
             <p class="text-xs text-slate-500 mt-4 font-medium">
-                Berlaku Untuk Tahun Ajaran {{ date('Y') }}/{{ date('Y') + 1 }}
+                Berlaku Untuk Tahun Ajaran {{ $termsAcademicYear }}
             </p>
         </div>
     </div>

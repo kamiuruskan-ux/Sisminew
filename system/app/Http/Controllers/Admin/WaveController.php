@@ -10,7 +10,7 @@ class WaveController extends Controller
 {
     public function index()
     {
-        $waves = Wave::latest()->paginate(15);
+        $waves = Wave::with('academicYear')->latest()->paginate(15);
         return view('admin.waves.index', compact('waves'));
     }
 
@@ -28,8 +28,13 @@ class WaveController extends Controller
             'end_date' => 'required|date|after:start_date',
             'status' => 'required|in:active,draft,closed',
             'quota' => 'nullable|integer',
+            'registration_fee' => 'nullable|numeric|min:0',
             'spp_discount' => 'nullable|numeric|min:0',
         ]);
+
+        if (!isset($validated['registration_fee'])) {
+            $validated['registration_fee'] = (float)\App\Models\Setting::get('spmb_registration_fee', 0);
+        }
 
         Wave::create($validated);
 
@@ -56,6 +61,7 @@ class WaveController extends Controller
             'end_date' => 'required|date|after:start_date',
             'status' => 'required|in:active,draft,closed',
             'quota' => 'nullable|integer',
+            'registration_fee' => 'nullable|numeric|min:0',
             'spp_discount' => 'nullable|numeric|min:0',
         ]);
 

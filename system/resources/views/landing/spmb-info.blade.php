@@ -19,7 +19,15 @@
             <div class="lg:col-span-7 space-y-4 sm:space-y-6 text-left" data-aos="fade-right">
                 <div class="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-1.5 rounded-full bg-primary/10 border border-primary/20 text-[11px] sm:text-xs font-bold text-primary shadow-sm max-w-full">
                     <span class="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0"></span>
-                    <span class="truncate">{{ Setting::get('spmb_hero_badge', 'PENERIMAAN SISWA BARU T.A. ' . date('Y') . '/' . (date('Y')+1)) }}</span>
+                    @php
+                        $heroBadge = Setting::get('spmb_hero_badge');
+                        if (!$heroBadge || str_contains($heroBadge, '2026/2027')) {
+                            $heroBadge = 'PENERIMAAN SISWA BARU T.A. ' . $spmbAcademicYear;
+                        } else {
+                            $heroBadge = str_replace(['{tahun_ajaran}', '{ta}'], $spmbAcademicYear, $heroBadge);
+                        }
+                    @endphp
+                    <span class="truncate">{{ $heroBadge }}</span>
                 </div>
                 
                 <h1 class="text-2xl sm:text-4xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-tight">
@@ -40,23 +48,23 @@
                         $waNumber = preg_replace('/[^0-9]/', '', Setting::get('spmb_whatsapp', Setting::get('school_whatsapp', '')));
                     @endphp
                     <a href="{{ $waNumber ? 'https://wa.me/'.$waNumber : route('contact') }}" target="_blank" class="w-full sm:w-auto px-6 py-3.5 sm:px-8 sm:py-4 rounded-xl sm:rounded-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs uppercase tracking-wider border border-slate-200/80 transition-all text-center">
-                        Konsultasi Pendaftaran
+                        {{ Setting::get('spmb_hero_consult_text', 'Konsultasi Pendaftaran') }}
                     </a>
                 </div>
 
                 <!-- Checkmarks Feature Pill List -->
-                <div class="pt-2 sm:pt-4 grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-6 text-xs text-slate-300 font-semibold">
+                <div class="pt-2 sm:pt-4 grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-6 text-xs text-slate-700 font-semibold">
                     <div class="flex items-center gap-2">
-                        <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                        <span>Pendaftaran 100% Online</span>
+                        <svg class="w-4 h-4 text-emerald-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        <span>{{ Setting::get('spmb_hero_feature_1', 'Pendaftaran 100% Online') }}</span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                        <span>{{ Setting::get('spmb_scholarship_info', 'Potongan SPP Beasiswa') }}</span>
+                        <svg class="w-4 h-4 text-emerald-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        <span>{{ Setting::get('spmb_hero_feature_2', Setting::get('spmb_scholarship_info', 'Potongan SPP Beasiswa')) }}</span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                        <span>Proses Seleksi Transparan</span>
+                        <svg class="w-4 h-4 text-emerald-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        <span>{{ Setting::get('spmb_hero_feature_3', 'Proses Seleksi Transparan') }}</span>
                     </div>
                 </div>
             </div>
@@ -68,8 +76,8 @@
                     
                     <div class="flex items-center justify-between pb-4 sm:pb-6 border-b border-white/10 mb-4 sm:mb-6">
                         <div>
-                            <span class="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest text-blue-400 block mb-1">STATUS PENDAFTARAN</span>
-                            <h3 class="text-base sm:text-lg font-extrabold text-white">Gelombang Pendaftaran</h3>
+                            <span class="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest text-blue-400 block mb-1">{{ Setting::get('spmb_card_badge', 'STATUS PENDAFTARAN') }}</span>
+                            <h3 class="text-base sm:text-lg font-extrabold text-white">{{ Setting::get('spmb_card_title', 'Gelombang Pendaftaran') }}</h3>
                         </div>
                         <span class="px-2.5 py-1 rounded-full {{ Setting::get('spmb_enabled', '1') == '1' ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-400' : 'bg-amber-500/20 border-amber-400/40 text-amber-400' }} border text-[10px] sm:text-xs font-bold flex items-center gap-1.5 shrink-0">
                             <span class="w-2 h-2 rounded-full {{ Setting::get('spmb_enabled', '1') == '1' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400' }}"></span>
@@ -84,7 +92,7 @@
                         </div>
                         <div class="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between gap-2">
                             <span class="text-slate-400 font-medium">Biaya Formulir:</span>
-                            <span class="font-extrabold text-amber-400 text-xs sm:text-sm text-right">Rp {{ number_format(Setting::get('spmb_registration_fee', 150000), 0, ',', '.') }}</span>
+                            <span class="font-extrabold text-amber-400 text-xs sm:text-sm text-right">Rp {{ number_format($activeWave?->registration_fee ?? Setting::get('spmb_registration_fee', 150000), 0, ',', '.') }}</span>
                         </div>
                         <div class="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between gap-2">
                             <span class="text-slate-400 font-medium">Beasiswa Prestasi:</span>
@@ -93,7 +101,7 @@
                     </div>
 
                     <a href="{{ route('spmb.register') }}" class="w-full py-3.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs uppercase tracking-wider text-center block shadow-glow transition-all">
-                        Isi Formulir Pendaftaran Sekarang &rarr;
+                        {{ Setting::get('spmb_card_cta_text', 'Isi Formulir Pendaftaran Sekarang') }} &rarr;
                     </a>
                 </div>
             </div>
@@ -110,9 +118,9 @@
         
         <!-- Section Title Header -->
         <div class="text-center max-w-2xl mx-auto mb-10 sm:mb-14" data-aos="fade-up">
-            <span class="text-xs font-extrabold uppercase tracking-widest text-blue-600 block mb-1">GELOMBANG & JALUR SELEKSI</span>
-            <h2 class="text-xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">Pilihan Gelombang Pendaftaran</h2>
-            <p class="text-xs sm:text-sm text-slate-500 mt-2 leading-relaxed">Membuka beberapa jalur pendaftaran dengan fasilitas beasiswa menarik pada setiap gelombangnya.</p>
+            <span class="text-xs font-extrabold uppercase tracking-widest text-blue-600 block mb-1">{{ Setting::get('spmb_wave_badge', 'GELOMBANG & JALUR SELEKSI') }}</span>
+            <h2 class="text-xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">{{ Setting::get('spmb_wave_title', 'Pilihan Gelombang Pendaftaran') }}</h2>
+            <p class="text-xs sm:text-sm text-slate-500 mt-2 leading-relaxed">{{ Setting::get('spmb_wave_subtitle', 'Membuka beberapa jalur pendaftaran dengan fasilitas beasiswa menarik pada setiap gelombangnya.') }}</p>
         </div>
 
         <!-- 3 Wave Cards Full Width -->
@@ -145,12 +153,20 @@
                             
                             <div class="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 mb-5 space-y-2 text-xs">
                                 <div class="flex justify-between items-center gap-2">
+                                    <span class="text-slate-500 font-medium">Tahun Akademik:</span>
+                                    <span class="font-bold text-slate-800">{{ $wave->academicYear->name ?? $wave->year }}</span>
+                                </div>
+                                <div class="flex justify-between items-center gap-2">
                                     <span class="text-slate-500 font-medium">Tanggal Mulai:</span>
                                     <span class="font-bold text-slate-900">{{ $startDate->format('d M Y') }}</span>
                                 </div>
                                 <div class="flex justify-between items-center gap-2">
                                     <span class="text-slate-500 font-medium">Tanggal Selesai:</span>
                                     <span class="font-bold text-slate-900">{{ $endDate->format('d M Y') }}</span>
+                                </div>
+                                <div class="flex justify-between items-center gap-2">
+                                    <span class="text-slate-500 font-medium">Biaya Formulir:</span>
+                                    <span class="font-bold text-indigo-600">Rp {{ number_format($wave->registration_fee, 0, ',', '.') }}</span>
                                 </div>
                                 <div class="flex justify-between items-center gap-2">
                                     <span class="text-slate-500 font-medium">Kuota Pendaftaran:</span>

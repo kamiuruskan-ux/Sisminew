@@ -80,13 +80,20 @@ class LandingController extends Controller
 
     public function spmbInfo()
     {
-        // Get all waves (active, upcoming, and inactive) with registration count
-        $waves = \App\Models\Wave::withCount('spmbRegistrations')->orderBy('start_date', 'asc')->get();
+        // Get all waves (active, upcoming, and inactive) with registration count and academic year
+        $waves = \App\Models\Wave::with('academicYear')->withCount('spmbRegistrations')->orderBy('start_date', 'asc')->get();
         
         $totalRegistered = \App\Models\SpmbRegistration::count();
         $totalQuota = \App\Models\Wave::sum('quota');
 
-        return view('landing.spmb-info', compact('waves', 'totalRegistered', 'totalQuota'));
+        // Cari tahun ajaran SPMB dari Gelombang aktif atau terbaru
+        $activeWave = $waves->firstWhere('status', 'active') ?? $waves->first();
+        $spmbAcademicYear = $activeWave?->academicYear?->name 
+            ?? \App\Models\AcademicYear::where('is_active', true)->value('name')
+            ?? (date('Y') . '/' . (date('Y') + 1));
+        $spmbAcademicYear = str_replace('-', '/', $spmbAcademicYear);
+
+        return view('landing.spmb-info', compact('waves', 'totalRegistered', 'totalQuota', 'spmbAcademicYear', 'activeWave'));
     }
 
     public function about()

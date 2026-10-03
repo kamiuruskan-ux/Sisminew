@@ -8,12 +8,16 @@ use Illuminate\Http\Request;
 
 class SpmbSettingController extends Controller
 {
-    /**
-     * Display the SPMB settings form.
-     */
     public function edit()
     {
-        return view('admin.spmb.settings');
+        $activeWave = \App\Models\Wave::with('academicYear')->where('status', 'active')->first() 
+            ?? \App\Models\Wave::with('academicYear')->latest()->first();
+        $spmbAcademicYear = $activeWave?->academicYear?->name 
+            ?? \App\Models\AcademicYear::where('is_active', true)->value('name')
+            ?? (date('Y') . '/' . (date('Y') + 1));
+        $spmbAcademicYear = str_replace('-', '/', $spmbAcademicYear);
+
+        return view('admin.spmb.settings', compact('spmbAcademicYear', 'activeWave'));
     }
 
     /**
@@ -34,8 +38,22 @@ class SpmbSettingController extends Controller
             'spmb_hero_title' => 'nullable|string|max:255',
             'spmb_hero_subtitle' => 'nullable|string',
             'spmb_hero_cta_text' => 'nullable|string|max:100',
+            'spmb_hero_consult_text' => 'nullable|string|max:100',
             'spmb_scholarship_info' => 'nullable|string|max:255',
+            'spmb_hero_feature_1' => 'nullable|string|max:150',
+            'spmb_hero_feature_2' => 'nullable|string|max:150',
+            'spmb_hero_feature_3' => 'nullable|string|max:150',
             'spmb_info_text' => 'nullable|string',
+
+            // Right Hero Card
+            'spmb_card_badge' => 'nullable|string|max:100',
+            'spmb_card_title' => 'nullable|string|max:150',
+            'spmb_card_cta_text' => 'nullable|string|max:100',
+
+            // Wave Section
+            'spmb_wave_badge' => 'nullable|string|max:100',
+            'spmb_wave_title' => 'nullable|string|max:150',
+            'spmb_wave_subtitle' => 'nullable|string',
 
             // Steps 1 to 4
             'spmb_step_1_title' => 'nullable|string|max:255',
@@ -68,7 +86,17 @@ class SpmbSettingController extends Controller
             'spmb_hero_title',
             'spmb_hero_subtitle',
             'spmb_hero_cta_text',
+            'spmb_hero_consult_text',
             'spmb_scholarship_info',
+            'spmb_hero_feature_1',
+            'spmb_hero_feature_2',
+            'spmb_hero_feature_3',
+            'spmb_card_badge',
+            'spmb_card_title',
+            'spmb_card_cta_text',
+            'spmb_wave_badge',
+            'spmb_wave_title',
+            'spmb_wave_subtitle',
             'spmb_info_text',
             'spmb_step_1_title',
             'spmb_step_1_desc',

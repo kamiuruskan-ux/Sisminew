@@ -2044,5 +2044,72 @@
 
     <!-- TomSelect JS -->
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+
+    <!-- Preserve Admin Sidebar Scroll Position & Auto-View Active Submenu -->
+    <script>
+        (function() {
+            function getSidebarNav() {
+                return document.querySelector('.sidebar-nav');
+            }
+
+            function restoreSidebarScroll() {
+                var sidebarNav = getSidebarNav();
+                if (!sidebarNav) return;
+
+                var savedPos = sessionStorage.getItem('admin_sidebar_scroll_top');
+                if (savedPos !== null) {
+                    sidebarNav.scrollTop = parseInt(savedPos, 10);
+                } else {
+                    // Jika belum ada posisi tersimpan, otomatis scroll ke menu/sub-menu aktif
+                    var activeLink = sidebarNav.querySelector('.nav-link-active');
+                    if (activeLink) {
+                        activeLink.scrollIntoView({ block: 'center', inline: 'nearest' });
+                    }
+                }
+            }
+
+            // Simpan posisi scroll sebelum halaman berpindah
+            window.addEventListener('beforeunload', function() {
+                var sidebarNav = getSidebarNav();
+                if (sidebarNav) {
+                    sessionStorage.setItem('admin_sidebar_scroll_top', sidebarNav.scrollTop);
+                }
+            });
+
+            // Simpan langsung saat link sidebar diklik
+            document.addEventListener('click', function(e) {
+                var link = e.target.closest('.sidebar-nav a');
+                if (link) {
+                    var sidebarNav = getSidebarNav();
+                    if (sidebarNav) {
+                        sessionStorage.setItem('admin_sidebar_scroll_top', sidebarNav.scrollTop);
+                    }
+                }
+            }, true);
+
+            // Simpan saat scrolling (debounced)
+            var scrollTimer;
+            document.addEventListener('scroll', function(e) {
+                if (e.target && e.target.classList && e.target.classList.contains('sidebar-nav')) {
+                    clearTimeout(scrollTimer);
+                    scrollTimer = setTimeout(function() {
+                        sessionStorage.setItem('admin_sidebar_scroll_top', e.target.scrollTop);
+                    }, 80);
+                }
+            }, true);
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', restoreSidebarScroll);
+            } else {
+                restoreSidebarScroll();
+            }
+
+            // Re-apply setelah Alpine.js selesai me-render collapsible dropdown
+            window.addEventListener('load', function() {
+                setTimeout(restoreSidebarScroll, 60);
+                setTimeout(restoreSidebarScroll, 250);
+            });
+        })();
+    </script>
 </body>
 </html>

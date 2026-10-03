@@ -50,9 +50,16 @@
                 <svg class="w-6 h-6 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             </div>
             <div>
+                @php
+                    $regActiveWave = \App\Models\Wave::with('academicYear')->where('status', 'active')->first() ?? \App\Models\Wave::with('academicYear')->latest()->first();
+                    $regAcademicYear = $regActiveWave?->academicYear?->name 
+                        ?? \App\Models\AcademicYear::where('is_active', true)->value('name') 
+                        ?? (date('Y') . '/' . (date('Y') + 1));
+                    $regAcademicYear = str_replace('-', '/', $regAcademicYear);
+                @endphp
                 <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/15 border border-blue-400/25 text-xs font-bold text-blue-300 mb-3">
                     <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
-                    PENDAFTARAN RESMI T.A. {{ date('Y') }}/{{ date('Y') + 1 }}
+                    PENDAFTARAN RESMI T.A. {{ $regAcademicYear }}
                 </div>
                 <h1 class="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight mb-2">Formulir Pendaftaran Siswa Baru</h1>
                 <p class="text-slate-400 text-sm leading-relaxed max-w-xl">Isi data dengan benar sesuai dokumen resmi (KK / Akta / Ijazah). Akun aktif setelah pembayaran dikonfirmasi.</p>
@@ -291,7 +298,7 @@
                         </div>
                         <div>
                             <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Biaya Pendaftaran</p>
-                            <p class="text-lg font-extrabold text-slate-900">Rp {{ number_format((float)Setting::get('spmb_registration_fee', 0), 0, ',', '.') }}</p>
+                            <p class="text-lg font-extrabold text-slate-900">Rp {{ number_format((float)($regActiveWave?->registration_fee ?? Setting::get('spmb_registration_fee', 0)), 0, ',', '.') }}</p>
                         </div>
                     </div>
                     <p class="text-[10px] text-slate-400 leading-relaxed mt-3 pt-3 border-t border-slate-100">Dibayar setelah akun terdaftar. Mendukung Transfer Bank Manual, Midtrans, Tripay, dan Duitku.</p>

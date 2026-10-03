@@ -39,6 +39,9 @@
                 </select>
             </div>
             <div class="mb-4">
+                <x-rupiah-input name="registration_fee" label="Biaya Formulir / Pendaftaran (Rp) *" :value="old('registration_fee', $wave->registration_fee ?? \App\Models\Setting::get('spmb_registration_fee', 350000))" show-terbilang />
+            </div>
+            <div class="mb-4">
                 <x-rupiah-input name="spp_discount" label="Potongan SPP Bulanan (Rp)" :value="old('spp_discount', $wave->spp_discount)" show-terbilang />
             </div>
             <div class="mb-4">
