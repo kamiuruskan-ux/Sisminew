@@ -32,6 +32,8 @@ class SpmbSettingController extends Controller
             'spmb_contact_phone' => 'nullable|string|max:50',
             'spmb_whatsapp' => 'nullable|string|max:50',
             'spmb_announcement_date' => 'nullable|string|max:100',
+            'spmb_wa_template_draft' => 'nullable|string',
+            'spmb_wa_template_general' => 'nullable|string',
             
             // Hero Landing /spmb/info
             'spmb_hero_badge' => 'nullable|string|max:255',
@@ -82,6 +84,8 @@ class SpmbSettingController extends Controller
             'spmb_contact_phone',
             'spmb_whatsapp',
             'spmb_announcement_date',
+            'spmb_wa_template_draft',
+            'spmb_wa_template_general',
             'spmb_hero_badge',
             'spmb_hero_title',
             'spmb_hero_subtitle',

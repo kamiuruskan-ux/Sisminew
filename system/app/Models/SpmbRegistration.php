@@ -120,6 +120,36 @@ class SpmbRegistration extends Model
         return !empty($formatted) ? $formatted : null;
     }
 
+    public function getWhatsappMessageAttribute(): string
+    {
+        $schoolName = Setting::get('school_name', 'SDIT AL-FAHMI PALU');
+        $portalUrl = route('spmb.dashboard.index');
+
+        if ($this->payment_status === 'paid' && $this->status === 'draft') {
+            $defaultTemplate = "Halo Bapak/Ibu orang tua dari *{nama_siswa}*,\n\nKami dari panitia SPMB {sekolah} menginformasikan bahwa pembayaran uang pendaftaran ananda (No. Registrasi: *{no_daftar}*) telah berhasil terkonfirmasi lunas.\n\nNamun, formulir pendaftaran siswa tercatat masih berstatus *Draft (belum selesai diisi)*.\n\nMohon untuk segera login ke portal SPMB guna melengkapi formulir data diri dan mengunggah dokumen persyaratan di tautan berikut:\n{link_login}\n\nTerima kasih atas kerja samanya.";
+            $template = Setting::get('spmb_wa_template_draft', $defaultTemplate);
+        } else {
+            $defaultTemplate = "Halo Bapak/Ibu orang tua dari *{nama_siswa}*,\n\nKami dari panitia SPMB {sekolah} menghubungi terkait pendaftaran calon siswa baru ananda dengan No. Registrasi: *{no_daftar}*.\n\nPortal SPMB: {link_login}\n\nTerima kasih.";
+            $template = Setting::get('spmb_wa_template_general', $defaultTemplate);
+        }
+
+        if (empty(trim((string)$template))) {
+            $template = $defaultTemplate;
+        }
+
+        $placeholders = [
+            '{nama_siswa}' => $this->full_name,
+            '{nama_orang_tua}' => $this->parent_name ?: 'Orang Tua / Wali',
+            '{no_daftar}' => $this->registration_number,
+            '{sekolah}' => $schoolName,
+            '{gelombang}' => $this->wave?->name ?? 'Gelombang SPMB',
+            '{link_login}' => $portalUrl,
+            '{kontak_spmb}' => Setting::get('spmb_contact_phone', Setting::get('school_whatsapp', '')),
+        ];
+
+        return str_replace(array_keys($placeholders), array_values($placeholders), $template);
+    }
+
     public function getWhatsappUrlAttribute(): ?string
     {
         $waPhone = $this->whatsapp_phone;
@@ -127,13 +157,6 @@ class SpmbRegistration extends Model
             return null;
         }
 
-        $schoolName = Setting::get('school_name', 'Sekolah');
-        if ($this->payment_status === 'paid' && $this->status === 'draft') {
-            $message = "Halo Bapak/Ibu orang tua dari *{$this->full_name}*,\n\nKami dari panitia SPMB {$schoolName} menginformasikan bahwa pembayaran uang pendaftaran ananda (No. Registrasi: *{$this->registration_number}*) telah berhasil terkonfirmasi lunas.\n\nNamun, formulir pendaftaran siswa tercatat masih berstatus *Draft (belum selesai diisi)*.\n\nMohon untuk segera login ke portal SPMB guna melengkapi formulir data diri dan mengunggah dokumen persyaratan di tautan berikut:\n" . route('spmb.dashboard.index') . "\n\nTerima kasih atas kerja samanya.";
-        } else {
-            $message = "Halo Bapak/Ibu orang tua dari *{$this->full_name}*,\n\nKami dari panitia SPMB {$schoolName} menghubungi terkait pendaftaran calon siswa baru ananda dengan No. Registrasi *{$this->registration_number}*.\n\nPortal SPMB: " . route('spmb.dashboard.index') . "\n\nTerima kasih.";
-        }
-
-        return "https://wa.me/{$waPhone}?text=" . urlencode($message);
+        return "https://wa.me/{$waPhone}?text=" . urlencode($this->whatsapp_message);
     }
 }
