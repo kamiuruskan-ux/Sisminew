@@ -14,7 +14,12 @@ class SpmbFormFieldController extends Controller
      */
     public function index()
     {
-        $fields = SpmbFormField::ordered()->get();
+        try {
+            $fields = SpmbFormField::ordered()->get();
+        } catch (\Throwable $e) {
+            $fields = collect();
+            session()->flash('warning', 'Tabel formulir SPMB belum ada di database. Silakan jalankan perintah "php artisan migrate" di terminal hosting/server.');
+        }
         $fieldsBySection = $fields->groupBy('section');
 
         $sections = [

@@ -13,7 +13,12 @@ class TestimonialController extends Controller
      */
     public function index()
     {
-        $testimonials = Testimonial::ordered()->get();
+        try {
+            $testimonials = Testimonial::ordered()->get();
+        } catch (\Throwable $e) {
+            $testimonials = collect();
+            session()->flash('warning', 'Tabel testimoni belum ada di database. Silakan jalankan perintah "php artisan migrate" di terminal hosting/server.');
+        }
         return view('admin.testimonials.index', compact('testimonials'));
     }
 
