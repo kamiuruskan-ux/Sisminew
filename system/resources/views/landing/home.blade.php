@@ -828,6 +828,38 @@
              @mousemove="if(!isDragging) return; $event.preventDefault(); const x = $event.pageX - $refs.testiSlider.offsetLeft; const walk = (x - startX) * 1.5; $refs.testiSlider.scrollLeft = scrollLeft - walk;"
              class="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-6 pt-1 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-none scroll-smooth select-none cursor-grab active:cursor-grabbing">
             
+            @if(isset($testimonials) && $testimonials->count() > 0)
+                @foreach($testimonials as $testi)
+                    <div class="w-[85vw] sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] shrink-0 snap-start bg-white rounded-2xl p-6 sm:p-7 border border-slate-200 shadow-xs hover:border-slate-300 hover:shadow-md transition-all duration-200 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-slate-100 text-slate-700">
+                                    {{ $testi->role }}
+                                </span>
+                                <div class="flex gap-1 text-amber-400">
+                                    @for($i=1; $i<=5; $i++)
+                                        @if($i <= $testi->rating)
+                                            <svg class="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                                        @else
+                                            <svg class="w-4 h-4 text-slate-200 fill-current" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                                        @endif
+                                    @endfor
+                                </div>
+                            </div>
+                            <p class="text-slate-700 text-sm sm:text-[15px] leading-relaxed font-normal mb-6">
+                                "{{ $testi->content }}"
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-3.5 pt-4 border-t border-slate-100">
+                            <img src="{{ $testi->avatar_url }}" alt="{{ $testi->name }}" class="w-11 h-11 rounded-full object-cover border border-slate-200 shrink-0">
+                            <div>
+                                <h4 class="text-sm font-semibold text-slate-900 leading-snug">{{ $testi->name }}</h4>
+                                <p class="text-xs text-slate-500 font-normal mt-0.5">{{ $testi->title ?: $testi->role }}</p>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            @else
             <!-- Testimoni 1 -->
             <div class="w-[85vw] sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] shrink-0 snap-start bg-white rounded-2xl p-6 sm:p-7 border border-slate-200 shadow-xs hover:border-slate-300 hover:shadow-md transition-all duration-200 flex flex-col justify-between">
                 <div>
@@ -983,6 +1015,7 @@
                     </div>
                 </div>
             </div>
+            @endif
 
         </div>
 

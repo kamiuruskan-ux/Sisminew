@@ -1356,7 +1356,7 @@
                         <!-- Konten & Website Dropdown -->
                         @if(auth()->user()->hasPermission('view-posts|view-announcements|view-gallery|manage-sliders|manage-curriculum|view-content'))
                         @php
-                            $isContentActive = request()->routeIs('admin.posts.*') || request()->routeIs('admin.categories.*') || request()->routeIs('admin.gallery.*') || request()->routeIs('admin.announcements.*') || request()->routeIs('admin.sliders.*') || request()->routeIs('admin.curriculum.*');
+                            $isContentActive = request()->routeIs('admin.posts.*') || request()->routeIs('admin.categories.*') || request()->routeIs('admin.gallery.*') || request()->routeIs('admin.announcements.*') || request()->routeIs('admin.sliders.*') || request()->routeIs('admin.testimonials.*') || request()->routeIs('admin.curriculum.*');
                         @endphp
                         <div x-data="{ open: {{ $isContentActive ? 'true' : 'false' }} }">
                             <button type="button" @click="open = !open" 
@@ -1383,6 +1383,9 @@
                                 @endif
                                 @if(auth()->user()->hasPermission('manage-sliders|view-content'))
                                     <a href="{{ route('admin.sliders.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.sliders.*') ? 'nav-link-active' : '' }}">Hero Banner Slider</a>
+                                @endif
+                                @if(auth()->user()->hasPermission('manage-sliders|view-content'))
+                                    <a href="{{ route('admin.testimonials.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.testimonials.*') ? 'nav-link-active' : '' }}">Testimoni Sekolah</a>
                                 @endif
                                 @if(auth()->user()->hasPermission('manage-curriculum|view-content'))
                                     <a href="{{ route('admin.curriculum.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.curriculum.*') ? 'nav-link-active' : '' }}">Kurikulum &amp; Program</a>

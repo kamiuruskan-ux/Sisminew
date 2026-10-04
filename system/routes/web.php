@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\SliderController;
+use App\Http\Controllers\Admin\TestimonialController;
 use App\Http\Controllers\Admin\SpmbController;
 use App\Http\Controllers\Admin\SpmbSettingController;
 use App\Http\Controllers\Admin\StudentController;
@@ -434,6 +435,10 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
     // Sliders
     Route::middleware('permission:view-content')->group(function () {
         Route::resource('sliders', SliderController::class);
+        Route::resource('testimonials', TestimonialController::class)->except(['create', 'show', 'edit']);
+        Route::put('testimonials/{encodedId}', [TestimonialController::class, 'update'])->name('testimonials.update');
+        Route::delete('testimonials/{encodedId}', [TestimonialController::class, 'destroy'])->name('testimonials.destroy');
+        Route::post('testimonials/{encodedId}/toggle-active', [TestimonialController::class, 'toggleActive'])->name('testimonials.toggle-active');
         Route::resource('extracurriculars', \App\Http\Controllers\Admin\ExtracurricularController::class);
         Route::post('extracurriculars/{extracurricular}/toggle', [\App\Http\Controllers\Admin\ExtracurricularController::class, 'toggleStatus'])->name('extracurriculars.toggle');
         

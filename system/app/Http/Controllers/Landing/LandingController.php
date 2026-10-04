@@ -75,7 +75,13 @@ class LandingController extends Controller
             'alumni' => $displayAlumni,
         ];
 
-        return view('landing.home', compact('sliders', 'posts', 'galleries', 'majors', 'stats', 'announcements'));
+        try {
+            $testimonials = \App\Models\Testimonial::active()->ordered()->get();
+        } catch (\Throwable $e) {
+            $testimonials = collect();
+        }
+
+        return view('landing.home', compact('sliders', 'posts', 'galleries', 'majors', 'stats', 'announcements', 'testimonials'));
     }
 
     public function spmbInfo()
