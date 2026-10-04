@@ -53,9 +53,41 @@ class Wave extends Model
         return $this->hasMany(SpmbRegistration::class);
     }
 
+    public function getPaidCountAttribute(): int
+    {
+        if (isset($this->attributes['paid_registrations_count'])) {
+            return (int) $this->attributes['paid_registrations_count'];
+        }
+        return $this->spmbRegistrations()->where('payment_status', 'paid')->count();
+    }
+
+    public function getPendingProofCountAttribute(): int
+    {
+        if (isset($this->attributes['pending_registrations_count'])) {
+            return (int) $this->attributes['pending_registrations_count'];
+        }
+        return $this->spmbRegistrations()->where('payment_status', 'pending')->count();
+    }
+
+    public function getReservedCountAttribute(): int
+    {
+        return $this->paid_count + $this->pending_proof_count;
+    }
+
     public function getRemainingQuotaAttribute(): int
     {
-        return $this->quota - $this->spmbRegistrations()->count();
+        if ($this->quota <= 0) {
+            return 999999;
+        }
+        return max(0, $this->quota - $this->reserved_count);
+    }
+
+    public function isQuotaFull(): bool
+    {
+        if ($this->quota <= 0) {
+            return false;
+        }
+        return $this->reserved_count >= $this->quota;
     }
 
     public function scopeActive($query)

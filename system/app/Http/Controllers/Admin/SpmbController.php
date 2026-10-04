@@ -10,6 +10,7 @@ use App\Models\Setting;
 use App\Models\SpmbRegistration;
 use App\Models\Student;
 use App\Models\User;
+use App\Models\Wave;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -28,9 +29,38 @@ class SpmbController extends Controller
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
         }
+
+        if ($request->filled('payment_status') && $request->payment_status !== 'all') {
+            $query->where('payment_status', $request->payment_status);
+        }
+
+        if ($request->filled('wave_id') && $request->wave_id !== 'all') {
+            $query->where('wave_id', $request->wave_id);
+        }
         
         $registrations = $query->latest()->paginate(20);
-        return view('admin.spmb.index', compact('registrations'));
+
+        // Fetch waves for filter and quota monitoring
+        $waves = Wave::with('academicYear')->orderBy('start_date', 'asc')->get();
+
+        $selectedWaveId = $request->input('wave_id');
+        $waveQuery = Wave::with('academicYear')
+            ->withCount([
+                'spmbRegistrations',
+                'spmbRegistrations as paid_registrations_count' => fn($q) => $q->where('payment_status', 'paid'),
+                'spmbRegistrations as pending_registrations_count' => fn($q) => $q->where('payment_status', 'pending'),
+            ]);
+
+        if ($selectedWaveId && $selectedWaveId !== 'all') {
+            $activeWave = (clone $waveQuery)->find($selectedWaveId);
+        } else {
+            $activeWave = (clone $waveQuery)->where('status', 'active')->first() 
+                ?? (clone $waveQuery)->latest()->first();
+        }
+
+        $activeWaveUnpaid = $activeWave ? $activeWave->spmbRegistrations()->where('payment_status', 'unpaid')->count() : 0;
+
+        return view('admin.spmb.index', compact('registrations', 'activeWave', 'activeWaveUnpaid', 'waves'));
     }
 
     public function show($encodedId)
@@ -74,10 +104,24 @@ class SpmbController extends Controller
         ));
     }
 
-    public function confirmPayment($encodedId)
+    public function confirmPayment($encodedId, Request $request)
     {
         $id = $this->resolveId($encodedId);
-        $spmb = SpmbRegistration::findOrFail($id);
+        $spmb = SpmbRegistration::with('wave')->findOrFail($id);
+        $wave = $spmb->wave;
+
+        // If wave has a quota, check if confirmation would exceed quota
+        // (if applicant is not already held in 'pending' status)
+        $isOverQuota = false;
+        if ($wave && $wave->quota > 0 && $wave->remaining_quota <= 0 && $spmb->payment_status !== 'pending') {
+            $isOverQuota = true;
+            if (!$request->boolean('override_quota')) {
+                return back()->with('quota_warning', [
+                    'message' => 'Kuota pendaftaran untuk ' . $wave->name . ' telah penuh (' . $wave->quota . ' siswa). Apakah Anda yakin ingin mengonfirmasi pembayaran ini dan mengizinkan kuota berlebih (override)?',
+                    'action' => route('admin.spmb.confirm-payment', encode_id($spmb->id)),
+                ]);
+            }
+        }
         
         $transaction = \App\Models\PaymentTransaction::where('reference_type', 'spmb')
             ->where('reference_id', $spmb->id)
@@ -86,7 +130,7 @@ class SpmbController extends Controller
             ->first();
 
         if (!$transaction) {
-            $amount = $spmb->wave?->registration_fee ?? (float)Setting::get('spmb_registration_fee', 0);
+            $amount = $wave?->registration_fee ?? (float)Setting::get('spmb_registration_fee', 0);
             $invoiceNumber = 'INV-SPMB-MANUAL-' . $spmb->id . '-' . time();
             $transaction = \App\Models\PaymentTransaction::create([
                 'reference_type' => 'spmb',
@@ -100,7 +144,12 @@ class SpmbController extends Controller
 
         \App\Http\Controllers\PaymentController::completePayment($transaction, ['confirmed_by' => auth()->id()]);
 
-        return back()->with('success', 'Pembayaran uang pendaftaran berhasil dikonfirmasi.');
+        $msg = 'Pembayaran uang pendaftaran berhasil dikonfirmasi.';
+        if ($isOverQuota) {
+            $msg .= ' (Persetujuan Melebihi Kuota / Override Berhasil).';
+        }
+
+        return back()->with('success', $msg);
     }
 
     public function verify($encodedId)

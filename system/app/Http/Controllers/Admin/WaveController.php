@@ -10,7 +10,13 @@ class WaveController extends Controller
 {
     public function index()
     {
-        $waves = Wave::with('academicYear')->latest()->paginate(15);
+        $waves = Wave::with('academicYear')
+            ->withCount([
+                'spmbRegistrations as paid_registrations_count' => fn($q) => $q->where('payment_status', 'paid'),
+                'spmbRegistrations as pending_registrations_count' => fn($q) => $q->where('payment_status', 'pending'),
+            ])
+            ->latest()
+            ->paginate(15);
         return view('admin.waves.index', compact('waves'));
     }
 

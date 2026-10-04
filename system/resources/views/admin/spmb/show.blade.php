@@ -35,9 +35,34 @@
         this.deleteTarget = { name: name };
         this.deleteFormAction = '{{ url('admin/spmb') }}/' + encodedId;
         this.showDeleteModal = true;
-    }
-}">
     @include('components.delete-modal', ['title' => 'Hapus Pendaftaran SPMB', 'message' => 'Apakah Anda yakin ingin menghapus pendaftaran SPMB :name ini? Tindakan ini tidak dapat dibatalkan.'])
+
+    @if(session('quota_warning'))
+        <div class="p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-400 text-amber-900 dark:text-amber-200 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-start space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 font-black text-lg">
+                    !
+                </div>
+                <div>
+                    <h4 class="font-extrabold text-sm text-amber-950 dark:text-amber-100">Peringatan: Kuota Gelombang Penuh</h4>
+                    <p class="text-xs text-amber-800 dark:text-amber-300 mt-0.5 leading-relaxed">{{ session('quota_warning')['message'] }}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                <a href="{{ request()->fullUrl() }}" class="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-300 transition">
+                    Batalkan
+                </a>
+                <form action="{{ session('quota_warning')['action'] }}" method="POST">
+                    @csrf
+                    <input type="hidden" name="override_quota" value="1">
+                    <button type="submit" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs transition shadow-md flex items-center gap-1.5 cursor-pointer">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+                        <span>Override & Konfirmasi</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    @endif
 
     <!-- Reject Modal -->
     <div x-show="showRejectModal"
@@ -508,8 +533,19 @@
                         @endif
 
                         @if($spmb->payment_status !== 'paid')
+                            @php
+                                $isWaveFull = $spmb->wave && $spmb->wave->isQuotaFull() && $spmb->payment_status !== 'pending';
+                            @endphp
+                            @if($isWaveFull)
+                                <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-[11px] leading-relaxed">
+                                    <strong>Peringatan Kuota:</strong> Kuota gelombang ini ({{ $spmb->wave->quota }} siswa) telah penuh. Mengonfirmasi pembayaran ini akan menggunakan izin kuota berlebih (override).
+                                </div>
+                            @endif
                             <form action="{{ route('admin.spmb.confirm-payment', encode_id($spmb->id)) }}" method="POST" class="pt-2">
                                 @csrf
+                                @if($isWaveFull)
+                                    <input type="hidden" name="override_quota" value="1">
+                                @endif
                                 <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-all font-extrabold text-xs uppercase tracking-wider shadow-md shadow-emerald-600/20 flex items-center justify-center space-x-2">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
                                     <span>Konfirmasi Lunas Pembayaran</span>

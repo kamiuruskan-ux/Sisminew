@@ -96,6 +96,12 @@ class RegisterController extends Controller
                 return redirect()->route('spmb.register')->withErrors(['error' => $msg])->withInput();
             }
 
+            if ($wave->isQuotaFull()) {
+                $msg = 'Mohon maaf, kuota pendaftaran untuk ' . $wave->name . ' telah terpenuhi (kuota penuh). Silakan hubungi admin sekolah untuk info gelombang berikutnya.';
+                if ($isAjax) return response()->json(['errors' => [$msg]], 422);
+                return redirect()->route('spmb.register')->withErrors(['error' => $msg])->withInput();
+            }
+
             $user = User::create([
                 'name'     => $validated['full_name'],
                 'email'    => $validated['email'],

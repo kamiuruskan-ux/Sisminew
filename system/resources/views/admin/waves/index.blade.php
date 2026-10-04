@@ -119,9 +119,16 @@
 
                             <!-- Kuota -->
                             <td class="px-5 py-3.5 text-center">
-                                <span class="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 rounded font-bold text-xs border border-indigo-100">
-                                    {{ $wave->quota ? number_format($wave->quota) . ' Siswa' : 'Tanpa Batas' }}
-                                </span>
+                                <div class="space-y-0.5">
+                                    <span class="px-2.5 py-0.5 {{ $wave->isQuotaFull() ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-indigo-50 text-indigo-700 border-indigo-100' }} rounded font-bold text-xs border">
+                                        {{ $wave->quota ? number_format($wave->quota) . ' Siswa' : 'Tanpa Batas' }}
+                                    </span>
+                                    @if($wave->quota > 0)
+                                        <p class="text-[10px] text-slate-500 font-semibold">
+                                            Terisi: <strong class="{{ $wave->isQuotaFull() ? 'text-rose-600' : 'text-slate-800' }}">{{ $wave->reserved_count }}</strong> (Sisa {{ $wave->remaining_quota }})
+                                        </p>
+                                    @endif
+                                </div>
                             </td>
 
                             <!-- Biaya Formulir -->

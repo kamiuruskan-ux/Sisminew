@@ -80,10 +80,20 @@ class LandingController extends Controller
 
     public function spmbInfo()
     {
-        // Get all waves (active, upcoming, and inactive) with registration count and academic year
-        $waves = \App\Models\Wave::with('academicYear')->withCount('spmbRegistrations')->orderBy('start_date', 'asc')->get();
+        // Get all waves (active, upcoming, and inactive) with registration and quota breakdown
+        $waves = \App\Models\Wave::with('academicYear')
+            ->withCount([
+                'spmbRegistrations',
+                'spmbRegistrations as paid_registrations_count' => function ($query) {
+                    $query->where('payment_status', 'paid');
+                },
+                'spmbRegistrations as pending_registrations_count' => function ($query) {
+                    $query->where('payment_status', 'pending');
+                },
+            ])
+            ->orderBy('start_date', 'asc')->get();
         
-        $totalRegistered = \App\Models\SpmbRegistration::count();
+        $totalRegistered = \App\Models\SpmbRegistration::whereIn('payment_status', ['paid', 'pending'])->count();
         $totalQuota = \App\Models\Wave::sum('quota');
 
         // Cari tahun ajaran SPMB dari Gelombang aktif atau terbaru

@@ -100,9 +100,15 @@
                         </div>
                     </div>
 
+                    @if(Setting::get('spmb_enabled', '1') == '1' && (!$activeWave || !$activeWave->isQuotaFull()))
                     <a href="{{ route('spmb.register') }}" class="w-full py-3.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs uppercase tracking-wider text-center block shadow-glow transition-all">
                         {{ Setting::get('spmb_card_cta_text', 'Isi Formulir Pendaftaran Sekarang') }} &rarr;
                     </a>
+                    @else
+                    <button type="button" disabled class="w-full py-3.5 rounded-xl sm:rounded-2xl bg-white/10 border border-white/20 text-slate-300 font-bold text-xs uppercase tracking-wider text-center block cursor-not-allowed">
+                        {{ $activeWave && $activeWave->isQuotaFull() ? 'Kuota Pendaftaran Penuh' : 'Pendaftaran SPMB Ditutup' }}
+                    </button>
+                    @endif
                 </div>
             </div>
 
@@ -135,13 +141,18 @@
                         $isCurrentActive = $wave->status === 'active' && $now->between($startDate, $endDate);
                         $isUpcoming = $now->lt($startDate) && $wave->status === 'active';
                         $isClosed = $now->gt($endDate) || in_array($wave->status, ['closed', 'inactive', 'draft']);
+                        $isQuotaFull = $wave->isQuotaFull();
                     @endphp
-                    <div class="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 border {{ $isCurrentActive ? 'border-2 border-blue-500 shadow-card' : ($isUpcoming ? 'border-amber-200 bg-amber-50/10' : 'border-slate-200/80 bg-slate-50/50') }} hover:shadow-card transition-all relative flex flex-col justify-between group" data-aos="fade-up">
+                    <div class="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 border {{ $isCurrentActive ? ($isQuotaFull ? 'border-2 border-rose-400 bg-rose-50/10' : 'border-2 border-blue-500 shadow-card') : ($isUpcoming ? 'border-amber-200 bg-amber-50/10' : 'border-slate-200/80 bg-slate-50/50') }} hover:shadow-card transition-all relative flex flex-col justify-between group" data-aos="fade-up">
                         <div>
                             <div class="flex items-center justify-between mb-4">
                                 <span class="text-[10px] font-extrabold uppercase tracking-widest text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">SELEKSI RESMI</span>
                                 @if($isCurrentActive)
-                                    <span class="px-2.5 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-bold shadow-xs">Sedang Dibuka</span>
+                                    @if($isQuotaFull)
+                                        <span class="px-2.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-bold shadow-xs">Kuota Penuh</span>
+                                    @else
+                                        <span class="px-2.5 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-bold shadow-xs">Sedang Dibuka</span>
+                                    @endif
                                 @elseif($isUpcoming)
                                     <span class="px-2.5 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-bold shadow-xs">Belum Dibuka</span>
                                 @else
@@ -170,14 +181,14 @@
                                 </div>
                                 <div class="flex justify-between items-center gap-2">
                                     <span class="text-slate-500 font-medium">Kuota Pendaftaran:</span>
-                                    <span class="font-bold text-indigo-600">{{ $wave->quota }} Siswa</span>
+                                    <span class="font-bold text-indigo-600">{{ $wave->quota ? number_format($wave->quota) . ' Siswa' : 'Tanpa Batas' }}</span>
                                 </div>
 
                                 @php
-                                    $filledCount = $wave->spmb_registrations_count ?? 0;
+                                    $filledCount = $wave->reserved_count;
                                     $targetQuota = $wave->quota > 0 ? $wave->quota : 100;
                                     $quotaPercent = min(100, round(($filledCount / $targetQuota) * 100));
-                                    $remainingSeats = max(0, $targetQuota - $filledCount);
+                                    $remainingSeats = $wave->remaining_quota;
                                 @endphp
                                 <!-- Visual Quota Progress Bar -->
                                 <div class="pt-2 border-t border-slate-200/60 mt-2 space-y-1.5">
@@ -186,20 +197,26 @@
                                         <span class="text-slate-900 font-mono">{{ $filledCount }} / {{ $targetQuota }} Siswa</span>
                                     </div>
                                     <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden p-0.5 border border-slate-200/80">
-                                        <div class="bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 h-full rounded-full transition-all duration-500" style="width: {{ max(5, $quotaPercent) }}%"></div>
+                                        <div class="bg-gradient-to-r {{ $isQuotaFull ? 'from-amber-500 to-rose-600' : 'from-blue-500 via-indigo-500 to-purple-600' }} h-full rounded-full transition-all duration-500" style="width: {{ max(5, $quotaPercent) }}%"></div>
                                     </div>
                                     <div class="flex justify-between items-center text-[10px] text-slate-400 font-semibold">
-                                        <span>Sisa: <strong class="text-slate-700">{{ $remainingSeats }} Kursi</strong></span>
-                                        <span class="font-extrabold text-blue-600">{{ $quotaPercent }}% Terisi</span>
+                                        <span>Sisa: <strong class="{{ $remainingSeats === 0 ? 'text-rose-600 font-extrabold' : 'text-slate-700' }}">{{ $remainingSeats }} Kursi</strong></span>
+                                        <span class="font-extrabold {{ $isQuotaFull ? 'text-rose-600' : 'text-blue-600' }}">{{ $quotaPercent }}% Terisi</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         @if($isCurrentActive)
-                            <a href="{{ route('spmb.register') }}" class="w-full py-3.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs uppercase tracking-wider text-center block shadow-glow transition-all">
-                                Daftar Gelombang Ini &rarr;
-                            </a>
+                            @if($isQuotaFull)
+                                <button type="button" disabled class="w-full py-3.5 rounded-xl sm:rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 font-bold text-xs uppercase tracking-wider text-center block cursor-not-allowed">
+                                    Kuota Penuh (Tutup)
+                                </button>
+                            @else
+                                <a href="{{ route('spmb.register') }}" class="w-full py-3.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs uppercase tracking-wider text-center block shadow-glow transition-all">
+                                    Daftar Gelombang Ini &rarr;
+                                </a>
+                            @endif
                         @elseif($isUpcoming)
                             <button type="button" disabled class="w-full py-3.5 rounded-xl sm:rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 font-bold text-xs uppercase tracking-wider text-center block cursor-not-allowed">
                                 Belum Dibuka (Buka {{ $startDate->format('d M Y') }})

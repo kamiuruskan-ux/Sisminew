@@ -106,6 +106,26 @@
             @endif
         @endif
 
+        @if(isset($wave) && $wave->isQuotaFull())
+            <div class="max-w-lg mx-auto py-16 text-center">
+                <div class="bg-white rounded-3xl p-10 border border-slate-200 shadow-xl space-y-5">
+                    <div class="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-100">
+                        <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-extrabold uppercase tracking-widest text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-100">Kuota Terpenuhi</span>
+                        <h2 class="text-xl font-extrabold text-slate-900 mt-3">Kuota {{ $wave->name }} Telah Penuh</h2>
+                        <p class="text-xs text-slate-500 mt-2 leading-relaxed">Mohon maaf, kuota pendaftaran sebanyak <strong>{{ $wave->quota }} siswa</strong> telah terpenuhi oleh calon siswa yang telah menyelesaikan pembayaran. Silakan pantau informasi pembukaan gelombang berikutnya.</p>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+                        <a href="{{ route('spmb.info') }}" class="px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs uppercase tracking-wider">Lihat Info SPMB</a>
+                        <a href="https://wa.me/{{ Setting::get('spmb_whatsapp', '6281234567890') }}" target="_blank" class="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-xs uppercase tracking-wider border border-emerald-600">Chat Admin</a>
+                    </div>
+                </div>
+            </div>
+            <?php return; ?>
+        @endif
+
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
 
             {{-- FORM (Order 1 on mobile, 2 on desktop) --}}

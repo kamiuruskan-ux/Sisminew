@@ -57,6 +57,7 @@ class DashboardController extends Controller
         // Redirect ke bagian pembayaran jika belum lunas
         $isPaid = $registration && $registration->payment_status === 'paid';
         $needsPayment = $registration && !$isPaid;
+        $isWaveQuotaFull = ($registration && $registration->wave) ? $registration->wave->isQuotaFull() : false;
 
         return view('spmb.dashboard', compact(
             'registration', 
@@ -66,7 +67,8 @@ class DashboardController extends Controller
             'latestTransaction',
             'registrationFee',
             'isPaid',
-            'needsPayment'
+            'needsPayment',
+            'isWaveQuotaFull'
         ));
     }
 
@@ -85,6 +87,10 @@ class DashboardController extends Controller
 
         if ($registration->payment_status === 'paid') {
             return redirect()->route('spmb.dashboard.index')->with('info', 'Uang pendaftaran Anda sudah lunas.');
+        }
+
+        if ($registration->wave && $registration->wave->isQuotaFull() && $registration->payment_status !== 'pending') {
+            return redirect()->route('spmb.dashboard.index')->withErrors(['error' => 'Mohon maaf, kuota pendaftaran untuk ' . $registration->wave->name . ' telah terpenuhi (kuota penuh). Pembayaran tidak dapat dilanjutkan.']);
         }
 
         $amount = $registration->wave?->registration_fee ?? (float)Setting::get('spmb_registration_fee', 0);
@@ -165,6 +171,10 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
         $registration = SpmbRegistration::where('user_id', $user->id)->firstOrFail();
+
+        if ($registration->wave && $registration->wave->isQuotaFull() && $registration->payment_status !== 'pending') {
+            return back()->withErrors(['error' => 'Mohon maaf, kuota pendaftaran untuk ' . $registration->wave->name . ' telah terpenuhi (kuota penuh). Unggah bukti transfer tidak dapat dilakukan.']);
+        }
 
         $request->validate([
             'bank_account_id' => 'required|exists:bank_accounts,id',
