@@ -472,6 +472,57 @@
                 </div>
             </div>
 
+            <!-- Card Khusus: Informasi Tambahan / Kuesioner Formulir SPMB -->
+            @php
+                try {
+                    $allCustomFields = \App\Models\SpmbFormField::ordered()->get();
+                } catch (\Throwable $e) {
+                    $allCustomFields = collect();
+                }
+                $hasCustomData = is_array($spmb->custom_fields) && count($spmb->custom_fields) > 0;
+            @endphp
+
+            @if($allCustomFields->count() > 0 || $hasCustomData)
+            <div class="premium-card overflow-hidden shadow-sm border-slate-200">
+                <div class="px-4 sm:px-8 py-4 sm:py-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-extrabold text-xs border border-teal-100">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        </div>
+                        <h2 class="text-base font-extrabold text-slate-900">Data Tambahan &amp; Formulir Khusus</h2>
+                    </div>
+                    <span class="px-3 py-1 bg-teal-50 text-teal-700 rounded-full text-xs font-extrabold border border-teal-200">
+                        {{ $allCustomFields->count() }} Poin Pertanyaan
+                    </span>
+                </div>
+
+                <div class="p-4 sm:p-8 space-y-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                        @foreach($allCustomFields as $cField)
+                            @php
+                                $cVal = $spmb->getCustomFieldValue($cField->field_key, '-');
+                            @endphp
+                            <div class="space-y-1">
+                                <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">{{ $cField->label }}</p>
+                                <p class="text-sm font-bold text-slate-800 leading-relaxed">{{ $cVal }}</p>
+                            </div>
+                        @endforeach
+
+                        @if(is_array($spmb->custom_fields))
+                            @foreach($spmb->custom_fields as $extraKey => $extraVal)
+                                @if(!$allCustomFields->contains('field_key', $extraKey))
+                                    <div class="space-y-1">
+                                        <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">{{ ucwords(str_replace('_', ' ', $extraKey)) }}</p>
+                                        <p class="text-sm font-bold text-slate-800 leading-relaxed">{{ is_array($extraVal) ? implode(', ', $extraVal) : ($extraVal ?: '-') }}</p>
+                                    </div>
+                                @endif
+                            @endforeach
+                        @endif
+                    </div>
+                </div>
+            </div>
+            @endif
+
             <!-- Card 3: Dokumen Upload & Lampiran Berkas -->
             @if($spmb->documents && $spmb->documents->count() > 0)
             <div class="premium-card overflow-hidden shadow-sm border-slate-200">

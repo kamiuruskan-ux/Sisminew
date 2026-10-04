@@ -254,13 +254,26 @@ class DashboardController extends Controller
             return redirect()->route('spmb.dashboard.index')->with('error', 'Silakan selesaikan pembayaran uang pendaftaran terlebih dahulu.');
         }
 
-        // Validate basic completion
-        if (empty($registration->nisn) || empty($registration->nik) || empty($registration->gender) || empty($registration->birth_date) || empty($registration->address)) {
+        // Validate basic completion (NISN is optional for TK graduates)
+        if (empty($registration->nik) || empty($registration->gender) || empty($registration->birth_date) || empty($registration->address)) {
             return back()->withErrors(['error' => 'Data pribadi pendaftar belum lengkap. Silakan edit dan lengkapi data Anda.']);
         }
 
         if (empty($registration->parent_name) || empty($registration->parent_phone)) {
             return back()->withErrors(['error' => 'Data orang tua / wali belum lengkap. Silakan lengkapi terlebih dahulu.']);
+        }
+
+        // Check required custom fields
+        try {
+            $requiredCustomFields = \App\Models\SpmbFormField::active()->where('is_required', true)->get();
+            $customValues = is_array($registration->custom_fields) ? $registration->custom_fields : [];
+            foreach ($requiredCustomFields as $reqField) {
+                if (empty($customValues[$reqField->field_key])) {
+                    return back()->withErrors(['error' => 'Kolom wajib "' . $reqField->label . '" belum diisi. Silakan lengkapi data pendaftaran Anda.']);
+                }
+            }
+        } catch (\Throwable $e) {
+            // Ignore if table not yet migrated
         }
 
         // Check if documents exist
@@ -303,7 +316,15 @@ class DashboardController extends Controller
         $waves = Wave::where('status', 'active')->get();
         $majors = Major::where('is_active', true)->get();
 
-        return view('spmb.edit', compact('registration', 'waves', 'majors'));
+        try {
+            $customFields = \App\Models\SpmbFormField::active()->ordered()->get();
+            $customFieldsBySection = $customFields->groupBy('section');
+        } catch (\Throwable $e) {
+            $customFields = collect();
+            $customFieldsBySection = collect();
+        }
+
+        return view('spmb.edit', compact('registration', 'waves', 'majors', 'customFields', 'customFieldsBySection'));
     }
 
     /**
@@ -319,9 +340,9 @@ class DashboardController extends Controller
                 ->with('error', 'Silakan selesaikan pembayaran uang pendaftaran terlebih dahulu untuk melengkapi data.');
         }
 
-        $validated = $request->validate([
+        $rules = [
             // Data Pribadi
-            'nisn' => 'required|string|max:20',
+            'nisn' => 'nullable|string|max:20',
             'nik' => 'required|string|max:20',
             'full_name' => 'required|string|max:255',
             'gender' => 'required|in:male,female',
@@ -331,7 +352,7 @@ class DashboardController extends Controller
             'phone' => 'required|string|max:20',
 
             // Data Sekolah
-            'origin_school' => 'required|string|max:255',
+            'origin_school' => 'nullable|string|max:255',
             'major_id' => 'nullable|exists:majors,id',
 
             // Data Orang Tua
@@ -343,7 +364,31 @@ class DashboardController extends Controller
             'photo' => 'nullable|image|max:2048',
             'kk' => 'nullable|file|max:2048',
             'birth_certificate' => 'nullable|file|max:2048',
-        ]);
+            'custom_fields' => 'nullable|array',
+        ];
+
+        $customAttributes = [];
+        try {
+            $activeFields = \App\Models\SpmbFormField::active()->get();
+            foreach ($activeFields as $cf) {
+                $fieldRule = $cf->is_required ? ['required'] : ['nullable'];
+                if ($cf->type === 'number') {
+                    $fieldRule[] = 'numeric';
+                } elseif ($cf->type === 'date') {
+                    $fieldRule[] = 'date';
+                } elseif ($cf->type === 'checkbox') {
+                    $fieldRule = $cf->is_required ? ['required', 'array'] : ['nullable', 'array'];
+                } else {
+                    $fieldRule[] = 'string';
+                }
+                $rules['custom_fields.' . $cf->field_key] = $fieldRule;
+                $customAttributes['custom_fields.' . $cf->field_key] = $cf->label;
+            }
+        } catch (\Throwable $e) {
+            // Ignore if table not yet migrated
+        }
+
+        $validated = $request->validate($rules, [], $customAttributes);
 
         try {
             // Update registration data
@@ -361,6 +406,7 @@ class DashboardController extends Controller
                 'parent_name' => $validated['parent_name'] ?? null,
                 'parent_phone' => $validated['parent_phone'] ?? null,
                 'parent_address' => $validated['parent_address'] ?? null,
+                'custom_fields' => $request->input('custom_fields', []),
             ]);
 
             // Update user name if changed

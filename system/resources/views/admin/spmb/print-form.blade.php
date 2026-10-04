@@ -516,6 +516,30 @@
         </table>
     </div>
     
+    @php
+        try {
+            $printCustomFields = \App\Models\SpmbFormField::active()->ordered()->get();
+        } catch (\Throwable $e) {
+            $printCustomFields = collect();
+        }
+    @endphp
+
+    @if($printCustomFields->count() > 0 || (is_array($spmb->custom_fields) && count($spmb->custom_fields) > 0))
+    <!-- Additional / Custom Questions -->
+    <div class="section">
+        <div class="section-title">D. INFORMASI TAMBAHAN &amp; KUESIONER KHUSUS</div>
+        <table class="data-table">
+            @foreach($printCustomFields as $pcf)
+                <tr>
+                    <td class="label">{{ $pcf->label }}</td>
+                    <td class="colon">:</td>
+                    <td>{{ $spmb->getCustomFieldValue($pcf->field_key, '-') }}</td>
+                </tr>
+            @endforeach
+        </table>
+    </div>
+    @endif
+
     <!-- Documents -->
     <div class="section">
         <div class="section-title">D. DOKUMEN PERSYARATAN</div>

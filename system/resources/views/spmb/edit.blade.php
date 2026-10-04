@@ -111,27 +111,27 @@
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">NISN</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">NISN <span class="text-xs text-gray-400 font-normal">(Opsional)</span></label>
                         <input type="text" name="nisn" value="{{ old('nisn', $registration->nisn) }}"
-                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition" placeholder="0000000000">
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition" placeholder="Kosongkan jika belum ada">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">NIK</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">NIK <span class="text-red-500">*</span></label>
                         <input type="text" name="nik" value="{{ old('nik', $registration->nik) }}"
-                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition" placeholder="16 digit NIK">
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition" placeholder="16 digit NIK" required>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Tempat Lahir</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tempat Lahir <span class="text-red-500">*</span></label>
                         <input type="text" name="birth_place" value="{{ old('birth_place', $registration->birth_place) }}"
-                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition">
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition" required>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Tanggal Lahir</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tanggal Lahir <span class="text-red-500">*</span></label>
                         <input type="date" name="birth_date" value="{{ old('birth_date', $registration->birth_date?->format('Y-m-d')) }}"
-                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition">
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition" required>
                     </div>
                 </div>
 
@@ -152,15 +152,21 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Alamat Lengkap</label>
-                    <textarea name="address" rows="3" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition" placeholder="Jalan, RT/RW, Kelurahan, Kecamatan...">{{ old('address', $registration->address) }}</textarea>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Alamat Lengkap <span class="text-red-500">*</span></label>
+                    <textarea name="address" rows="3" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition" placeholder="Jalan, RT/RW, Kelurahan, Kecamatan..." required>{{ old('address', $registration->address) }}</textarea>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">No. Telepon</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">No. Telepon / WhatsApp <span class="text-red-500">*</span></label>
                     <input type="text" name="phone" value="{{ old('phone', $registration->phone) }}"
-                           class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition" placeholder="08xxxxxxxxxx">
+                           class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition" placeholder="08xxxxxxxxxx" required>
                 </div>
+
+                @if(isset($customFieldsBySection) && $customFieldsBySection->has('student'))
+                    @foreach($customFieldsBySection['student'] as $field)
+                        @include('spmb.partials.custom-field-input', ['field' => $field, 'registration' => $registration])
+                    @endforeach
+                @endif
             </div>
         </div>
 
@@ -222,8 +228,59 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">Alamat Orang Tua</label>
                     <textarea name="parent_address" rows="3" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent transition" placeholder="Jalan, RT/RW, Kelurahan, Kecamatan...">{{ old('parent_address', $registration->parent_address) }}</textarea>
                 </div>
+
+                @if(isset($customFieldsBySection) && $customFieldsBySection->has('parent'))
+                    @foreach($customFieldsBySection['parent'] as $field)
+                        @include('spmb.partials.custom-field-input', ['field' => $field, 'registration' => $registration])
+                    @endforeach
+                @endif
             </div>
         </div>
+
+        <!-- Data Keagamaan & Al-Qur'an (Custom Section) -->
+        @if(isset($customFieldsBySection) && $customFieldsBySection->has('religious'))
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <h3 class="font-bold text-gray-900 mb-4 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                Keagamaan &amp; Al-Qur'an
+            </h3>
+            <div class="space-y-3">
+                @foreach($customFieldsBySection['religious'] as $field)
+                    @include('spmb.partials.custom-field-input', ['field' => $field, 'registration' => $registration])
+                @endforeach
+            </div>
+        </div>
+        @endif
+
+        <!-- Data Kesehatan & Karakteristik Siswa (Custom Section) -->
+        @if(isset($customFieldsBySection) && $customFieldsBySection->has('health'))
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <h3 class="font-bold text-gray-900 mb-4 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                Kesehatan &amp; Karakteristik Siswa
+            </h3>
+            <div class="space-y-3">
+                @foreach($customFieldsBySection['health'] as $field)
+                    @include('spmb.partials.custom-field-input', ['field' => $field, 'registration' => $registration])
+                @endforeach
+            </div>
+        </div>
+        @endif
+
+        <!-- Kuesioner & Informasi Tambahan (Custom Section) -->
+        @if(isset($customFieldsBySection) && $customFieldsBySection->has('other'))
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <h3 class="font-bold text-gray-900 mb-4 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Kuesioner &amp; Informasi Tambahan
+            </h3>
+            <div class="space-y-3">
+                @foreach($customFieldsBySection['other'] as $field)
+                    @include('spmb.partials.custom-field-input', ['field' => $field, 'registration' => $registration])
+                @endforeach
+            </div>
+        </div>
+        @endif
 
         <!-- Upload Dokumen -->
         <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100" x-data="{ 

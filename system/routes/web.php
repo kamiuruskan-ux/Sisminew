@@ -22,6 +22,7 @@ use App\Http\Controllers\Admin\SliderController;
 use App\Http\Controllers\Admin\TestimonialController;
 use App\Http\Controllers\Admin\SpmbController;
 use App\Http\Controllers\Admin\SpmbSettingController;
+use App\Http\Controllers\Admin\SpmbFormFieldController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\TagController;
 use App\Http\Controllers\Admin\UserController;
@@ -290,6 +291,13 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         
         Route::get('spmb-settings', [SpmbSettingController::class, 'edit'])->name('spmb.settings');
         Route::put('spmb-settings', [SpmbSettingController::class, 'update'])->name('spmb.update-settings');
+
+        // SPMB Custom Form Fields
+        Route::get('spmb-fields', [SpmbFormFieldController::class, 'index'])->name('spmb.fields.index');
+        Route::post('spmb-fields', [SpmbFormFieldController::class, 'store'])->name('spmb.fields.store');
+        Route::put('spmb-fields/{encodedId}', [SpmbFormFieldController::class, 'update'])->name('spmb.fields.update');
+        Route::delete('spmb-fields/{encodedId}', [SpmbFormFieldController::class, 'destroy'])->name('spmb.fields.destroy');
+        Route::post('spmb-fields/{encodedId}/toggle-active', [SpmbFormFieldController::class, 'toggleActive'])->name('spmb.fields.toggle-active');
         
         // Waves View
         Route::get('waves', [WaveController::class, 'index'])->name('waves.index');

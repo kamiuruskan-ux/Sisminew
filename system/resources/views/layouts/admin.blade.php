@@ -961,6 +961,9 @@
                                     @if(auth()->user()->hasPermission('manage-spmb-waves|view-spmb'))
                                         <a href="{{ route('admin.waves.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.waves.*') ? 'nav-link-active' : '' }}">Gelombang SPMB</a>
                                     @endif
+                                    @if(auth()->user()->hasPermission('manage-spmb-settings|view-spmb'))
+                                        <a href="{{ route('admin.spmb.fields.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.spmb.fields.*') ? 'nav-link-active' : '' }}">Formulir &amp; Pertanyaan</a>
+                                    @endif
                                     @if(auth()->user()->hasPermission('manage-spmb-settings'))
                                         <a href="{{ route('admin.spmb.settings') }}" class="nav-link text-xs {{ request()->routeIs('admin.spmb.settings') ? 'nav-link-active' : '' }}">Pengaturan SPMB</a>
                                     @endif

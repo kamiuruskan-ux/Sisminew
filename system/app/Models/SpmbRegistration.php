@@ -25,6 +25,7 @@ class SpmbRegistration extends Model
         'parent_phone',
         'parent_address',
         'origin_school',
+        'custom_fields',
         'class_id',
         'major_id',
         'status',
@@ -39,7 +40,20 @@ class SpmbRegistration extends Model
         'birth_date' => 'date',
         'verified_at' => 'datetime',
         'registration_fee' => 'integer',
+        'custom_fields' => 'array',
     ];
+
+    public function getCustomFieldValue(string $key, $default = '-')
+    {
+        if (!is_array($this->custom_fields) || !isset($this->custom_fields[$key])) {
+            return $default;
+        }
+        $val = $this->custom_fields[$key];
+        if (is_array($val)) {
+            return implode(', ', $val);
+        }
+        return !empty($val) ? $val : $default;
+    }
 
     public function user(): BelongsTo
     {
