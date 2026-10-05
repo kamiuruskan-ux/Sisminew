@@ -1855,8 +1855,8 @@
                         <div>
                             <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Tingkat Kelas</label>
                             <select name="grade" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white" required>
-                                @foreach($grades as $g)
-                                    <option value="{{ $g }}">Kelas {{ $g }}</option>
+                                @foreach($availableGrades ?? $grades ?? [1,2,3,4,5,6,7,8,9,10,11,12] as $g)
+                                    <option value="{{ $g }}" {{ (isset($selectedGrade) && $selectedGrade == $g) ? 'selected' : '' }}>Kelas {{ $g }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -2083,7 +2083,7 @@
                         <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Pilih Santri yang Diuji</label>
                         <select name="student_id" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white" required>
                             <option value="">-- Pilih Santri --</option>
-                            @foreach($students as $st)
+                            @foreach($students ?? [] as $st)
                                 <option value="{{ $st->id }}">{{ $st->user?->name ?? 'Santri' }} (Kelas {{ $st->class?->name ?? '-' }})</option>
                             @endforeach
                         </select>

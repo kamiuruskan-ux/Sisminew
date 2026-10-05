@@ -336,10 +336,15 @@ class HalaqahController extends Controller
             ->pluck('student_id')
             ->toArray();
 
-        $students = [];
+        $students = collect();
         if (!empty($halaqahStudentIds)) {
             $students = Student::with(['user', 'class'])
                 ->whereIn('id', $halaqahStudentIds)
+                ->orderBy('nisn', 'asc')
+                ->get();
+        }
+        if ($tab === 'tasmi' && $students->isEmpty()) {
+            $students = Student::with(['user', 'class'])
                 ->orderBy('nisn', 'asc')
                 ->get();
         }
@@ -535,9 +540,11 @@ class HalaqahController extends Controller
         $surahOptions = \App\Helpers\QuranHelper::getDropdownOptions();
         $classesInSelectedGrade = ClassModel::whereIn('id', $inputGradeClassIds)->orderBy('name', 'asc')->get();
         $filterCategory = $request->get('record_category', $request->get('category', 'all'));
+        $grades = $availableGrades;
 
         return view('admin.halaqah.index', compact(
             'availableGrades',
+            'grades',
             'selectedGrade',
             'gradeCounts',
             'quranTeachers',
