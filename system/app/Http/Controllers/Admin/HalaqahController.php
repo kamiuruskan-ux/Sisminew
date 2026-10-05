@@ -592,16 +592,26 @@ class HalaqahController extends Controller
         // ── KETERCAPAIAN TARGET KURIKULUM PER KELAS ──
         $classTargetAchievements = [];
         $allTargets = QuranTarget::all();
-        $studentsByClass = Student::select('id', 'class_id', 'student_status')
-            ->where(function($sq) {
-                $sq->where('student_status', 'active')
-                   ->orWhereNull('student_status');
+        $studentsByClass = Student::select('id', 'class_id')
+            ->when(\Illuminate\Support\Facades\Schema::hasColumn('students', 'student_status'), function ($sq) {
+                $sq->where(function($q) {
+                    $q->where('student_status', 'active')
+                      ->orWhereNull('student_status');
+                });
             })
             ->get()
             ->groupBy('class_id');
 
+        $tahsinCols = ['student_id', 'jilid_level'];
+        if (\Illuminate\Support\Facades\Schema::hasColumn('halaqah_records', 'page_start')) {
+            $tahsinCols[] = 'page_start';
+        }
+        if (\Illuminate\Support\Facades\Schema::hasColumn('halaqah_records', 'page_end')) {
+            $tahsinCols[] = 'page_end';
+        }
+
         $latestTahsinByStudent = HalaqahRecord::where('program_type', 'tahsin')
-            ->select('student_id', 'jilid_level', 'page_number')
+            ->select($tahsinCols)
             ->orderBy('assessment_date', 'desc')
             ->orderBy('id', 'desc')
             ->get()
@@ -660,7 +670,8 @@ class HalaqahController extends Controller
                             if ($stJilidNum > $targetJilidNum) {
                                 $tahsinAchieved++;
                             } elseif ($stJilidNum === $targetJilidNum) {
-                                if (!$targetPageEnd || ($stTahsin->page_number >= $targetPageEnd)) {
+                                $stPage = $stTahsin->page_end ?? ($stTahsin->page_start ?? 0);
+                                if (!$targetPageEnd || ($stPage >= $targetPageEnd)) {
                                     $tahsinAchieved++;
                                 }
                             }
