@@ -20,6 +20,8 @@ class QuranTarget extends Model
         'target_surah_start',
         'target_surah_end',
         'target_jilid',
+        'target_page_start',
+        'target_page_end',
         'notes',
     ];
 
@@ -27,5 +29,7 @@ class QuranTarget extends Model
         'grade' => 'integer',
         'semester' => 'integer',
         'target_juz' => 'integer',
+        'target_page_start' => 'integer',
+        'target_page_end' => 'integer',
     ];
 }

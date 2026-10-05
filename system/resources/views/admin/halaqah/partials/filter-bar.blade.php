@@ -113,6 +113,41 @@
 
         </div>
 
+        {{-- Baris Filter Rentang Surah (Khusus Tahfidz & Tilawah) --}}
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 items-center">
+            <div class="lg:col-span-4 flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+                <div>
+                    <label class="block text-[10px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
+                        Filter Sebaran Per Surah (Tahfidz / Tilawah)
+                    </label>
+                    <p class="text-[10px] text-slate-400">Saring riwayat & sebaran berdasarkan rentang surah (misal: An-Nas s.d Al-Ma'un)</p>
+                </div>
+            </div>
+            <div class="lg:col-span-4">
+                <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Dari Surah</label>
+                <select name="surah_start" class="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="all" {{ ($filterSurahStart ?? 'all') === 'all' ? 'selected' : '' }}>-- Dari Surah (Semua) --</option>
+                    @foreach($surahOptions ?? [] as $s)
+                        <option value="{{ $s['name'] }}" {{ ($filterSurahStart ?? '') === $s['name'] ? 'selected' : '' }}>
+                            {{ $s['label'] }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="lg:col-span-4">
+                <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Sampai Surah</label>
+                <select name="surah_end" class="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="all" {{ ($filterSurahEnd ?? 'all') === 'all' ? 'selected' : '' }}>-- Sampai Surah (Semua) --</option>
+                    @foreach($surahOptions ?? [] as $s)
+                        <option value="{{ $s['name'] }}" {{ ($filterSurahEnd ?? '') === $s['name'] ? 'selected' : '' }}>
+                            {{ $s['label'] }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+
         {{-- Baris 2: Periode Waktu Dinamis & Pencarian Santri & Tombol Eksekusi --}}
         <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end pt-2.5 border-t border-slate-100 dark:border-slate-800">
             

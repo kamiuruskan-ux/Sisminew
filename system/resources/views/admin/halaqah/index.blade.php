@@ -243,7 +243,7 @@
             <a href="{{ route('admin.halaqah.index', ['tab' => 'target', 'grade' => is_numeric($selectedGrade) ? $selectedGrade : 1]) }}"
                class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'target' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                <span>Target Hafalan</span>
+                <span>Target Capaian</span>
             </a>
 
             <a href="{{ route('admin.halaqah.index', ['tab' => 'tasmi']) }}"
@@ -473,8 +473,6 @@
                                     <option value="Jilid 2">Jilid 2</option>
                                     <option value="Jilid 3">Jilid 3</option>
                                     <option value="Jilid 4">Jilid 4</option>
-                                    <option value="Jilid 5">Jilid 5</option>
-                                    <option value="Jilid 6">Jilid 6</option>
                                 </select>
                             </div>
                             <div>
@@ -751,8 +749,6 @@
                                 <option value="Jilid 2">Jilid 2</option>
                                 <option value="Jilid 3">Jilid 3</option>
                                 <option value="Jilid 4">Jilid 4</option>
-                                <option value="Jilid 5">Jilid 5</option>
-                                <option value="Jilid 6">Jilid 6</option>
                             </select>
                         </div>
                         <div>
@@ -825,8 +821,6 @@
                                                 <option value="Jilid 2">Jilid 2</option>
                                                 <option value="Jilid 3">Jilid 3</option>
                                                 <option value="Jilid 4">Jilid 4</option>
-                                                <option value="Jilid 5">Jilid 5</option>
-                                                <option value="Jilid 6">Jilid 6</option>
                                             </select>
                                         </div>
                                         <select name="items[{{ $st->id }}][surah_name]" class="mass-surah-select w-full px-2 py-1 border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-800 rounded-lg text-[10px] font-bold">
@@ -1469,7 +1463,7 @@
                     <div class="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-2xl border border-amber-200 dark:border-amber-900/50 text-center space-y-1">
                         <span class="px-2 py-0.5 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 uppercase">Tahsin</span>
                         <div class="text-2xl sm:text-3xl font-black text-amber-600">{{ $tahsinCount }}</div>
-                        <p class="text-[10px] text-slate-500 font-bold">Jilid 1-6</p>
+                        <p class="text-[10px] text-slate-500 font-bold">Jilid 1-4</p>
                     </div>
 
                     <div class="p-3 bg-teal-50 dark:bg-teal-950/30 rounded-2xl border border-teal-200 dark:border-teal-900/50 text-center space-y-1">
@@ -1490,6 +1484,78 @@
                 </div>
             </div>
 
+        </div>
+
+        {{-- KARTU KETERCAPAIAN TARGET KURIKULUM TAHSIN & TAHFIDZ PER KELAS --}}
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center font-black shadow-md shadow-emerald-500/20">
+                        🎯
+                    </div>
+                    <div>
+                        <h4 class="text-xs sm:text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                            <span>KETERCAPAIAN TARGET KURIKULUM PER KELAS</span>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                {{ count($classTargetAchievements ?? []) }} Kelas
+                            </span>
+                        </h4>
+                        <p class="text-[11px] text-slate-400">
+                            Persentase santri yang telah memenuhi target standar capaian Tahsin (Jilid &amp; Halaman) dan Tahfidz (Juz &amp; Surah) per rombel kelas
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pt-1">
+                @forelse($classTargetAchievements ?? [] as $cta)
+                <div class="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:border-emerald-300 dark:hover:border-emerald-700 transition space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="text-xs font-black text-slate-900 dark:text-white">{{ $cta['class_name'] }}</span>
+                            <p class="text-[10px] text-slate-400 font-semibold">{{ $cta['total_students'] }} Santri Terdaftar</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ $cta['overall_pct'] >= 75 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : ($cta['overall_pct'] >= 50 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300') }}">
+                                {{ $cta['overall_pct'] }}% Tuntas
+                            </span>
+                        </div>
+                    </div>
+
+                    {{-- Progress Tahsin --}}
+                    <div class="space-y-1">
+                        <div class="flex justify-between items-baseline text-[11px]">
+                            <span class="font-extrabold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                📖 Tahsin
+                                <span class="text-[10px] font-normal text-slate-400 truncate max-w-[130px]">({{ $cta['tahsin_target'] }})</span>
+                            </span>
+                            <span class="font-bold text-slate-700 dark:text-slate-300">{{ $cta['tahsin_achieved'] }}/{{ $cta['total_students'] }} ({{ $cta['tahsin_pct'] }}%)</span>
+                        </div>
+                        <div class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                            <div class="bg-amber-500 h-2 rounded-full transition-all duration-500" style="width: {{ $cta['tahsin_pct'] }}%"></div>
+                        </div>
+                    </div>
+
+                    {{-- Progress Tahfidz --}}
+                    <div class="space-y-1">
+                        <div class="flex justify-between items-baseline text-[11px]">
+                            <span class="font-extrabold text-teal-600 dark:text-teal-400 flex items-center gap-1">
+                                🌟 Tahfidz
+                                <span class="text-[10px] font-normal text-slate-400 truncate max-w-[130px]">({{ $cta['tahfidz_target'] }})</span>
+                            </span>
+                            <span class="font-bold text-slate-700 dark:text-slate-300">{{ $cta['tahfidz_achieved'] }}/{{ $cta['total_students'] }} ({{ $cta['tahfidz_pct'] }}%)</span>
+                        </div>
+                        <div class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                            <div class="bg-teal-500 h-2 rounded-full transition-all duration-500" style="width: {{ $cta['tahfidz_pct'] }}%"></div>
+                        </div>
+                    </div>
+                </div>
+                @empty
+                <div class="col-span-full py-8 text-center text-slate-400 text-xs">
+                    Belum ada data rombel kelas atau santri aktif.
+                </div>
+                @endforelse
+            </div>
         </div>
 
         {{-- Baris Grafik 2: Sebaran Jilid & Juz Siswa --}}
@@ -1540,6 +1606,66 @@
                     @endforeach
                 </div>
             </div>
+        </div>
+
+        {{-- GRAFIK SEBARAN PER SURAH (TAHFIDZ & TILAWAH) DENGAN FILTER RENTANG SURAH --}}
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                    <h4 class="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                        <span>📖 GRAFIK SEBARAN PER SURAH (TAHFIDZ &amp; TILAWAH)</span>
+                        @if(($filterSurahStart ?? 'all') !== 'all' || ($filterSurahEnd ?? 'all') !== 'all')
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                Filter: {{ $filterSurahStart !== 'all' ? $filterSurahStart : 'Awal' }} s.d {{ $filterSurahEnd !== 'all' ? $filterSurahEnd : 'Akhir' }}
+                            </span>
+                        @endif
+                    </h4>
+                    <p class="text-[11px] text-slate-400">
+                        Distribusi capaian hafalan dan bimbingan tilawah santri per surah Al-Qur'an
+                    </p>
+                </div>
+                <div class="text-[11px] text-slate-400 font-semibold">
+                    {{ count($surahDistribution ?? []) }} Surah Ditampilkan
+                </div>
+            </div>
+
+            @if(!empty($surahDistribution))
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+                @foreach($surahDistribution as $sName => $sData)
+                @php
+                    $sPct = $tahfidzCount > 0 ? round(($sData['setoran'] / $tahfidzCount) * 100) : 0;
+                @endphp
+                <div class="p-3 bg-slate-50/70 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="w-6 h-6 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-black text-[10px] flex items-center justify-center shrink-0">
+                                {{ $sData['number'] }}
+                            </span>
+                            <span class="text-xs font-black text-slate-800 dark:text-white truncate">
+                                Surah {{ $sName }}
+                            </span>
+                        </div>
+                        <span class="text-[11px] font-black text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                            {{ $sData['santri'] }} Santri
+                        </span>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-[10px] text-slate-400 font-bold">
+                            <span>{{ $sData['setoran'] }} kali setoran</span>
+                            <span>{{ $sPct }}%</span>
+                        </div>
+                        <div class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                            <div class="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full transition-all duration-500" style="width: {{ min(100, max(5, $sPct)) }}%"></div>
+                        </div>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+            @else
+            <div class="p-8 text-center text-slate-400 text-xs">
+                Belum ada data setoran surah yang cocok dengan filter yang dipilih.
+            </div>
+            @endif
         </div>
 
         {{-- TABEL REKAPITULASI CAPAIAN PEMBELAJARAN SANTRI (DATA TERATAS & DETAIL) --}}
@@ -1828,18 +1954,37 @@
                         Standar Kurikulum
                     </span>
                     <h2 class="text-base sm:text-lg font-black text-slate-900 dark:text-white">
-                        Target Capaian Al-Qur'an (Tahfidz, Tilawah &amp; Tahsin)
+                        Target Capaian &amp; Kurikulum Al-Qur'an
                     </h2>
                 </div>
                 <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    Tentukan target batas minimal hafalan juz, surah, jilid tahsin per tingkat kelas dan semester sebagai standar acuan rapor halaqah.
+                    Standar batas minimal hafalan juz &amp; surah (Tahfidz/Tilawah) serta jilid &amp; halaman (Tahsin) per tingkat kelas dan semester.
                 </p>
             </div>
+            @if($canManageTarget)
+            <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                <span>👑 Hak Akses Kelola: Koordinator Al-Qur'an &amp; Admin</span>
+            </div>
+            @else
+            <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400">
+                <span>🔒 Akses Guru: Hanya Melihat Standar Kurikulum</span>
+            </div>
+            @endif
         </div>
+
+        @if(!$canManageTarget)
+        <div class="p-4 bg-sky-50 dark:bg-sky-950/40 rounded-2xl border border-sky-200 dark:border-sky-900/60 flex items-center gap-3 text-xs text-sky-900 dark:text-sky-200">
+            <span class="text-xl">ℹ️</span>
+            <div>
+                <strong>Akses Terbatas:</strong> Target capaian Al-Qur'an dikonfigurasi secara terpusat oleh <strong>Koordinator Al-Qur'an</strong> dan <strong>Administrator</strong>. Musyrif halaqah dapat memantau standar capaian di bawah ini sebagai acuan bimbingan santri.
+            </div>
+        </div>
+        @endif
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6" x-data="{ targetProg: 'tahfidz' }">
             
-            {{-- Form Tambah Target --}}
+            @if($canManageTarget)
+            {{-- Form Tambah Target (Hanya Tampil untuk Koordinator & Admin) --}}
             <div class="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
                 <div class="border-b border-slate-100 dark:border-slate-800 pb-3">
                     <h3 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
@@ -1855,7 +2000,7 @@
                         <div>
                             <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Tingkat Kelas</label>
                             <select name="grade" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white" required>
-                                @foreach($availableGrades ?? $grades ?? [1,2,3,4,5,6,7,8,9,10,11,12] as $g)
+                                @foreach($availableGrades ?? $grades ?? [1,2,3,4,5,6] as $g)
                                     <option value="{{ $g }}" {{ (isset($selectedGrade) && $selectedGrade == $g) ? 'selected' : '' }}>Kelas {{ $g }}</option>
                                 @endforeach
                             </select>
@@ -1874,48 +2019,64 @@
                         <select name="program_type" x-model="targetProg" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white" required>
                             <option value="tahfidz">Tahfidz (Hafalan)</option>
                             <option value="tilawah">Tilawah (Tartil &amp; Tajwid)</option>
-                            <option value="tahsin">Tahsin (Jilid 1 - 6)</option>
+                            <option value="tahsin">Tahsin (Jilid 1 - 4)</option>
                         </select>
                     </div>
 
-                    {{-- Form Dinamis: Tahfidz & Tilawah (Juz & Surah) --}}
+                    {{-- Form Dinamis: Tahfidz & Tilawah (Pilih Juz & Dropdown Surah Tanpa Mengetik) --}}
                     <div x-show="targetProg === 'tahfidz' || targetProg === 'tilawah'" class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Target Juz</label>
+                            <select name="target_juz" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white">
+                                <option value="">-- Pilih Juz (Opsional) --</option>
+                                @for($i=1; $i<=30; $i++)
+                                    <option value="{{ $i }}" {{ $i == 30 ? 'selected' : '' }}>Juz {{ $i }}</option>
+                                @endfor
+                            </select>
+                        </div>
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Juz Mulai</label>
-                                <select name="target_juz_start" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white">
-                                    <option value="">-- Pilih --</option>
-                                    @for($i=1; $i<=30; $i++)
-                                        <option value="{{ $i }}" {{ $i == 30 ? 'selected' : '' }}>Juz {{ $i }}</option>
-                                    @endfor
+                                <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Dari Surah</label>
+                                <select name="target_surah_start" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2 px-2 text-slate-800 dark:text-white">
+                                    <option value="">-- Pilih Surah --</option>
+                                    @foreach($surahOptions ?? [] as $s)
+                                        <option value="{{ $s['name'] }}">{{ $s['label'] }}</option>
+                                    @endforeach
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Juz Selesai</label>
-                                <select name="target_juz_end" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white">
-                                    <option value="">-- Pilih --</option>
-                                    @for($i=1; $i<=30; $i++)
-                                        <option value="{{ $i }}" {{ $i == 30 ? 'selected' : '' }}>Juz {{ $i }}</option>
-                                    @endfor
+                                <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Sampai Surah</label>
+                                <select name="target_surah_end" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2 px-2 text-slate-800 dark:text-white">
+                                    <option value="">-- Pilih Surah --</option>
+                                    @foreach($surahOptions ?? [] as $s)
+                                        <option value="{{ $s['name'] }}">{{ $s['label'] }}</option>
+                                    @endforeach
                                 </select>
                             </div>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Target Surah (Opsional)</label>
-                            <input type="text" name="target_surah" placeholder="Contoh: An-Naba s.d An-Nas" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white">
                         </div>
                     </div>
 
-                    {{-- Form Dinamis: Tahsin (Jilid 1 - 6) --}}
+                    {{-- Form Dinamis: Tahsin (Jilid 1 - 4 & Pilihan Nomor Halaman) --}}
                     <div x-show="targetProg === 'tahsin'" class="space-y-3">
                         <div>
                             <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Target Jilid</label>
                             <select name="target_jilid" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white">
-                                <option value="">-- Pilih Target Jilid --</option>
-                                @for($j=1; $j<=6; $j++)
-                                    <option value="Jilid {{ $j }}">Jilid {{ $j }}</option>
-                                @endfor
+                                <option value="">-- Pilih Target Jilid (1-4) --</option>
+                                <option value="Jilid 1">Jilid 1</option>
+                                <option value="Jilid 2">Jilid 2</option>
+                                <option value="Jilid 3">Jilid 3</option>
+                                <option value="Jilid 4">Jilid 4</option>
                             </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Halaman Mulai</label>
+                                <input type="number" name="target_page_start" value="1" min="1" max="100" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 text-slate-800 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Target Halaman Selesai</label>
+                                <input type="number" name="target_page_end" value="40" min="1" max="100" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 text-slate-800 dark:text-white">
+                            </div>
                         </div>
                     </div>
 
@@ -1929,15 +2090,16 @@
                         <textarea name="description" rows="2" placeholder="Catatan standar target atau fokus tajwid..." class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white"></textarea>
                     </div>
 
-                    <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-md shadow-emerald-600/30 transition flex items-center justify-center gap-2">
+                    <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-md shadow-emerald-600/30 transition flex items-center justify-center gap-2 cursor-pointer">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                         <span>Simpan Target Kurikulum</span>
                     </button>
                 </form>
             </div>
+            @endif
 
             {{-- Tabel Daftar Target yang Aktif --}}
-            <div class="lg:col-span-8 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
+            <div class="{{ $canManageTarget ? 'lg:col-span-8' : 'lg:col-span-12' }} bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
                 <div class="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
                     <div class="flex items-center gap-2">
                         <span class="text-xs sm:text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">
@@ -1959,7 +2121,9 @@
                                 <th class="py-3 px-4">Target Capaian</th>
                                 <th class="py-3 px-4 text-center">Standar Min</th>
                                 <th class="py-3 px-4">Keterangan</th>
-                                <th class="py-3 px-4 text-right">Aksi</th>
+                                @if($canManageTarget)
+                                    <th class="py-3 px-4 text-right">Aksi</th>
+                                @endif
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-200">
@@ -1980,7 +2144,12 @@
                                 </td>
                                 <td class="py-3 px-4">
                                     @if($t->program_type === 'tahsin')
-                                        <span class="font-black text-amber-600">{{ $t->target_jilid ?? 'Jilid' }}</span>
+                                        <div class="font-black text-amber-600">
+                                            {{ $t->target_jilid ?? 'Jilid' }}
+                                            @if($t->target_page_end)
+                                                <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">(Hal. {{ $t->target_page_start ?? 1 }} s.d {{ $t->target_page_end }})</span>
+                                            @endif
+                                        </div>
                                     @else
                                         <div class="font-bold text-slate-800 dark:text-white">
                                             @if($t->target_juz)
@@ -1989,9 +2158,9 @@
                                                 Juz {{ $t->target_juz_start }} {{ $t->target_juz_end ? '- ' . $t->target_juz_end : '' }}
                                             @endif
                                             @if($t->target_surah_start)
-                                                <span class="text-slate-400 font-normal">({{ $t->target_surah_start }} {{ $t->target_surah_end ? 's.d ' . $t->target_surah_end : '' }})</span>
+                                                <span class="text-slate-500 dark:text-slate-400 font-normal">({{ $t->target_surah_start }} {{ $t->target_surah_end ? 's.d ' . $t->target_surah_end : '' }})</span>
                                             @elseif($t->target_surah)
-                                                <span class="text-slate-400 font-normal">({{ $t->target_surah }})</span>
+                                                <span class="text-slate-500 dark:text-slate-400 font-normal">({{ $t->target_surah }})</span>
                                             @endif
                                         </div>
                                     @endif
@@ -2002,15 +2171,17 @@
                                 <td class="py-3 px-4 text-[11px] text-slate-400 max-w-xs truncate">
                                     {{ $t->notes ?: ($t->description ?: ($t->title ?: '-')) }}
                                 </td>
+                                @if($canManageTarget)
                                 <td class="py-3 px-4 text-right whitespace-nowrap">
                                     <form action="{{ route('admin.halaqah.target.destroy', $t->id) }}" method="POST" onsubmit="return confirm('Hapus target kurikulum ini?')">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition" title="Hapus Target">
+                                        <button type="submit" class="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer" title="Hapus Target">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                         </button>
                                     </form>
                                 </td>
+                                @endif
                             </tr>
                             @endforeach
                         </tbody>
@@ -2022,7 +2193,7 @@
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
                     </div>
                     <p class="text-xs font-bold text-slate-600 dark:text-slate-300">Belum Ada Target Kurikulum yang Ditentukan</p>
-                    <p class="text-[11px] text-slate-400">Gunakan form di sebelah kiri untuk menentukan target pencapaian santri per tingkat kelas.</p>
+                    <p class="text-[11px] text-slate-400">Target pencapaian santri per tingkat kelas akan tampil di sini.</p>
                 </div>
                 @endif
             </div>
@@ -2079,14 +2250,71 @@
                 <form action="{{ route('admin.halaqah.tasmi.store') }}" method="POST" class="space-y-4">
                     @csrf
                     
-                    <div>
-                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Pilih Santri yang Diuji</label>
-                        <select name="student_id" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white" required>
-                            <option value="">-- Pilih Santri --</option>
-                            @foreach($students ?? [] as $st)
-                                <option value="{{ $st->id }}">{{ $st->user?->name ?? 'Santri' }} (Kelas {{ $st->class?->name ?? '-' }})</option>
-                            @endforeach
+                    {{-- Selector Santri Cepat (Filter Rombel & Live Search) --}}
+                    <div x-data="{
+                        allStudents: {{ json_encode($tasmiStudents ?? []) }},
+                        classFilter: '',
+                        searchQuery: '',
+                        selectedStudentId: '',
+                        get filteredStudents() {
+                            return this.allStudents.filter(s => {
+                                const matchClass = !this.classFilter || s.class_id == this.classFilter;
+                                const q = this.searchQuery.toLowerCase().trim();
+                                const matchQuery = !q || (s.name && s.name.toLowerCase().includes(q)) || (s.nisn && s.nisn.toLowerCase().includes(q));
+                                return matchClass && matchQuery;
+                            });
+                        },
+                        get selectedStudent() {
+                            return this.allStudents.find(s => s.id == this.selectedStudentId);
+                        }
+                    }" class="space-y-2.5 p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-700">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-200">
+                                🔍 Pilih Santri yang Diuji
+                            </label>
+                            <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400" x-text="filteredStudents.length + ' santri ditemukan'"></span>
+                        </div>
+
+                        {{-- Filter Kelas & Live Search Bar --}}
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <select x-model="classFilter" class="w-full text-[11px] font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-1.5 px-2 text-slate-700 dark:text-slate-200 focus:ring-emerald-500">
+                                    <option value="">👥 Semua Kelas</option>
+                                    @foreach($allClasses as $c)
+                                        <option value="{{ $c->id }}">{{ $c->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <input type="text" x-model="searchQuery" placeholder="Cari nama / NISN..." class="w-full text-[11px] font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-1.5 px-2.5 text-slate-800 dark:text-white focus:ring-emerald-500">
+                            </div>
+                        </div>
+
+                        {{-- Dropdown Hasil Filter --}}
+                        <select name="student_id" x-model="selectedStudentId" class="w-full text-xs font-bold rounded-xl border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-800 py-2 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white" required>
+                            <option value="">-- Pilih Santri Terdaftar --</option>
+                            <template x-for="st in filteredStudents" :key="st.id">
+                                <option :value="st.id" x-text="st.name + ' (' + st.class_name + ' • ' + st.nisn + ')'"></option>
+                            </template>
                         </select>
+
+                        {{-- Preview Card Santri Terpilih --}}
+                        <template x-if="selectedStudent">
+                            <div class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between text-xs">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-7 h-7 rounded-lg bg-emerald-600 text-white font-black flex items-center justify-center text-[11px] shadow-xs">
+                                        ✓
+                                    </span>
+                                    <div>
+                                        <div class="font-black text-emerald-950 dark:text-emerald-100" x-text="selectedStudent.name"></div>
+                                        <div class="text-[10px] text-emerald-700 dark:text-emerald-400" x-text="'Kelas: ' + selectedStudent.class_name + ' • NISN: ' + selectedStudent.nisn"></div>
+                                    </div>
+                                </div>
+                                <button type="button" @click="selectedStudentId = ''" class="px-2 py-0.5 text-[10px] font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded transition cursor-pointer">
+                                    Ganti
+                                </button>
+                            </div>
+                        </template>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">

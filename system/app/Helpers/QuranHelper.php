@@ -144,4 +144,44 @@ class QuranHelper
         }
         return $options;
     }
+
+    /**
+     * Cari nomor surah berdasarkan nama surah
+     */
+    public static function getSurahNumberByName(?string $name): ?int
+    {
+        if (!$name) return null;
+        $clean = strtolower(preg_replace('/[^a-zA-Z]/', '', $name));
+        foreach (self::getAllSurahs() as $num => $s) {
+            $sClean = strtolower(preg_replace('/[^a-zA-Z]/', '', $s['name']));
+            if ($clean === $sClean || stripos($sClean, $clean) !== false || stripos($clean, $sClean) !== false) {
+                return $num;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Dapatkan daftar nama surah dalam rentang dua surah (mendukung urutan naik maupun turun seperti An-Nas s.d Al-Ma'un)
+     */
+    public static function getSurahNamesInRange($start, $end): array
+    {
+        $startNum = is_numeric($start) ? (int)$start : self::getSurahNumberByName((string)$start);
+        $endNum = is_numeric($end) ? (int)$end : self::getSurahNumberByName((string)$end);
+
+        if (!$startNum && !$endNum) return [];
+        if ($startNum && !$endNum) $endNum = $startNum;
+        if (!$startNum && $endNum) $startNum = $endNum;
+
+        $min = min($startNum, $endNum);
+        $max = max($startNum, $endNum);
+
+        $names = [];
+        foreach (self::getAllSurahs() as $num => $s) {
+            if ($num >= $min && $num <= $max) {
+                $names[] = $s['name'];
+            }
+        }
+        return $names;
+    }
 }

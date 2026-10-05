@@ -87,10 +87,19 @@ class DatabaseSchemaChecker
                     $table->string('target_surah_start', 100)->nullable();
                     $table->string('target_surah_end', 100)->nullable();
                     $table->string('target_jilid', 50)->nullable();
+                    $table->integer('target_page_start')->nullable();
+                    $table->integer('target_page_end')->nullable();
                     $table->text('notes')->nullable();
                     $table->timestamps();
                 });
                 $createdTables[] = 'quran_targets';
+            } else {
+                if (!Schema::hasColumn('quran_targets', 'target_page_start')) {
+                    Schema::table('quran_targets', function (Blueprint $table) {
+                        $table->integer('target_page_start')->nullable()->after('target_jilid');
+                        $table->integer('target_page_end')->nullable()->after('target_page_start');
+                    });
+                }
             }
 
             // 1c. Tabel Ujian Tasmi' & Syahadah Al-Qur'an (quran_tasmi_exams)

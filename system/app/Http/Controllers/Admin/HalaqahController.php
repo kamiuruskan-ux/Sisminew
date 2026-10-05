@@ -194,6 +194,20 @@ class HalaqahController extends Controller
             $query->whereIn('program_type', ['tahfidz', 'tilawah'])->where('juz_number', (int) $request->juz);
         }
 
+        // 6b. Filter Rentang Surah (Tahfidz / Tilawah)
+        $surahStart = $request->get('surah_start', 'all');
+        $surahEnd = $request->get('surah_end', 'all');
+        if (($surahStart !== 'all' && !empty($surahStart)) || ($surahEnd !== 'all' && !empty($surahEnd))) {
+            $surahNames = \App\Helpers\QuranHelper::getSurahNamesInRange(
+                $surahStart !== 'all' ? $surahStart : null,
+                $surahEnd !== 'all' ? $surahEnd : null
+            );
+            if (!empty($surahNames)) {
+                $query->whereIn('program_type', ['tahfidz', 'tilawah'])
+                      ->whereIn('surah_name', $surahNames);
+            }
+        }
+
         // 7. Filter Waktu (Harian / Bulanan / Rentang Tanggal / Semua)
         $timeFilter = $request->get('time_filter', 'all');
         if ($timeFilter === 'daily' || ($request->filled('date') && !$request->filled('date_from') && !$request->filled('month') && $timeFilter !== 'all')) {
@@ -239,13 +253,19 @@ class HalaqahController extends Controller
         }
 
         $isAdmin = $user->hasRole(['super-admin', 'admin', 'kepala-sekolah']);
+        $isCoordinator = $isAdmin 
+            || $user->hasRole(['koordinator-quran', 'koordinator_quran', 'wakasek-kurikulum'])
+            || \App\Models\Setting::get('quran_coordinator_id') == $user->id
+            || (bool) (stripos($user->name, 'koordinator') !== false)
+            || (bool) (stripos($user->email, 'koordinator') !== false);
+        $canManageTarget = $isCoordinator;
         
         // Daftar Guru Al-Qur'an (untuk dropdown Admin / selector kelompok)
         $quranTeachers = User::whereHas('roles', function ($rq) {
             $rq->whereIn('slug', ['guru-quran', 'guru_quran', 'guru', 'teacher']);
         })->orderBy('name', 'asc')->get();
 
-        $tab = $request->get('tab', 'input'); // 'input', 'history', 'reports', 'attendance'
+        $tab = $request->get('tab', 'input'); // 'input', 'history', 'reports', 'attendance', 'target', 'tasmi'
         $mode = $request->get('mode', 'individual'); // 'individual', 'mass'
 
         // ── 1. Resolusi Guru Pembimbing Aktif untuk Tab Input ──
@@ -305,8 +325,8 @@ class HalaqahController extends Controller
         $academicYears = AcademicYear::orderBy('start_year', 'desc')->get();
         $activeAcademicYear = AcademicYear::getActive() ?? $academicYears->first();
         
-        // Filter options untuk tampilan (Tahsin hanya Jilid 1 - 6, Tilawah berdiri sendiri mengikuti acuan Tahfidz)
-        $allJilidOptions = ['Jilid 1', 'Jilid 2', 'Jilid 3', 'Jilid 4', 'Jilid 5', 'Jilid 6'];
+        // Filter options untuk tampilan (Tahsin murni Jilid 1 - 4, Tilawah berdiri sendiri mengikuti acuan Tahfidz)
+        $allJilidOptions = ['Jilid 1', 'Jilid 2', 'Jilid 3', 'Jilid 4'];
         $allJuzOptions = [30, 29, 28, 27, 26, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25];
 
         $filterGrade = (string) $selectedGrade;
@@ -314,6 +334,8 @@ class HalaqahController extends Controller
         $filterProgram = $request->get('program', $request->get('history_program', 'all'));
         $filterJilid = $request->get('jilid', 'all');
         $filterJuz = $request->get('juz', 'all');
+        $filterSurahStart = $request->get('surah_start', 'all');
+        $filterSurahEnd = $request->get('surah_end', 'all');
         $timeFilter = $request->get('time_filter', 'all');
         $selectedDate = $request->get('date', Carbon::today()->format('Y-m-d'));
         $selectedMonth = (int) $request->get('month', Carbon::now()->month);
@@ -528,6 +550,176 @@ class HalaqahController extends Controller
         }
         $attentionStudents = collect($attentionStudents);
 
+        // ── SEBARAN PER SURAH (UNTUK TAB LAPORAN & GRAFIK) ──
+        $surahDistribution = [];
+        $surahRangeNames = [];
+        if (($filterSurahStart !== 'all' && !empty($filterSurahStart)) || ($filterSurahEnd !== 'all' && !empty($filterSurahEnd))) {
+            $surahRangeNames = \App\Helpers\QuranHelper::getSurahNamesInRange(
+                $filterSurahStart !== 'all' ? $filterSurahStart : null,
+                $filterSurahEnd !== 'all' ? $filterSurahEnd : null
+            );
+        }
+
+        $surahCounts = (clone $statsQuery)
+            ->whereIn('program_type', ['tahfidz', 'tilawah'])
+            ->whereNotNull('surah_name')
+            ->where('surah_name', '!=', '')
+            ->select('surah_name', DB::raw('COUNT(*) as total_setoran'), DB::raw('COUNT(DISTINCT student_id) as total_santri'))
+            ->groupBy('surah_name')
+            ->get()
+            ->keyBy('surah_name');
+
+        if (!empty($surahRangeNames)) {
+            foreach ($surahRangeNames as $sName) {
+                $data = $surahCounts->get($sName);
+                $surahDistribution[$sName] = [
+                    'setoran' => $data ? $data->total_setoran : 0,
+                    'santri' => $data ? $data->total_santri : 0,
+                    'number' => \App\Helpers\QuranHelper::getSurahNumberByName($sName) ?? 0,
+                ];
+            }
+        } else {
+            // Default top 12 surah yang aktif
+            foreach ($surahCounts->sortByDesc('total_setoran')->take(12) as $sName => $data) {
+                $surahDistribution[$sName] = [
+                    'setoran' => $data->total_setoran,
+                    'santri' => $data->total_santri,
+                    'number' => \App\Helpers\QuranHelper::getSurahNumberByName($sName) ?? 0,
+                ];
+            }
+        }
+
+        // ── KETERCAPAIAN TARGET KURIKULUM PER KELAS ──
+        $classTargetAchievements = [];
+        $allTargets = QuranTarget::all();
+        $studentsByClass = Student::select('id', 'class_id', 'student_status')
+            ->where(function($sq) {
+                $sq->where('student_status', 'active')
+                   ->orWhereNull('student_status');
+            })
+            ->get()
+            ->groupBy('class_id');
+
+        $latestTahsinByStudent = HalaqahRecord::where('program_type', 'tahsin')
+            ->select('student_id', 'jilid_level', 'page_number')
+            ->orderBy('assessment_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->get()
+            ->unique('student_id')
+            ->keyBy('student_id');
+
+        $latestTahfidzByStudent = HalaqahRecord::where('program_type', 'tahfidz')
+            ->select('student_id', 'juz_number', 'surah_name')
+            ->orderBy('assessment_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->get()
+            ->unique('student_id')
+            ->keyBy('student_id');
+
+        // Evaluasi per kelas
+        $classesToEvaluate = $allClasses;
+        if ($filterGrade !== 'all' && is_numeric($filterGrade)) {
+            $classesToEvaluate = $classesToEvaluate->where('grade', (int)$filterGrade);
+        }
+        if ($filterClassId !== 'all') {
+            $classesToEvaluate = $classesToEvaluate->where('id', (int)$filterClassId);
+        }
+
+        foreach ($classesToEvaluate as $cls) {
+            $clsStudents = $studentsByClass->get($cls->id, collect());
+            $totalStudents = $clsStudents->count();
+
+            // Target untuk tingkat kelas ini
+            $gradeTargets = $allTargets->where('grade', $cls->grade);
+            $tahsinTarget = $gradeTargets->where('program_type', 'tahsin')->sortByDesc('semester')->first();
+            $tahfidzTarget = $gradeTargets->where('program_type', 'tahfidz')->sortByDesc('semester')->first();
+
+            // Label target
+            $tahsinTargetLabel = $tahsinTarget 
+                ? ($tahsinTarget->target_jilid . ($tahsinTarget->target_page_end ? ' Hal. ' . $tahsinTarget->target_page_end : '')) 
+                : 'Target Belum Diset';
+            $tahfidzTargetLabel = $tahfidzTarget 
+                ? (($tahfidzTarget->target_juz ? 'Juz ' . $tahfidzTarget->target_juz : '') . ($tahfidzTarget->target_surah_start ? ' (' . $tahfidzTarget->target_surah_start . ($tahfidzTarget->target_surah_end ? ' s.d ' . $tahfidzTarget->target_surah_end : '') . ')' : '')) 
+                : 'Target Belum Diset';
+
+            // Target values
+            $targetJilidNum = $tahsinTarget ? (int) filter_var($tahsinTarget->target_jilid, FILTER_SANITIZE_NUMBER_INT) : 0;
+            $targetPageEnd = $tahsinTarget?->target_page_end ?? 0;
+            $targetJuzNum = $tahfidzTarget?->target_juz ?? 0;
+
+            $tahsinAchieved = 0;
+            $tahfidzAchieved = 0;
+
+            if ($totalStudents > 0) {
+                foreach ($clsStudents as $st) {
+                    // Check Tahsin
+                    $stTahsin = $latestTahsinByStudent->get($st->id);
+                    if ($stTahsin) {
+                        $stJilidNum = (int) filter_var($stTahsin->jilid_level, FILTER_SANITIZE_NUMBER_INT);
+                        if ($targetJilidNum > 0) {
+                            if ($stJilidNum > $targetJilidNum) {
+                                $tahsinAchieved++;
+                            } elseif ($stJilidNum === $targetJilidNum) {
+                                if (!$targetPageEnd || ($stTahsin->page_number >= $targetPageEnd)) {
+                                    $tahsinAchieved++;
+                                }
+                            }
+                        } else {
+                            $tahsinAchieved++;
+                        }
+                    }
+
+                    // Check Tahfidz
+                    $stTahfidz = $latestTahfidzByStudent->get($st->id);
+                    if ($stTahfidz) {
+                        if ($targetJuzNum > 0) {
+                            if ($stTahfidz->juz_number == $targetJuzNum || $stTahfidz->juz_number > 0) {
+                                $tahfidzAchieved++;
+                            }
+                        } else {
+                            $tahfidzAchieved++;
+                        }
+                    }
+                }
+            }
+
+            $tahsinPct = $totalStudents > 0 ? round(($tahsinAchieved / $totalStudents) * 100) : 0;
+            $tahfidzPct = $totalStudents > 0 ? round(($tahfidzAchieved / $totalStudents) * 100) : 0;
+            $overallPct = round(($tahsinPct + $tahfidzPct) / 2);
+
+            $classTargetAchievements[] = [
+                'class_id' => $cls->id,
+                'class_name' => $cls->name,
+                'grade' => $cls->grade,
+                'total_students' => $totalStudents,
+                'tahsin_target' => $tahsinTargetLabel,
+                'tahsin_achieved' => $tahsinAchieved,
+                'tahsin_pct' => $tahsinPct,
+                'tahfidz_target' => $tahfidzTargetLabel,
+                'tahfidz_achieved' => $tahfidzAchieved,
+                'tahfidz_pct' => $tahfidzPct,
+                'overall_pct' => $overallPct,
+            ];
+        }
+
+        // ── DAFTAR SANTRI CEPAT UNTUK UJIAN TASMI' ──
+        $tasmiStudents = Student::with(['user', 'class'])
+            ->whereHas('user')
+            ->get()
+            ->map(function ($st) {
+                return [
+                    'id' => $st->id,
+                    'name' => $st->user?->name ?? 'Santri',
+                    'nisn' => $st->nisn ?? $st->nis ?? '-',
+                    'class_id' => $st->class_id,
+                    'class_name' => $st->class?->name ?? 'Tanpa Kelas',
+                    'grade' => $st->class?->grade ?? 0,
+                ];
+            })
+            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values()
+            ->toArray();
+
         // ── TARGET CAPAIAN HAFALAN & TILAWAH ──
         $targets = QuranTarget::orderBy('grade', 'asc')->orderBy('semester', 'asc')->get();
 
@@ -551,6 +743,8 @@ class HalaqahController extends Controller
             'activeTeacherId',
             'activeTeacher',
             'isAdmin',
+            'isCoordinator',
+            'canManageTarget',
             'allClasses',
             'classesInSelectedGrade',
             'academicYears',
@@ -574,6 +768,9 @@ class HalaqahController extends Controller
             'predicateDistribution',
             'jilidStats',
             'juzStats',
+            'surahDistribution',
+            'classTargetAchievements',
+            'tasmiStudents',
             'studentReportList',
             'attendanceStats',
             'totalAttendanceEntries',
@@ -598,6 +795,8 @@ class HalaqahController extends Controller
             'filterCategory',
             'filterJilid',
             'filterJuz',
+            'filterSurahStart',
+            'filterSurahEnd',
             'timeFilter',
             'selectedMonth',
             'selectedYear',
@@ -1060,10 +1259,22 @@ class HalaqahController extends Controller
     }
 
     /**
-     * Simpan Target Hafalan / Tilawah Baru
+     * Simpan Target Hafalan / Tilawah / Tahsin Baru (Khusus Koordinator & Admin)
      */
     public function storeTarget(Request $request)
     {
+        $user = Auth::user();
+        $isAdmin = $user->hasRole(['super-admin', 'admin', 'kepala-sekolah']);
+        $isCoordinator = $isAdmin 
+            || $user->hasRole(['koordinator-quran', 'koordinator_quran', 'wakasek-kurikulum'])
+            || \App\Models\Setting::get('quran_coordinator_id') == $user->id
+            || (bool) (stripos($user->name, 'koordinator') !== false)
+            || (bool) (stripos($user->email, 'koordinator') !== false);
+
+        if (!$isCoordinator) {
+            return back()->with('error', 'Akses ditolak. Target kurikulum Al-Qur\'an hanya dapat diinput dan dikelola oleh Koordinator Al-Qur\'an dan Administrator.');
+        }
+
         $request->validate([
             'grade' => 'required|integer',
             'semester' => 'required|in:1,2',
@@ -1073,7 +1284,7 @@ class HalaqahController extends Controller
         $title = $request->input('title');
         if (empty($title)) {
             $progLabel = match($request->program_type) {
-                'tahsin' => 'Tahsin ' . ($request->target_jilid ?? 'Jilid'),
+                'tahsin' => 'Tahsin ' . ($request->target_jilid ?? 'Jilid') . ($request->target_page_end ? ' Hal. ' . $request->target_page_end : ''),
                 'tilawah' => 'Tilawah ' . ($request->target_juz ? 'Juz ' . $request->target_juz : ''),
                 default => 'Tahfidz ' . ($request->target_juz ? 'Juz ' . $request->target_juz : '')
             };
@@ -1089,6 +1300,8 @@ class HalaqahController extends Controller
             'target_surah_start' => $request->target_surah_start ?? $request->target_surah,
             'target_surah_end' => $request->target_surah_end,
             'target_jilid' => $request->target_jilid,
+            'target_page_start' => $request->target_page_start,
+            'target_page_end' => $request->target_page_end,
             'notes' => $request->notes ?? $request->description,
         ]);
 
@@ -1097,10 +1310,22 @@ class HalaqahController extends Controller
     }
 
     /**
-     * Hapus Target Hafalan
+     * Hapus Target Hafalan (Khusus Koordinator & Admin)
      */
     public function destroyTarget($id)
     {
+        $user = Auth::user();
+        $isAdmin = $user->hasRole(['super-admin', 'admin', 'kepala-sekolah']);
+        $isCoordinator = $isAdmin 
+            || $user->hasRole(['koordinator-quran', 'koordinator_quran', 'wakasek-kurikulum'])
+            || \App\Models\Setting::get('quran_coordinator_id') == $user->id
+            || (bool) (stripos($user->name, 'koordinator') !== false)
+            || (bool) (stripos($user->email, 'koordinator') !== false);
+
+        if (!$isCoordinator) {
+            return back()->with('error', 'Akses ditolak. Target kurikulum Al-Qur\'an hanya dapat dihapus oleh Koordinator Al-Qur\'an dan Administrator.');
+        }
+
         QuranTarget::findOrFail($id)->delete();
         return back()->with('success', 'Target capaian Al-Qur\'an berhasil dihapus.');
     }
