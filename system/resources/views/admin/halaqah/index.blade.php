@@ -8,10 +8,53 @@
     activeTab: '{{ $tab }}',
     evalMode: '{{ $mode }}',
     programType: 'tahsin',
+    recordCategory: 'ziyadah',
     tahsinType: 'jilid',
     scoreCognitive: 90,
     scoreAdab: 85,
     selectedJuz: 30,
+    lastRecord: null,
+    isLoadingLastRecord: false,
+    fetchLastRecord(studentId) {
+        if (!studentId) {
+            this.lastRecord = null;
+            return;
+        }
+        this.isLoadingLastRecord = true;
+        fetch(`/admin/halaqah/last-record/${studentId}`)
+            .then(res => res.json())
+            .then(data => {
+                this.lastRecord = data;
+                this.isLoadingLastRecord = false;
+            })
+            .catch(() => {
+                this.isLoadingLastRecord = false;
+            });
+    },
+    applySmartAssist() {
+        if (!this.lastRecord) return;
+        const sug = this.lastRecord.suggested;
+        this.programType = sug.program_type || 'tahfidz';
+        this.recordCategory = sug.record_category || 'ziyadah';
+        if (this.programType === 'tahsin') {
+            const jilidSelect = document.querySelector('select[name=\'jilid_level\']');
+            if (jilidSelect && sug.jilid_level) jilidSelect.value = sug.jilid_level;
+            const pStart = document.querySelector('input[name=\'page_start\']');
+            const pEnd = document.querySelector('input[name=\'page_end\']');
+            if (pStart && sug.page_start) pStart.value = sug.page_start;
+            if (pEnd && sug.page_end) pEnd.value = sug.page_end;
+        } else {
+            const surahSelect = document.querySelector('select[name=\'surah_name\']');
+            if (surahSelect && sug.surah_name) {
+                surahSelect.value = sug.surah_name;
+                this.selectedJuz = sug.juz_number || 30;
+            }
+            const aStart = document.querySelector('input[name=\'ayat_start\']');
+            const aEnd = document.querySelector('input[name=\'ayat_end\']');
+            if (aStart && sug.ayat_start) aStart.value = sug.ayat_start;
+            if (aEnd && sug.ayat_end) aEnd.value = sug.ayat_end;
+        }
+    },
     onSurahChange(event) {
         const sel = event.target;
         const opt = sel.options[sel.selectedIndex];
@@ -29,6 +72,7 @@
 
     // Template massal default
     massProgram: 'tahsin',
+    massCategory: 'ziyadah',
     massTahsinType: 'jilid',
     massJilid: 'Jilid 1',
     massStart: 1,
@@ -38,6 +82,7 @@
     massNotes: 'Makhraj & kelancaran tajwid baik',
     applyTemplateToAll() {
         document.querySelectorAll('.mass-program-select').forEach(el => el.value = this.massProgram);
+        document.querySelectorAll('.mass-category-select').forEach(el => el.value = this.massCategory);
         document.querySelectorAll('.mass-jilid-select').forEach(el => el.value = this.massJilid);
         document.querySelectorAll('.mass-start-input').forEach(el => el.value = this.massStart);
         document.querySelectorAll('.mass-end-input').forEach(el => el.value = this.massEnd);
@@ -174,7 +219,7 @@
             <a href="{{ route('admin.halaqah.index', ['tab' => 'input', 'grade' => is_numeric($selectedGrade) ? $selectedGrade : 1, 'mode' => $mode, 'teacher_id' => $activeTeacherId]) }}"
                class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'input' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                <span>Input &amp; Catatan Evaluasi</span>
+                <span>Input Evaluasi</span>
             </a>
 
             <a href="{{ route('admin.halaqah.index', array_filter(['tab' => 'history', 'grade' => $filterGrade !== 'all' ? $filterGrade : null, 'teacher_id' => ($isAdmin && $filterTeacherId !== 'all') ? $filterTeacherId : null])) }}"
@@ -186,13 +231,25 @@
             <a href="{{ route('admin.halaqah.index', array_filter(['tab' => 'reports', 'grade' => $filterGrade !== 'all' ? $filterGrade : null, 'teacher_id' => ($isAdmin && $filterTeacherId !== 'all') ? $filterTeacherId : null])) }}"
                class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'reports' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                <span>Laporan Harian &amp; Bulanan + Grafik</span>
+                <span>Laporan &amp; Grafik</span>
             </a>
 
             <a href="{{ route('admin.halaqah.index', array_filter(['tab' => 'attendance', 'grade' => $filterGrade !== 'all' ? $filterGrade : null, 'teacher_id' => ($isAdmin && $filterTeacherId !== 'all') ? $filterTeacherId : null])) }}"
                class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'attendance' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                <span>Rekap Kehadiran</span>
+                <span>Presensi</span>
+            </a>
+
+            <a href="{{ route('admin.halaqah.index', ['tab' => 'target', 'grade' => is_numeric($selectedGrade) ? $selectedGrade : 1]) }}"
+               class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'target' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                <span>Target Hafalan</span>
+            </a>
+
+            <a href="{{ route('admin.halaqah.index', ['tab' => 'tasmi']) }}"
+               class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'tasmi' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+                <span>Ujian Tasmi' 1 Juz</span>
             </a>
         </div>
 
@@ -337,7 +394,7 @@
                             Pilih Nama Santri (Kelompok Anda)
                         </label>
                         @if(count($students) > 0)
-                            <select name="student_id" required
+                            <select name="student_id" required @change="fetchLastRecord($event.target.value)"
                                     class="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition">
                                 <option value="">-- Pilih Santri ({{ count($students) }} dalam Kelompok Anda) --</option>
                                 @foreach($students as $st)
@@ -346,6 +403,37 @@
                                     </option>
                                 @endforeach
                             </select>
+
+                            {{-- SMART ASSIST: Capaian Terakhir Santri & Auto-Fill --}}
+                            <div x-show="lastRecord" x-transition class="mt-2.5 p-3.5 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-800/60 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[10px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                        Smart Assist: Capaian Terakhir Santri
+                                    </span>
+                                    <template x-if="lastRecord && lastRecord.record">
+                                        <span class="text-[10px] font-bold text-slate-500" x-text="lastRecord.record.date"></span>
+                                    </template>
+                                </div>
+                                <template x-if="lastRecord && lastRecord.record">
+                                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                        <div class="space-y-0.5">
+                                            <p class="text-xs font-black text-slate-800 dark:text-white" x-text="lastRecord.record.material_summary"></p>
+                                            <p class="text-[10px] text-slate-500">
+                                                Nilai: <strong class="text-emerald-600" x-text="lastRecord.record.score_cognitive"></strong> (<span x-text="lastRecord.record.predicate"></span>) &bull;
+                                                Kategori: <span class="capitalize font-bold text-teal-700" x-text="lastRecord.record.record_category"></span>
+                                            </p>
+                                        </div>
+                                        <button type="button" @click="applySmartAssist()"
+                                                class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-extrabold shadow-xs transition flex items-center gap-1 cursor-pointer shrink-0 self-start sm:self-center">
+                                            <span>⚡ Lanjutkan Otomatis</span>
+                                        </button>
+                                    </div>
+                                </template>
+                                <template x-if="lastRecord && !lastRecord.record">
+                                    <p class="text-xs text-slate-500 italic">Belum ada riwayat setoran sebelumnya untuk santri ini.</p>
+                                </template>
+                            </div>
                         @else
                             {{-- Empty State Ramah: Belum ada santri di kelompok tingkat ini --}}
                             <div class="p-4 bg-amber-50/80 dark:bg-amber-950/40 rounded-2xl border border-dashed border-amber-300 dark:border-amber-800 text-center space-y-2">
@@ -364,17 +452,18 @@
                         @endif
                     </div>
 
-                    {{-- Jenis Program Materi --}}
+                    {{-- Jenis Program Materi (Tahsin, Tahfidz, Tilawah) --}}
                     <div>
                         <label class="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Jenis Program Materi</label>
                         <select name="program_type" x-model="programType"
                                 class="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition">
-                            <option value="tahsin">TAHSIN (Bimbingan)</option>
+                            <option value="tahsin">TAHSIN (Metode/Jilid)</option>
                             <option value="tahfidz">TAHFIDZ (Hafalan)</option>
+                            <option value="tilawah">TILAWAH (Al-Qur'an)</option>
                         </select>
                     </div>
 
-                    {{-- Detail Lembar Jika Tahsin --}}
+                    {{-- Detail Lembar Jika Tahsin (HANYA JILID 1 - 6, PILIHAN TILAWAH DIHAPUS) --}}
                     <div x-show="programType === 'tahsin'" class="space-y-3 p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
                         <div class="grid grid-cols-2 gap-3">
                             <div>
@@ -384,7 +473,8 @@
                                     <option value="Jilid 2">Jilid 2</option>
                                     <option value="Jilid 3">Jilid 3</option>
                                     <option value="Jilid 4">Jilid 4</option>
-                                    <option value="Tilawah">Tilawah</option>
+                                    <option value="Jilid 5">Jilid 5</option>
+                                    <option value="Jilid 6">Jilid 6</option>
                                 </select>
                             </div>
                             <div>
@@ -398,8 +488,25 @@
                         </div>
                     </div>
 
-                    {{-- Detail Surah & Ayat Jika Tahfidz --}}
-                    <div x-show="programType === 'tahfidz'" class="space-y-3 p-3.5 bg-emerald-50/50 dark:bg-emerald-950/30 rounded-2xl border border-emerald-100 dark:border-emerald-800/40">
+                    {{-- Detail Surah & Ayat Jika Tahfidz ATAU Tilawah (Mengikuti Acuan Penilaian Tahfidz) --}}
+                    <div x-show="programType === 'tahfidz' || programType === 'tilawah'" class="space-y-3 p-3.5 bg-emerald-50/50 dark:bg-emerald-950/30 rounded-2xl border border-emerald-100 dark:border-emerald-800/40">
+                        {{-- Kategori Ziyadah vs Muroja'ah --}}
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-1">Kategori Capaian</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <label class="flex items-center justify-center p-2 rounded-xl border cursor-pointer text-xs font-bold transition"
+                                       :class="recordCategory === 'ziyadah' ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'">
+                                    <input type="radio" name="record_category" value="ziyadah" x-model="recordCategory" class="sr-only">
+                                    <span>🌱 Ziyadah (Hafalan Baru)</span>
+                                </label>
+                                <label class="flex items-center justify-center p-2 rounded-xl border cursor-pointer text-xs font-bold transition"
+                                       :class="recordCategory === 'murojaah' ? 'bg-teal-600 text-white border-teal-600 shadow-xs' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'">
+                                    <input type="radio" name="record_category" value="murojaah" x-model="recordCategory" class="sr-only">
+                                    <span>🔁 Muroja'ah (Pengulangan)</span>
+                                </label>
+                            </div>
+                        </div>
+
                         <div>
                             <label class="block text-[10px] font-bold text-slate-500 mb-1">Pilihan Nama Surah</label>
                             <select name="surah_name" @change="onSurahChange($event)" class="w-full px-3 py-2 border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl text-xs font-bold">
@@ -506,8 +613,11 @@
                                     <div class="text-[10px] text-slate-400">{{ $rec->class->name ?? '-' }}</div>
                                 </td>
                                 <td class="py-2.5 px-3">
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold {{ $rec->program_type === 'tahsin' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800' }}">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold {{ $rec->program_type === 'tahsin' ? 'bg-amber-100 text-amber-800' : ($rec->program_type === 'tilawah' ? 'bg-teal-100 text-teal-800' : 'bg-emerald-100 text-emerald-800') }}">
                                         {{ strtoupper($rec->program_type) }}
+                                    </span>
+                                    <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                        {{ $rec->record_category === 'murojaah' ? "Mur." : "Ziy." }}
                                     </span>
                                     <div class="text-[11px] font-medium text-slate-600 dark:text-slate-300 mt-0.5">
                                         {{ $rec->material_summary }}
@@ -522,6 +632,10 @@
                                     {{ $rec->score_cognitive }}
                                 </td>
                                 <td class="py-2.5 px-3 text-right whitespace-nowrap">
+                                    <a href="{{ route('admin.halaqah.send-wa', $rec->id) }}" target="_blank"
+                                       class="p-1 text-emerald-600 hover:text-emerald-800 transition inline-block mr-1" title="Kirim Resume WA ke Orang Tua">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                                    </a>
                                     <form action="{{ route('admin.halaqah.destroy', $rec->id) }}" method="POST" onsubmit="return confirm('Hapus catatan riwayat halaqah ini?')" class="inline">
                                         @csrf
                                         @method('DELETE')
@@ -627,6 +741,7 @@
                             <select x-model="massProgram" class="w-full px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg font-bold">
                                 <option value="tahsin">TAHSIN</option>
                                 <option value="tahfidz">TAHFIDZ</option>
+                                <option value="tilawah">TILAWAH</option>
                             </select>
                         </div>
                         <div>
@@ -636,7 +751,8 @@
                                 <option value="Jilid 2">Jilid 2</option>
                                 <option value="Jilid 3">Jilid 3</option>
                                 <option value="Jilid 4">Jilid 4</option>
-                                <option value="Tilawah">Tilawah</option>
+                                <option value="Jilid 5">Jilid 5</option>
+                                <option value="Jilid 6">Jilid 6</option>
                             </select>
                         </div>
                         <div>
@@ -694,17 +810,23 @@
                                 </td>
                                 <td class="py-3 px-3">
                                     <div class="flex flex-col gap-1.5">
-                                        <div class="flex items-center gap-1.5">
+                                        <div class="flex items-center gap-1.5 flex-wrap">
                                             <select name="items[{{ $st->id }}][program_type]" class="mass-program-select px-2 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold">
                                                 <option value="tahsin">Tahsin</option>
                                                 <option value="tahfidz">Tahfidz</option>
+                                                <option value="tilawah">Tilawah</option>
+                                            </select>
+                                            <select name="items[{{ $st->id }}][record_category]" class="mass-category-select px-2 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold">
+                                                <option value="ziyadah">Ziyadah</option>
+                                                <option value="murojaah">Muroja'ah</option>
                                             </select>
                                             <select name="items[{{ $st->id }}][jilid_level]" class="mass-jilid-select px-2 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold">
                                                 <option value="Jilid 1">Jilid 1</option>
                                                 <option value="Jilid 2">Jilid 2</option>
                                                 <option value="Jilid 3">Jilid 3</option>
                                                 <option value="Jilid 4">Jilid 4</option>
-                                                <option value="Tilawah">Tilawah</option>
+                                                <option value="Jilid 5">Jilid 5</option>
+                                                <option value="Jilid 6">Jilid 6</option>
                                             </select>
                                         </div>
                                         <select name="items[{{ $st->id }}][surah_name]" class="mass-surah-select w-full px-2 py-1 border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-800 rounded-lg text-[10px] font-bold">
@@ -915,21 +1037,44 @@
                                 @endif
                                 <td class="py-3 px-4">
                                     @if($item->program_type === 'tahsin')
-                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 text-[10px] font-black uppercase">
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 text-[10px] font-black uppercase">
                                             Tahsin
                                         </span>
                                         <p class="text-xs font-bold text-slate-800 dark:text-white mt-0.5">
-                                            {{ $item->tahsin_type === 'tilawah' ? 'Tilawah Al-Qur\'an' : ($item->jilid_level ?? 'Jilid') }}
+                                            {{ $item->jilid_level ?? 'Jilid' }}
                                             @if($item->page_start && $item->page_end)
                                                 <span class="text-slate-400 font-normal">• hl. {{ $item->page_start }} - {{ $item->page_end }}</span>
                                             @elseif($item->page_start)
                                                 <span class="text-slate-400 font-normal">• hl. {{ $item->page_start }}</span>
                                             @endif
                                         </p>
+                                    @elseif($item->program_type === 'tilawah')
+                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-50 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 text-[10px] font-black uppercase">
+                                                Tilawah
+                                            </span>
+                                            <span class="px-1.5 py-0.2 rounded text-[9px] font-bold {{ $item->record_category === 'murojaah' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300' }}">
+                                                {{ $item->record_category === 'murojaah' ? 'Muroja\'ah' : 'Ziyadah' }}
+                                            </span>
+                                        </div>
+                                        <p class="text-xs font-bold text-slate-800 dark:text-white mt-0.5">
+                                            Surah {{ $item->surah_name ?? '-' }}
+                                            @if($item->ayat_start && $item->ayat_end)
+                                                <span class="text-slate-400 font-normal">({{ $item->ayat_start }}-{{ $item->ayat_end }})</span>
+                                            @endif
+                                            @if($item->juz_number)
+                                                <span class="px-1.5 py-0.2 bg-sky-100 dark:bg-sky-900/60 text-sky-800 dark:text-sky-200 text-[9px] rounded font-extrabold ml-1">Juz {{ $item->juz_number }}</span>
+                                            @endif
+                                        </p>
                                     @else
-                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300 text-[10px] font-black uppercase">
-                                            Tahfidz
-                                        </span>
+                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300 text-[10px] font-black uppercase">
+                                                Tahfidz
+                                            </span>
+                                            <span class="px-1.5 py-0.2 rounded text-[9px] font-bold {{ $item->record_category === 'murojaah' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300' }}">
+                                                {{ $item->record_category === 'murojaah' ? 'Muroja\'ah' : 'Ziyadah' }}
+                                            </span>
+                                        </div>
                                         <p class="text-xs font-bold text-slate-800 dark:text-white mt-0.5">
                                             Surah {{ $item->surah_name ?? '-' }}
                                             @if($item->ayat_start && $item->ayat_end)
@@ -985,13 +1130,20 @@
                                     {{ $item->teacher_notes ?: '-' }}
                                 </td>
                                 <td class="py-3 px-4 text-right whitespace-nowrap">
-                                    <form action="{{ route('admin.halaqah.destroy', $item->id) }}" method="POST" onsubmit="return confirm('Hapus riwayat penilaian halaqah ini?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition" title="Hapus Catatan">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                        </button>
-                                    </form>
+                                    <div class="inline-flex items-center gap-1">
+                                        <a href="{{ route('admin.halaqah.send-wa', $item->id) }}" target="_blank"
+                                           class="p-1.5 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg transition"
+                                           title="Kirim Resume via WhatsApp">
+                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2zm.01 16.74c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31c-.82-1.31-1.26-2.83-1.26-4.38 0-4.54 3.7-8.24 8.24-8.24 2.2 0 4.27.86 5.82 2.42a8.18 8.18 0 012.41 5.83c.02 4.54-3.68 8.23-8.22 8.23zm4.52-6.17c-.25-.12-1.47-.72-1.7-.81-.23-.08-.39-.12-.56.12-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.02-.38.11-.5.11-.11.25-.29.37-.43.12-.14.17-.25.25-.41.08-.17.04-.31-.02-.43s-.56-1.34-.76-1.84c-.2-.48-.41-.42-.56-.43h-.48c-.17 0-.43.06-.66.31-.22.25-.86.84-.86 2.05s.88 2.38 1 2.55c.12.17 1.73 2.65 4.2 3.71.59.25 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.15-1.18-.06-.12-.22-.19-.47-.31z"/></svg>
+                                        </a>
+                                        <form action="{{ route('admin.halaqah.destroy', $item->id) }}" method="POST" onsubmit="return confirm('Hapus riwayat penilaian halaqah ini?')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition" title="Hapus Catatan">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                             @endforeach
@@ -1035,7 +1187,7 @@
 
                         <div class="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl flex items-center justify-between text-xs">
                             <div>
-                                <span class="text-[10px] font-extrabold uppercase text-slate-400">{{ $item->program_type }}:</span>
+                                <span class="text-[10px] font-extrabold uppercase text-slate-400">{{ $item->program_type }} ({{ $item->record_category ?? 'ziyadah' }}):</span>
                                 <span class="font-bold text-slate-700 dark:text-slate-200">
                                     @if($item->program_type === 'tahsin')
                                         {{ $item->jilid_level ?? 'Jilid' }} (hl. {{ $item->page_start ?? 1 }}-{{ $item->page_end ?? '-' }})
@@ -1055,7 +1207,12 @@
                         </p>
                         @endif
 
-                        <div class="flex items-center justify-end pt-1">
+                        <div class="flex items-center justify-between pt-1">
+                            <a href="{{ route('admin.halaqah.send-wa', $item->id) }}" target="_blank"
+                               class="text-[11px] font-bold text-emerald-600 hover:underline flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/></svg>
+                                <span>Kirim Resume WA</span>
+                            </a>
                             <form action="{{ route('admin.halaqah.destroy', $item->id) }}" method="POST" onsubmit="return confirm('Hapus riwayat penilaian ini?')">
                                 @csrf
                                 @method('DELETE')
@@ -1149,6 +1306,72 @@
         {{-- Menu Filter Komprehensif --}}
         @include('admin.halaqah.partials.filter-bar')
 
+        {{-- Early Warning System: Santri Butuh Pendampingan / Mandek > 7 Hari / Predikat Maqbul --}}
+        @if(isset($attentionStudents) && $attentionStudents->count() > 0)
+        <div class="bg-gradient-to-r from-rose-50 to-amber-50 dark:from-rose-950/40 dark:to-amber-950/30 rounded-3xl p-5 sm:p-6 border border-rose-200/80 dark:border-rose-900/60 shadow-xs space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-rose-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-rose-500/20">
+                        <svg class="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-black text-rose-900 dark:text-rose-200 uppercase tracking-wide flex items-center gap-2">
+                            <span>Early Warning System Halaqah</span>
+                            <span class="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-extrabold">{{ $attentionStudents->count() }} Santri</span>
+                        </h3>
+                        <p class="text-xs text-rose-700 dark:text-rose-300">
+                            Santri yang belum setor hafalan/tilawah > 7 hari atau evaluasi capaian terakhir berpredikat <strong>Maqbul</strong> (butuh bimbingan intensif).
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                @foreach($attentionStudents->take(6) as $attn)
+                @php
+                    $stObj = is_array($attn) ? ($attn['student'] ?? null) : ($attn->student ?? $attn);
+                    $lastRec = is_array($attn) ? ($attn['last_record'] ?? null) : ($attn->last_record ?? null);
+                    $reason = is_array($attn) ? ($attn['reason'] ?? '') : ($attn->reason ?? '');
+                    $daysSince = is_array($attn) ? ($attn['days_inactive'] ?? null) : ($attn->days_inactive ?? null);
+                    $parentPhone = $stObj?->user?->phone ?? ($stObj?->parent_phone ?? null);
+                @endphp
+                <div class="p-3.5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xs rounded-2xl border border-rose-200/60 dark:border-rose-900/40 flex items-center justify-between gap-3 shadow-2xs">
+                    <div class="min-w-0">
+                        <h4 class="text-xs font-black text-slate-900 dark:text-white truncate">
+                            {{ $stObj?->user?->name ?? 'Santri' }}
+                        </h4>
+                        <p class="text-[10px] text-slate-400">
+                            {{ $stObj?->class?->name ?? 'Kelas' }} • 
+                            <span class="text-rose-600 font-bold">{{ $reason }}</span>
+                        </p>
+                    </div>
+
+                    <div class="flex items-center gap-1 shrink-0">
+                        <a href="{{ route('admin.halaqah.index', ['tab' => 'input', 'grade' => $stObj?->class?->grade ?? 1, 'student_id' => $stObj?->id]) }}"
+                           class="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-lg text-[10px] font-black transition"
+                           title="Input Nilai Baru">
+                            Input
+                        </a>
+                        @if($parentPhone)
+                        <a href="https://api.whatsapp.com/send?phone={{ preg_replace('/^0/', '62', preg_replace('/[^0-9]/', '', $parentPhone)) }}&text={{ urlencode('Assalamu\'alaikum Wr. Wb. Kami dari tim Halaqah menginfokan perkembangan Al-Qur\'an ananda ' . ($stObj?->user?->name ?? 'Santri') . '...') }}"
+                           target="_blank"
+                           class="p-1.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg transition"
+                           title="Hubungi Wali Murid">
+                            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2z"/></svg>
+                        </a>
+                        @endif
+                    </div>
+                </div>
+                @endforeach
+            </div>
+            @if($attentionStudents->count() > 6)
+            <p class="text-[11px] text-rose-600 dark:text-rose-400 font-bold text-center">
+                + {{ $attentionStudents->count() - 6 }} santri lainnya memerlukan perhatian intensif
+            </p>
+            @endif
+        </div>
+        @endif
+
         {{-- 4 Kartu KPI Ringkasan Laporan --}}
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1">
@@ -1157,9 +1380,10 @@
                     <span class="text-3xl font-black text-slate-900 dark:text-white">{{ $totalSetoran }}</span>
                     <span class="text-xs text-slate-400 font-bold">Kali Setoran</span>
                 </div>
-                <div class="pt-2 flex items-center justify-between text-[11px] font-bold border-t border-slate-100 dark:border-slate-800">
+                <div class="pt-2 flex items-center justify-between text-[10px] font-bold border-t border-slate-100 dark:border-slate-800 flex-wrap gap-1">
                     <span class="text-amber-600">Tahsin: {{ $tahsinCount }}</span>
-                    <span class="text-emerald-600">Tahfidz: {{ $tahfidzCount }}</span>
+                    <span class="text-teal-600">Tahfidz: {{ $tahfidzCount }}</span>
+                    <span class="text-sky-600">Tilawah: {{ $tilawahCount ?? 0 }}</span>
                 </div>
             </div>
 
@@ -1232,26 +1456,32 @@
                 </div>
             </div>
 
-            {{-- Card Pembagian Fokus Program (Tahsin vs Tahfidz) --}}
+            {{-- Card Pembagian Fokus Program (Tahsin vs Tahfidz vs Tilawah) --}}
             <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
                 <div>
                     <h4 class="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                         <span>🎯 PEMBAGIAN FOKUS PROGRAM</span>
                     </h4>
-                    <p class="text-[11px] text-slate-400">Komparasi keaktifan bimbingan membaca Al-Qur'an (Tahsin) dengan setoran hafalan (Tahfidz)</p>
+                    <p class="text-[11px] text-slate-400">Komparasi keaktifan bimbingan membaca Al-Qur'an (Tahsin), hafalan (Tahfidz), dan Tilawah</p>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4 pt-4">
-                    <div class="p-4 bg-amber-50 dark:bg-amber-950/30 rounded-2xl border border-amber-200 dark:border-amber-900/50 text-center space-y-1">
-                        <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800">TAHSIN</span>
-                        <div class="text-3xl font-black text-amber-600">{{ $tahsinCount }}</div>
-                        <p class="text-[11px] text-slate-500 font-bold">Pelajaran</p>
+                <div class="grid grid-cols-3 gap-3 pt-2">
+                    <div class="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-2xl border border-amber-200 dark:border-amber-900/50 text-center space-y-1">
+                        <span class="px-2 py-0.5 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 uppercase">Tahsin</span>
+                        <div class="text-2xl sm:text-3xl font-black text-amber-600">{{ $tahsinCount }}</div>
+                        <p class="text-[10px] text-slate-500 font-bold">Jilid 1-6</p>
                     </div>
 
-                    <div class="p-4 bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 text-center space-y-1">
-                        <span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800">TAHFIDZ</span>
-                        <div class="text-3xl font-black text-emerald-600">{{ $tahfidzCount }}</div>
-                        <p class="text-[11px] text-slate-500 font-bold">Hafalan</p>
+                    <div class="p-3 bg-teal-50 dark:bg-teal-950/30 rounded-2xl border border-teal-200 dark:border-teal-900/50 text-center space-y-1">
+                        <span class="px-2 py-0.5 rounded text-[9px] font-extrabold bg-teal-100 text-teal-800 uppercase">Tahfidz</span>
+                        <div class="text-2xl sm:text-3xl font-black text-teal-600">{{ $tahfidzCount }}</div>
+                        <p class="text-[10px] text-slate-500 font-bold">Ziyadah &amp; Mur.</p>
+                    </div>
+
+                    <div class="p-3 bg-sky-50 dark:bg-sky-950/30 rounded-2xl border border-sky-200 dark:border-sky-900/50 text-center space-y-1">
+                        <span class="px-2 py-0.5 rounded text-[9px] font-extrabold bg-sky-100 text-sky-800 uppercase">Tilawah</span>
+                        <div class="text-2xl sm:text-3xl font-black text-sky-600">{{ $tilawahCount ?? 0 }}</div>
+                        <p class="text-[10px] text-slate-500 font-bold">Surah &amp; Juz</p>
                     </div>
                 </div>
 
@@ -1579,6 +1809,435 @@
                 <p class="text-xs font-bold">Tidak ada data kehadiran yang sesuai dengan filter yang dipilih.</p>
             </div>
             @endif
+        </div>
+
+    </div>
+    @endif
+
+    {{-- ========================================================================= --}}
+    {{-- TAB 5: TARGET CAPAIAN KURIKULUM (TAHFIDZ, TILAWAH, TAHSIN) --}}
+    {{-- ========================================================================= --}}
+    @if($tab === 'target')
+    <div class="space-y-6">
+        
+        {{-- Header Tab Target --}}
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider">
+                        Standar Kurikulum
+                    </span>
+                    <h2 class="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                        Target Capaian Al-Qur'an (Tahfidz, Tilawah &amp; Tahsin)
+                    </h2>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Tentukan target batas minimal hafalan juz, surah, jilid tahsin per tingkat kelas dan semester sebagai standar acuan rapor halaqah.
+                </p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6" x-data="{ targetProg: 'tahfidz' }">
+            
+            {{-- Form Tambah Target --}}
+            <div class="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+                <div class="border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <h3 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                        <span>🎯 TAMBAH TARGET KURIKULUM</span>
+                    </h3>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Konfigurasi standar kelulusan per semester</p>
+                </div>
+
+                <form action="{{ route('admin.halaqah.target.store') }}" method="POST" class="space-y-4">
+                    @csrf
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Tingkat Kelas</label>
+                            <select name="grade" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white" required>
+                                @foreach($grades as $g)
+                                    <option value="{{ $g }}">Kelas {{ $g }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Semester</label>
+                            <select name="semester" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white" required>
+                                <option value="1">Semester 1 (Ganjil)</option>
+                                <option value="2">Semester 2 (Genap)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Program Halaqah</label>
+                        <select name="program_type" x-model="targetProg" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white" required>
+                            <option value="tahfidz">Tahfidz (Hafalan)</option>
+                            <option value="tilawah">Tilawah (Tartil &amp; Tajwid)</option>
+                            <option value="tahsin">Tahsin (Jilid 1 - 6)</option>
+                        </select>
+                    </div>
+
+                    {{-- Form Dinamis: Tahfidz & Tilawah (Juz & Surah) --}}
+                    <div x-show="targetProg === 'tahfidz' || targetProg === 'tilawah'" class="space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Juz Mulai</label>
+                                <select name="target_juz_start" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white">
+                                    <option value="">-- Pilih --</option>
+                                    @for($i=1; $i<=30; $i++)
+                                        <option value="{{ $i }}" {{ $i == 30 ? 'selected' : '' }}>Juz {{ $i }}</option>
+                                    @endfor
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Juz Selesai</label>
+                                <select name="target_juz_end" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white">
+                                    <option value="">-- Pilih --</option>
+                                    @for($i=1; $i<=30; $i++)
+                                        <option value="{{ $i }}" {{ $i == 30 ? 'selected' : '' }}>Juz {{ $i }}</option>
+                                    @endfor
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Target Surah (Opsional)</label>
+                            <input type="text" name="target_surah" placeholder="Contoh: An-Naba s.d An-Nas" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white">
+                        </div>
+                    </div>
+
+                    {{-- Form Dinamis: Tahsin (Jilid 1 - 6) --}}
+                    <div x-show="targetProg === 'tahsin'" class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Target Jilid</label>
+                            <select name="target_jilid" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white">
+                                <option value="">-- Pilih Target Jilid --</option>
+                                @for($j=1; $j<=6; $j++)
+                                    <option value="Jilid {{ $j }}">Jilid {{ $j }}</option>
+                                @endfor
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Nilai Kelulusan Minimal</label>
+                        <input type="number" name="min_score" value="75" min="0" max="100" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Keterangan / Catatan</label>
+                        <textarea name="description" rows="2" placeholder="Catatan standar target atau fokus tajwid..." class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white"></textarea>
+                    </div>
+
+                    <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-md shadow-emerald-600/30 transition flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <span>Simpan Target Kurikulum</span>
+                    </button>
+                </form>
+            </div>
+
+            {{-- Tabel Daftar Target yang Aktif --}}
+            <div class="lg:col-span-8 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
+                <div class="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs sm:text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">
+                            Daftar Target Kurikulum Al-Qur'an
+                        </span>
+                        <span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-md text-[10px] font-bold">
+                            {{ $targets->count() }} Target
+                        </span>
+                    </div>
+                </div>
+
+                @if($targets->count() > 0)
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 text-[11px] font-extrabold text-slate-400 uppercase">
+                                <th class="py-3 px-4">Tingkat &amp; Sem.</th>
+                                <th class="py-3 px-4">Program</th>
+                                <th class="py-3 px-4">Target Capaian</th>
+                                <th class="py-3 px-4 text-center">Standar Min</th>
+                                <th class="py-3 px-4">Keterangan</th>
+                                <th class="py-3 px-4 text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-200">
+                            @foreach($targets as $t)
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
+                                <td class="py-3 px-4 whitespace-nowrap">
+                                    <span class="font-black text-slate-900 dark:text-white">Kelas {{ $t->grade }}</span>
+                                    <p class="text-[10px] text-slate-400">Semester {{ $t->semester }}</p>
+                                </td>
+                                <td class="py-3 px-4 whitespace-nowrap">
+                                    @if($t->program_type === 'tahsin')
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">Tahsin</span>
+                                    @elseif($t->program_type === 'tilawah')
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-sky-50 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300">Tilawah</span>
+                                    @else
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-teal-50 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300">Tahfidz</span>
+                                    @endif
+                                </td>
+                                <td class="py-3 px-4">
+                                    @if($t->program_type === 'tahsin')
+                                        <span class="font-black text-amber-600">{{ $t->target_jilid ?? 'Jilid' }}</span>
+                                    @else
+                                        <div class="font-bold text-slate-800 dark:text-white">
+                                            @if($t->target_juz)
+                                                Juz {{ $t->target_juz }}
+                                            @elseif($t->target_juz_start)
+                                                Juz {{ $t->target_juz_start }} {{ $t->target_juz_end ? '- ' . $t->target_juz_end : '' }}
+                                            @endif
+                                            @if($t->target_surah_start)
+                                                <span class="text-slate-400 font-normal">({{ $t->target_surah_start }} {{ $t->target_surah_end ? 's.d ' . $t->target_surah_end : '' }})</span>
+                                            @elseif($t->target_surah)
+                                                <span class="text-slate-400 font-normal">({{ $t->target_surah }})</span>
+                                            @endif
+                                        </div>
+                                    @endif
+                                </td>
+                                <td class="py-3 px-4 text-center whitespace-nowrap font-black text-emerald-600">
+                                    {{ $t->min_score ?? 75 }}
+                                </td>
+                                <td class="py-3 px-4 text-[11px] text-slate-400 max-w-xs truncate">
+                                    {{ $t->notes ?: ($t->description ?: ($t->title ?: '-')) }}
+                                </td>
+                                <td class="py-3 px-4 text-right whitespace-nowrap">
+                                    <form action="{{ route('admin.halaqah.target.destroy', $t->id) }}" method="POST" onsubmit="return confirm('Hapus target kurikulum ini?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition" title="Hapus Target">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @else
+                <div class="p-12 text-center text-slate-400 space-y-2">
+                    <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 mx-auto flex items-center justify-center">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                    </div>
+                    <p class="text-xs font-bold text-slate-600 dark:text-slate-300">Belum Ada Target Kurikulum yang Ditentukan</p>
+                    <p class="text-[11px] text-slate-400">Gunakan form di sebelah kiri untuk menentukan target pencapaian santri per tingkat kelas.</p>
+                </div>
+                @endif
+            </div>
+
+        </div>
+
+    </div>
+    @endif
+
+    {{-- ========================================================================= --}}
+    {{-- TAB 6: UJIAN TASMI' 1 JUZ SEKALI DUDUK & SYAHADAH --}}
+    {{-- ========================================================================= --}}
+    @if($tab === 'tasmi')
+    <div class="space-y-6" x-data="{
+        tajwid: 85,
+        kelancaran: 85,
+        fashohah: 85,
+        get totalScore() {
+            return Math.round((Number(this.tajwid) + Number(this.kelancaran) + Number(this.fashohah)) / 3);
+        },
+        get isLulus() {
+            return this.totalScore >= 75;
+        }
+    }">
+        
+        {{-- Header Tab Tasmi' --}}
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="px-2.5 py-1 bg-amber-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider">
+                        Ujian &amp; Syahadah
+                    </span>
+                    <h2 class="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                        Ujian Tasmi' 1 Juz Sekali Duduk
+                    </h2>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Pencatatan pengujian hafalan 1 juz penuh dalam satu majelis, penilaian tajwid, kelancaran, fashohah, dan cetak Syahadah Tasmi'.
+                </p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {{-- Form Input Ujian Tasmi' Baru --}}
+            <div class="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+                <div class="border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <h3 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                        <span>📜 CATAT UJIAN TASMI' BARU</span>
+                    </h3>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Penilaian dewan asatidz penguji ujian tasmi'</p>
+                </div>
+
+                <form action="{{ route('admin.halaqah.tasmi.store') }}" method="POST" class="space-y-4">
+                    @csrf
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Pilih Santri yang Diuji</label>
+                        <select name="student_id" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white" required>
+                            <option value="">-- Pilih Santri --</option>
+                            @foreach($students as $st)
+                                <option value="{{ $st->id }}">{{ $st->user?->name ?? 'Santri' }} (Kelas {{ $st->class?->name ?? '-' }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Juz yang Diuji</label>
+                            <select name="juz_number" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white" required>
+                                @for($j=1; $j<=30; $j++)
+                                    <option value="{{ $j }}" {{ $j == 30 ? 'selected' : '' }}>Juz {{ $j }}</option>
+                                @endfor
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Tanggal Ujian</label>
+                            <input type="date" name="exam_date" value="{{ date('Y-m-d') }}" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white" required>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Nama Dewan Penguji</label>
+                        <input type="text" name="examiner_name" value="{{ $activeTeacher->name ?? '' }}" placeholder="Nama Ustadz / Ustadzah Penguji" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white" required>
+                    </div>
+
+                    {{-- 3 Aspek Penilaian --}}
+                    <div class="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-700 space-y-3">
+                        <span class="text-[10px] font-black uppercase text-slate-400">Komponen Penilaian (0-100)</span>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-0.5">Tajwid</label>
+                                <input type="number" name="score_tajwid" x-model="tajwid" min="0" max="100" class="w-full text-center text-xs font-black rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-2 text-slate-800 dark:text-white" required>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-0.5">Kelancaran</label>
+                                <input type="number" name="score_kelancaran" x-model="kelancaran" min="0" max="100" class="w-full text-center text-xs font-black rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-2 text-slate-800 dark:text-white" required>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-0.5">Fashohah</label>
+                                <input type="number" name="score_fashohah" x-model="fashohah" min="0" max="100" class="w-full text-center text-xs font-black rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-2 text-slate-800 dark:text-white" required>
+                            </div>
+                        </div>
+
+                        {{-- Kalkulasi Otomatis --}}
+                        <div class="pt-2 border-t border-slate-200/60 dark:border-slate-700 flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-500">Rata-rata: <strong class="text-slate-900 dark:text-white" x-text="totalScore"></strong></span>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black" :class="isLulus ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'" x-text="isLulus ? '✓ LULUS' : '✗ MENGULANG'"></span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Catatan / Evaluasi Penguji</label>
+                        <textarea name="notes" rows="2" placeholder="Catatan makhorijul huruf atau kelancaran tasmi'..." class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white"></textarea>
+                    </div>
+
+                    <button type="submit" class="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black shadow-md shadow-amber-600/30 transition flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>Simpan Hasil Ujian Tasmi'</span>
+                    </button>
+                </form>
+            </div>
+
+            {{-- Tabel Riwayat Ujian Tasmi' --}}
+            <div class="lg:col-span-8 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
+                <div class="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs sm:text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">
+                            Riwayat Ujian Tasmi' 1 Juz
+                        </span>
+                        <span class="px-2 py-0.5 bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 rounded-md text-[10px] font-bold">
+                            {{ $tasmiExams->count() }} Ujian
+                        </span>
+                    </div>
+                </div>
+
+                @if($tasmiExams->count() > 0)
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 text-[11px] font-extrabold text-slate-400 uppercase">
+                                <th class="py-3 px-4">Santri</th>
+                                <th class="py-3 px-4 text-center">Juz</th>
+                                <th class="py-3 px-4 text-center">Tanggal</th>
+                                <th class="py-3 px-4 text-center">Nilai (Taj/Lan/Fas)</th>
+                                <th class="py-3 px-4 text-center">Status</th>
+                                <th class="py-3 px-4">Penguji</th>
+                                <th class="py-3 px-4 text-right">Syahadah</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-200">
+                            @foreach($tasmiExams as $exam)
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
+                                <td class="py-3 px-4">
+                                    <div class="font-black text-slate-900 dark:text-white">{{ $exam->student?->user?->name ?? 'Santri' }}</div>
+                                    <p class="text-[10px] text-slate-400">Kelas {{ $exam->student?->class?->name ?? '-' }}</p>
+                                </td>
+                                <td class="py-3 px-4 text-center whitespace-nowrap">
+                                    <span class="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-black text-xs">
+                                        {{ $exam->juz_tested ?? ('Juz ' . ($exam->juz_number ?? '30')) }}
+                                    </span>
+                                </td>
+                                <td class="py-3 px-4 text-center whitespace-nowrap text-slate-500">
+                                    {{ $exam->exam_date->format('d/m/Y') }}
+                                </td>
+                                <td class="py-3 px-4 text-center whitespace-nowrap">
+                                    <div class="font-black text-slate-900 dark:text-white">
+                                        {{ number_format($exam->score_final ?? ($exam->score_total ?? 0), 0) }}
+                                    </div>
+                                    <p class="text-[9px] text-slate-400">
+                                        {{ number_format($exam->score_tajwid, 0) }} / {{ number_format($exam->score_kelancaran, 0) }} / {{ number_format($exam->score_fashohah, 0) }}
+                                    </p>
+                                </td>
+                                <td class="py-3 px-4 text-center whitespace-nowrap">
+                                    @if($exam->status === 'lulus')
+                                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                            ✓ LULUS
+                                        </span>
+                                    @else
+                                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+                                            MENGULANG
+                                        </span>
+                                    @endif
+                                </td>
+                                <td class="py-3 px-4 whitespace-nowrap text-[11px] text-slate-600 dark:text-slate-300">
+                                    Ust. {{ $exam->teacher?->name ?? ($exam->examiner_name ?? 'Penguji') }}
+                                </td>
+                                <td class="py-3 px-4 text-right whitespace-nowrap">
+                                    @if($exam->status === 'lulus')
+                                    <a href="{{ route('admin.halaqah.tasmi.certificate', $exam->id) }}" target="_blank"
+                                       class="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-xs font-black shadow-xs transition inline-flex items-center gap-1.5"
+                                       title="Cetak Syahadah Tasmi'">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                        <span>Cetak Syahadah</span>
+                                    </a>
+                                    @else
+                                    <span class="text-slate-400 text-[10px] italic">-</span>
+                                    @endif
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @else
+                <div class="p-12 text-center text-slate-400 space-y-2">
+                    <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 mx-auto flex items-center justify-center">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                    </div>
+                    <p class="text-xs font-bold text-slate-600 dark:text-slate-300">Belum Ada Riwayat Ujian Tasmi'</p>
+                    <p class="text-[11px] text-slate-400">Gunakan form di sebelah kiri untuk mencatat hasil ujian tasmi' 1 juz santri.</p>
+                </div>
+                @endif
+            </div>
+
         </div>
 
     </div>

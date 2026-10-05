@@ -39,6 +39,7 @@ class DatabaseSchemaChecker
                     $table->date('assessment_date');
                     $table->string('attendance_status', 20)->default('hadir');
                     $table->string('program_type', 20)->default('tahsin');
+                    $table->string('record_category', 30)->default('ziyadah');
                     $table->string('tahsin_type', 50)->nullable()->default('jilid');
                     $table->string('jilid_level', 50)->nullable();
                     $table->integer('page_start')->nullable();
@@ -66,6 +67,53 @@ class DatabaseSchemaChecker
                     });
                     $updatedTables[] = 'halaqah_records (tambah kolom grade)';
                 }
+                if (!Schema::hasColumn('halaqah_records', 'record_category')) {
+                    Schema::table('halaqah_records', function (Blueprint $table) {
+                        $table->string('record_category', 30)->default('ziyadah')->after('program_type')->index();
+                    });
+                    $updatedTables[] = 'halaqah_records (tambah kolom record_category)';
+                }
+            }
+
+            // 1b. Tabel Target Hafalan & Capaian Al-Qur'an (quran_targets)
+            if (!Schema::hasTable('quran_targets')) {
+                Schema::create('quran_targets', function (Blueprint $table) {
+                    $table->id();
+                    $table->integer('grade')->index();
+                    $table->unsignedTinyInteger('semester')->default(1);
+                    $table->string('program_type', 30)->default('tahfidz'); // tahfidz, tahsin, tilawah
+                    $table->string('title', 150);
+                    $table->integer('target_juz')->nullable();
+                    $table->string('target_surah_start', 100)->nullable();
+                    $table->string('target_surah_end', 100)->nullable();
+                    $table->string('target_jilid', 50)->nullable();
+                    $table->text('notes')->nullable();
+                    $table->timestamps();
+                });
+                $createdTables[] = 'quran_targets';
+            }
+
+            // 1c. Tabel Ujian Tasmi' & Syahadah Al-Qur'an (quran_tasmi_exams)
+            if (!Schema::hasTable('quran_tasmi_exams')) {
+                Schema::create('quran_tasmi_exams', function (Blueprint $table) {
+                    $table->id();
+                    $table->unsignedBigInteger('student_id')->index();
+                    $table->unsignedBigInteger('teacher_id')->nullable()->index(); // Musyrif / Penguji
+                    $table->unsignedBigInteger('academic_year_id')->nullable();
+                    $table->date('exam_date');
+                    $table->string('juz_tested', 50)->default('Juz 30');
+                    $table->string('surah_range', 150)->nullable();
+                    $table->decimal('score_tajwid', 5, 2)->default(0);
+                    $table->decimal('score_kelancaran', 5, 2)->default(0);
+                    $table->decimal('score_fashohah', 5, 2)->default(0);
+                    $table->decimal('score_final', 5, 2)->default(0);
+                    $table->string('predicate', 50)->default('Mumtaz');
+                    $table->string('status', 30)->default('lulus'); // lulus, perbaikan
+                    $table->string('certificate_number', 100)->nullable()->unique();
+                    $table->text('notes')->nullable();
+                    $table->timestamps();
+                });
+                $createdTables[] = 'quran_tasmi_exams';
             }
 
             // 2. Tabel quran_halaqah_members

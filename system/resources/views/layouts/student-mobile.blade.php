@@ -469,8 +469,9 @@
                             'label' => 'Ruang Belajar Digital',
                             'icon' => 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253',
                             'color' => 'indigo',
-                            'matches' => ['student.lms.*'],
+                            'matches' => ['student.lms.*', 'student.quran.*'],
                             'items' => [
+                                ['route' => 'student.quran.index', 'match' => 'student.quran.*', 'label' => "Mutaba'ah Al-Qur'an", 'icon' => 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253', 'color' => 'emerald'],
                                 ['route' => 'student.lms.index', 'match' => 'student.lms.index', 'label' => 'Modul Belajar LMS', 'icon' => 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253', 'color' => 'indigo'],
                                 ['route' => 'student.lms.gamification', 'match' => 'student.lms.gamification', 'label' => 'Leaderboard & XP', 'icon' => 'M5 3h14l-1.5 8a4.5 4.5 0 01-4.5 4.5h-2A4.5 4.5 0 016.5 11L5 3zM6 6H3v2a3 3 0 003 3M18 6h3v2a3 3 0 01-3 3M12 15.5V18M9 21h6', 'color' => 'amber'],
                             ]

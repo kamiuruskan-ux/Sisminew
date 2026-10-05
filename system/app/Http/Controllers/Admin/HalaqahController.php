@@ -7,9 +7,12 @@ use App\Models\AcademicYear;
 use App\Models\ClassModel;
 use App\Models\HalaqahRecord;
 use App\Models\QuranHalaqahMember;
+use App\Models\QuranTarget;
+use App\Models\QuranTasmiExam;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\DatabaseSchemaChecker;
+use App\Services\WhatsAppService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -169,10 +172,16 @@ class HalaqahController extends Controller
             });
         }
 
-        // 4. Filter Program (Tahsin / Tahfidz)
+        // 4. Filter Program (Tahsin / Tahfidz / Tilawah)
         $program = $request->get('program', $request->get('history_program', $request->get('filter_program', 'all')));
-        if ($program !== 'all' && in_array($program, ['tahsin', 'tahfidz'])) {
+        if ($program !== 'all' && in_array($program, ['tahsin', 'tahfidz', 'tilawah'])) {
             $query->where('program_type', $program);
+        }
+
+        // 4b. Filter Kategori Capaian (Ziyadah / Muroja'ah)
+        $category = $request->get('record_category', $request->get('category', 'all'));
+        if ($category !== 'all' && in_array($category, ['ziyadah', 'murojaah'])) {
+            $query->where('record_category', $category);
         }
 
         // 5. Filter Jilid (Tahsin)
@@ -180,9 +189,9 @@ class HalaqahController extends Controller
             $query->where('program_type', 'tahsin')->where('jilid_level', $request->jilid);
         }
 
-        // 6. Filter Juz / Hafalan (Tahfidz)
+        // 6. Filter Juz / Hafalan (Tahfidz / Tilawah)
         if ($request->filled('juz') && $request->juz !== 'all') {
-            $query->where('program_type', 'tahfidz')->where('juz_number', (int) $request->juz);
+            $query->whereIn('program_type', ['tahfidz', 'tilawah'])->where('juz_number', (int) $request->juz);
         }
 
         // 7. Filter Waktu (Harian / Bulanan / Rentang Tanggal / Semua)
@@ -296,8 +305,8 @@ class HalaqahController extends Controller
         $academicYears = AcademicYear::orderBy('start_year', 'desc')->get();
         $activeAcademicYear = AcademicYear::getActive() ?? $academicYears->first();
         
-        // Filter options untuk tampilan
-        $allJilidOptions = ['Jilid 1', 'Jilid 2', 'Jilid 3', 'Jilid 4', 'Jilid 5', 'Jilid 6', 'Tilawah'];
+        // Filter options untuk tampilan (Tahsin hanya Jilid 1 - 6, Tilawah berdiri sendiri mengikuti acuan Tahfidz)
+        $allJilidOptions = ['Jilid 1', 'Jilid 2', 'Jilid 3', 'Jilid 4', 'Jilid 5', 'Jilid 6'];
         $allJuzOptions = [30, 29, 28, 27, 26, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25];
 
         $filterGrade = (string) $selectedGrade;
@@ -381,6 +390,9 @@ class HalaqahController extends Controller
         $historyAvgScore = round((clone $historyTeachingQuery)->avg('score_cognitive') ?? 0, 1);
         $historyTahsinCount = (clone $historyTeachingQuery)->where('program_type', 'tahsin')->count();
         $historyTahfidzCount = (clone $historyTeachingQuery)->where('program_type', 'tahfidz')->count();
+        $historyTilawahCount = (clone $historyTeachingQuery)->where('program_type', 'tilawah')->count();
+        $historyZiyadahCount = (clone $historyTeachingQuery)->where('record_category', 'ziyadah')->count();
+        $historyMurojaahCount = (clone $historyTeachingQuery)->where('record_category', 'murojaah')->count();
         $historyMumtazCount = (clone $historyTeachingQuery)->whereIn('predicate', ['Mumtaz', 'Jayyid Jiddan'])->count();
         $historyExcellentPct = $totalTeachingCount > 0 ? round(($historyMumtazCount / $totalTeachingCount) * 100) : 0;
 
@@ -393,6 +405,9 @@ class HalaqahController extends Controller
         $totalSetoran = (clone $statsQuery)->count();
         $tahsinCount = (clone $statsQuery)->where('program_type', 'tahsin')->count();
         $tahfidzCount = (clone $statsQuery)->where('program_type', 'tahfidz')->count();
+        $tilawahCount = (clone $statsQuery)->where('program_type', 'tilawah')->count();
+        $ziyadahCount = (clone $statsQuery)->where('record_category', 'ziyadah')->count();
+        $murojaahCount = (clone $statsQuery)->where('record_category', 'murojaah')->count();
 
         $avgScore = round((clone $statsQuery)->avg('score_cognitive') ?? 0, 1);
         $mumtazCount = (clone $statsQuery)->where('predicate', 'Mumtaz')->count();
@@ -407,20 +422,20 @@ class HalaqahController extends Controller
             'Maqbul' => (clone $statsQuery)->where('predicate', 'Maqbul')->count(),
         ];
 
-        // Sebaran Jilid Tahsin
+        // Sebaran Jilid Tahsin (Jilid 1 - 6 murni)
         $jilidStats = [];
         foreach ($allJilidOptions as $jld) {
             $jilidStats[$jld] = (clone $statsQuery)->where('program_type', 'tahsin')->where('jilid_level', $jld)->count();
         }
 
-        // Sebaran Juz Tahfidz
+        // Sebaran Juz Tahfidz & Tilawah
         $juzStats = [
-            'Juz 30' => (clone $statsQuery)->where('program_type', 'tahfidz')->where('juz_number', 30)->count(),
-            'Juz 29' => (clone $statsQuery)->where('program_type', 'tahfidz')->where('juz_number', 29)->count(),
-            'Juz 28' => (clone $statsQuery)->where('program_type', 'tahfidz')->where('juz_number', 28)->count(),
-            'Juz 1'  => (clone $statsQuery)->where('program_type', 'tahfidz')->where('juz_number', 1)->count(),
-            'Juz 2'  => (clone $statsQuery)->where('program_type', 'tahfidz')->where('juz_number', 2)->count(),
-            'Juz Lainnya (3-27)' => (clone $statsQuery)->where('program_type', 'tahfidz')->whereNotIn('juz_number', [1, 2, 28, 29, 30])->count(),
+            'Juz 30' => (clone $statsQuery)->whereIn('program_type', ['tahfidz', 'tilawah'])->where('juz_number', 30)->count(),
+            'Juz 29' => (clone $statsQuery)->whereIn('program_type', ['tahfidz', 'tilawah'])->where('juz_number', 29)->count(),
+            'Juz 28' => (clone $statsQuery)->whereIn('program_type', ['tahfidz', 'tilawah'])->where('juz_number', 28)->count(),
+            'Juz 1'  => (clone $statsQuery)->whereIn('program_type', ['tahfidz', 'tilawah'])->where('juz_number', 1)->count(),
+            'Juz 2'  => (clone $statsQuery)->whereIn('program_type', ['tahfidz', 'tilawah'])->where('juz_number', 2)->count(),
+            'Juz Lainnya (3-27)' => (clone $statsQuery)->whereIn('program_type', ['tahfidz', 'tilawah'])->whereNotIn('juz_number', [1, 2, 28, 29, 30])->count(),
         ];
 
         // Rekapitulasi Capaian Siswa di Tab Laporan
@@ -471,8 +486,55 @@ class HalaqahController extends Controller
                 ->withQueryString();
         }
 
+        // ── EARLY WARNING SYSTEM (Santri Perlu Perhatian / Belum Setor / Nilai Rendah) ──
+        $attentionStudents = [];
+        if (!empty($halaqahStudentIds)) {
+            $sevenDaysAgo = Carbon::now()->subDays(7)->toDateString();
+            $groupStudents = Student::with(['user', 'class'])->whereIn('id', $halaqahStudentIds)->get();
+            foreach ($groupStudents as $st) {
+                $lastRec = HalaqahRecord::where('student_id', $st->id)->latest('assessment_date')->latest('id')->first();
+                if (!$lastRec) {
+                    $attentionStudents[] = [
+                        'student' => $st,
+                        'reason' => 'Belum pernah ada riwayat setoran',
+                        'type' => 'danger',
+                        'days_inactive' => '-',
+                        'last_record' => null
+                    ];
+                } elseif ($lastRec->assessment_date->format('Y-m-d') < $sevenDaysAgo) {
+                    $days = Carbon::parse($lastRec->assessment_date)->diffInDays(Carbon::now());
+                    $attentionStudents[] = [
+                        'student' => $st,
+                        'reason' => "Tidak ada setoran selama {$days} hari terakhir",
+                        'type' => 'warning',
+                        'days_inactive' => $days,
+                        'last_record' => $lastRec
+                    ];
+                } elseif ($lastRec->predicate === 'Maqbul') {
+                    $attentionStudents[] = [
+                        'student' => $st,
+                        'reason' => 'Predikat setoran terakhir Maqbul (Butuh Bimbingan Khusus)',
+                        'type' => 'info',
+                        'days_inactive' => 0,
+                        'last_record' => $lastRec
+                    ];
+                }
+            }
+        }
+        $attentionStudents = collect($attentionStudents);
+
+        // ── TARGET CAPAIAN HAFALAN & TILAWAH ──
+        $targets = QuranTarget::orderBy('grade', 'asc')->orderBy('semester', 'asc')->get();
+
+        // ── UJIAN TASMI' 1 JUZ SEKALI DUDUK & SYAHADAH ──
+        $tasmiExams = QuranTasmiExam::with(['student.user', 'student.class', 'teacher'])
+            ->latest('exam_date')
+            ->paginate(15, ['*'], 'tasmi_page')
+            ->withQueryString();
+
         $surahOptions = \App\Helpers\QuranHelper::getDropdownOptions();
         $classesInSelectedGrade = ClassModel::whereIn('id', $inputGradeClassIds)->orderBy('name', 'asc')->get();
+        $filterCategory = $request->get('record_category', $request->get('category', 'all'));
 
         return view('admin.halaqah.index', compact(
             'availableGrades',
@@ -495,6 +557,9 @@ class HalaqahController extends Controller
             'totalSetoran',
             'tahsinCount',
             'tahfidzCount',
+            'tilawahCount',
+            'ziyadahCount',
+            'murojaahCount',
             'avgScore',
             'mumtazCount',
             'mumtazPercentage',
@@ -514,12 +579,16 @@ class HalaqahController extends Controller
             'historyAvgScore',
             'historyTahsinCount',
             'historyTahfidzCount',
+            'historyTilawahCount',
+            'historyZiyadahCount',
+            'historyMurojaahCount',
             'historyMumtazCount',
             'historyExcellentPct',
             'filterGrade',
             'filterClassId',
             'filterTeacherId',
             'filterProgram',
+            'filterCategory',
             'filterJilid',
             'filterJuz',
             'timeFilter',
@@ -529,7 +598,10 @@ class HalaqahController extends Controller
             'dateTo',
             'searchStudent',
             'allJilidOptions',
-            'allJuzOptions'
+            'allJuzOptions',
+            'attentionStudents',
+            'targets',
+            'tasmiExams'
         ));
     }
 
@@ -541,7 +613,8 @@ class HalaqahController extends Controller
         $request->validate([
             'student_id' => 'required|exists:students,id',
             'assessment_date' => 'required|date',
-            'program_type' => 'required|in:tahsin,tahfidz',
+            'program_type' => 'required|in:tahsin,tahfidz,tilawah',
+            'record_category' => 'nullable|in:ziyadah,murojaah',
             'score_cognitive' => 'required|numeric|min:0|max:100',
             'score_adab' => 'nullable|numeric|min:0|max:100',
         ]);
@@ -557,6 +630,8 @@ class HalaqahController extends Controller
             ? (int) $request->grade 
             : ($student->class?->grade ?: (preg_match('/^(\d+)/', $student->class?->name ?? '', $m) ? (int)$m[1] : 1));
 
+        $recordCategory = $request->get('record_category', 'ziyadah');
+
         HalaqahRecord::create([
             'student_id' => $student->id,
             'teacher_id' => Auth::id(),
@@ -566,14 +641,15 @@ class HalaqahController extends Controller
             'assessment_date' => $request->assessment_date,
             'attendance_status' => $request->get('attendance_status', 'hadir'),
             'program_type' => $request->program_type,
+            'record_category' => $recordCategory,
             'tahsin_type' => $request->tahsin_type ?? 'jilid',
-            'jilid_level' => $request->jilid_level,
-            'page_start' => $request->page_start,
-            'page_end' => $request->page_end,
-            'surah_name' => $request->surah_name,
-            'ayat_start' => $request->ayat_start,
-            'ayat_end' => $request->ayat_end,
-            'juz_number' => $request->juz_number ?? 30,
+            'jilid_level' => $request->program_type === 'tahsin' ? $request->jilid_level : null,
+            'page_start' => $request->program_type === 'tahsin' ? $request->page_start : null,
+            'page_end' => $request->program_type === 'tahsin' ? $request->page_end : null,
+            'surah_name' => in_array($request->program_type, ['tahfidz', 'tilawah']) ? $request->surah_name : null,
+            'ayat_start' => in_array($request->program_type, ['tahfidz', 'tilawah']) ? $request->ayat_start : null,
+            'ayat_end' => in_array($request->program_type, ['tahfidz', 'tilawah']) ? $request->ayat_end : null,
+            'juz_number' => in_array($request->program_type, ['tahfidz', 'tilawah']) ? ($request->juz_number ?? 30) : null,
             'score_cognitive' => $cognitive,
             'score_adab' => $adab,
             'predicate' => $predicate,
@@ -585,7 +661,7 @@ class HalaqahController extends Controller
             'date' => $request->assessment_date,
             'tab' => 'input',
             'mode' => 'individual'
-        ])->with('success', "Penilaian Halaqah {$student->user?->name} berhasil disimpan!");
+        ])->with('success', "Penilaian Halaqah ({$request->program_type}) {$student->user?->name} berhasil disimpan!");
     }
 
     /**
@@ -610,6 +686,7 @@ class HalaqahController extends Controller
 
                 $attendance = $item['attendance_status'] ?? 'hadir';
                 $programType = $item['program_type'] ?? 'tahsin';
+                $recordCategory = $item['record_category'] ?? 'ziyadah';
                 $cognitive = isset($item['score_cognitive']) ? (float) $item['score_cognitive'] : 0;
                 $adab = isset($item['score_adab']) ? (float) $item['score_adab'] : 85;
 
@@ -624,14 +701,15 @@ class HalaqahController extends Controller
                     'assessment_date' => $assessmentDate,
                     'attendance_status' => $attendance,
                     'program_type' => $programType,
+                    'record_category' => $recordCategory,
                     'tahsin_type' => $item['tahsin_type'] ?? 'jilid',
-                    'jilid_level' => $item['jilid_level'] ?? 'Jilid 1',
-                    'page_start' => $item['page_start'] ?? null,
-                    'page_end' => $item['page_end'] ?? null,
-                    'surah_name' => $item['surah_name'] ?? null,
-                    'ayat_start' => $item['ayat_start'] ?? null,
-                    'ayat_end' => $item['ayat_end'] ?? null,
-                    'juz_number' => $item['juz_number'] ?? 30,
+                    'jilid_level' => $programType === 'tahsin' ? ($item['jilid_level'] ?? 'Jilid 1') : null,
+                    'page_start' => $programType === 'tahsin' ? ($item['page_start'] ?? null) : null,
+                    'page_end' => $programType === 'tahsin' ? ($item['page_end'] ?? null) : null,
+                    'surah_name' => in_array($programType, ['tahfidz', 'tilawah']) ? ($item['surah_name'] ?? null) : null,
+                    'ayat_start' => in_array($programType, ['tahfidz', 'tilawah']) ? ($item['ayat_start'] ?? null) : null,
+                    'ayat_end' => in_array($programType, ['tahfidz', 'tilawah']) ? ($item['ayat_end'] ?? null) : null,
+                    'juz_number' => in_array($programType, ['tahfidz', 'tilawah']) ? ($item['juz_number'] ?? 30) : null,
                     'score_cognitive' => $cognitive,
                     'score_adab' => $adab,
                     'predicate' => $predicate,
@@ -854,5 +932,220 @@ class HalaqahController extends Controller
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
         ]);
+    }
+
+    /**
+     * API JSON: Dapatkan capaian terakhir santri untuk fitur Smart Assist
+     */
+    public function getLastRecord($studentId)
+    {
+        $student = Student::with(['user', 'class'])->findOrFail($studentId);
+        $lastRecord = HalaqahRecord::where('student_id', $studentId)
+            ->latest('assessment_date')
+            ->latest('id')
+            ->first();
+
+        $suggested = [
+            'program_type' => $lastRecord?->program_type ?? 'tahfidz',
+            'record_category' => 'ziyadah',
+            'page_start' => 1,
+            'page_end' => 10,
+            'jilid_level' => 'Jilid 1',
+            'surah_name' => 'An-Naba\'',
+            'juz_number' => 30,
+            'ayat_start' => 1,
+            'ayat_end' => 10,
+        ];
+
+        if ($lastRecord) {
+            $suggested['program_type'] = $lastRecord->program_type;
+            if ($lastRecord->program_type === 'tahsin') {
+                $suggested['jilid_level'] = $lastRecord->jilid_level ?: 'Jilid 1';
+                $nextPage = ($lastRecord->page_end ?: 0) + 1;
+                $suggested['page_start'] = $nextPage;
+                $suggested['page_end'] = $nextPage + 4;
+            } else {
+                $suggested['surah_name'] = $lastRecord->surah_name ?: 'An-Naba\'';
+                $suggested['juz_number'] = $lastRecord->juz_number ?: 30;
+                $nextAyat = ($lastRecord->ayat_end ?: 0) + 1;
+                $suggested['ayat_start'] = $nextAyat;
+                $suggested['ayat_end'] = $nextAyat + 9;
+            }
+        }
+
+        return response()->json([
+            'student' => [
+                'id' => $student->id,
+                'name' => $student->user?->name ?? 'Santri',
+                'nisn' => $student->nisn ?? $student->nis ?? '-',
+                'class_name' => $student->class?->name ?? '-',
+                'phone' => $student->phone,
+                'parent_phone' => $student->parent_phone,
+            ],
+            'record' => $lastRecord ? [
+                'id' => $lastRecord->id,
+                'date' => $lastRecord->assessment_date->format('d/m/Y'),
+                'program_type' => $lastRecord->program_type,
+                'record_category' => $lastRecord->record_category ?? 'ziyadah',
+                'material_summary' => $lastRecord->material_summary,
+                'jilid_level' => $lastRecord->jilid_level,
+                'page_start' => $lastRecord->page_start,
+                'page_end' => $lastRecord->page_end,
+                'surah_name' => $lastRecord->surah_name,
+                'ayat_start' => $lastRecord->ayat_start,
+                'ayat_end' => $lastRecord->ayat_end,
+                'juz_number' => $lastRecord->juz_number,
+                'score_cognitive' => $lastRecord->score_cognitive,
+                'predicate' => $lastRecord->predicate,
+            ] : null,
+            'suggested' => $suggested,
+        ]);
+    }
+
+    /**
+     * Kirim Resume Setoran ke WhatsApp Wali Murid
+     */
+    public function sendWa(Request $request, $recordId)
+    {
+        $record = HalaqahRecord::with(['student.user', 'class', 'teacher'])->findOrFail($recordId);
+        $student = $record->student;
+        $parentPhone = $student->parent_phone ?: $student->phone;
+
+        $studentName = $student->user?->name ?? 'Santri';
+        $teacherName = $record->teacher?->name ?? 'Ustadz Pembimbing';
+        $date = $record->assessment_date->translatedFormat('l, d F Y');
+        $program = strtoupper($record->program_type);
+        $cat = $record->record_category === 'murojaah' ? "Muroja'ah (Pengulangan)" : "Ziyadah (Hafalan Baru)";
+        $material = $record->material_summary;
+        $score = $record->score_cognitive;
+        $predicate = $record->predicate;
+        $notes = $record->teacher_notes ?: '-';
+
+        $msg = "🌙 *LAPORAN MUTABA'AH AL-QUR'AN*\n"
+             . "--------------------------------------------------\n"
+             . "Assalamu'alaikum Warahmatullahi Wabarakatuh\n"
+             . "Yth. Bapak/Ibu Wali dari ananda *{$studentName}*,\n\n"
+             . "Alhamdulillah, berikut resume bimbingan Al-Qur'an ananda hari ini:\n"
+             . "📅 *Hari/Tanggal*: {$date}\n"
+             . "📖 *Program*: {$program}\n"
+             . "🏷️ *Kategori*: {$cat}\n"
+             . "🎯 *Capaian*: {$material}\n"
+             . "⭐ *Nilai & Predikat*: {$score} / 100 (*{$predicate}*)\n"
+             . "📝 *Catatan Pembimbing*: {$notes}\n"
+             . "👳‍♂️ *Musyrif/ah*: Ust. {$teacherName}\n\n"
+             . "Semoga ananda senantiasa diberkahi kelancaran dan istiqomah bersama Al-Qur'an. Aamiin.\n"
+             . "Wassalamu'alaikum Warahmatullahi Wabarakatuh.";
+
+        $cleanPhone = WhatsAppService::formatPhoneNumber((string)$parentPhone);
+        $encodedMsg = urlencode($msg);
+        $waUrl = "https://api.whatsapp.com/send?phone={$cleanPhone}&text={$encodedMsg}";
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'phone' => $cleanPhone,
+                'message' => $msg,
+                'wa_url' => $waUrl,
+            ]);
+        }
+
+        return redirect()->away($waUrl);
+    }
+
+    /**
+     * Simpan Target Hafalan / Tilawah Baru
+     */
+    public function storeTarget(Request $request)
+    {
+        $request->validate([
+            'grade' => 'required|integer',
+            'semester' => 'required|in:1,2',
+            'program_type' => 'required|in:tahfidz,tahsin,tilawah',
+        ]);
+
+        $title = $request->input('title');
+        if (empty($title)) {
+            $progLabel = match($request->program_type) {
+                'tahsin' => 'Tahsin ' . ($request->target_jilid ?? 'Jilid'),
+                'tilawah' => 'Tilawah ' . ($request->target_juz ? 'Juz ' . $request->target_juz : ''),
+                default => 'Tahfidz ' . ($request->target_juz ? 'Juz ' . $request->target_juz : '')
+            };
+            $title = "Target {$progLabel} Kelas {$request->grade} Semester {$request->semester}";
+        }
+
+        QuranTarget::create([
+            'grade' => $request->grade,
+            'semester' => $request->semester,
+            'program_type' => $request->program_type,
+            'title' => $title,
+            'target_juz' => $request->target_juz ?? $request->target_juz_start,
+            'target_surah_start' => $request->target_surah_start ?? $request->target_surah,
+            'target_surah_end' => $request->target_surah_end,
+            'target_jilid' => $request->target_jilid,
+            'notes' => $request->notes ?? $request->description,
+        ]);
+
+        return redirect()->route('admin.halaqah.index', ['tab' => 'target', 'grade' => $request->grade])
+            ->with('success', 'Target capaian Al-Qur\'an berhasil disimpan!');
+    }
+
+    /**
+     * Hapus Target Hafalan
+     */
+    public function destroyTarget($id)
+    {
+        QuranTarget::findOrFail($id)->delete();
+        return back()->with('success', 'Target capaian Al-Qur\'an berhasil dihapus.');
+    }
+
+    /**
+     * Simpan Data Ujian Tasmi' 1 Juz Sekali Duduk
+     */
+    public function storeTasmi(Request $request)
+    {
+        $request->validate([
+            'student_id' => 'required|exists:students,id',
+            'exam_date' => 'required|date',
+            'score_tajwid' => 'required|numeric|min:0|max:100',
+            'score_kelancaran' => 'required|numeric|min:0|max:100',
+            'score_fashohah' => 'required|numeric|min:0|max:100',
+        ]);
+
+        $juzTested = $request->input('juz_tested') ?: ('Juz ' . $request->input('juz_number', '30'));
+        $final = round(($request->score_tajwid * 0.4) + ($request->score_kelancaran * 0.4) + ($request->score_fashohah * 0.2), 1);
+        $predicate = HalaqahRecord::calculatePredicate($final);
+        $status = $final >= 75 ? 'lulus' : 'perbaikan';
+
+        $student = Student::findOrFail($request->student_id);
+        $certNo = 'SYH/' . date('Ym') . '/' . str_pad($student->id, 4, '0', STR_PAD_LEFT) . '/' . rand(100, 999);
+
+        QuranTasmiExam::create([
+            'student_id' => $request->student_id,
+            'teacher_id' => Auth::id(),
+            'academic_year_id' => AcademicYear::getActive()?->id,
+            'exam_date' => $request->exam_date,
+            'juz_tested' => $juzTested,
+            'surah_range' => $request->surah_range,
+            'score_tajwid' => $request->score_tajwid,
+            'score_kelancaran' => $request->score_kelancaran,
+            'score_fashohah' => $request->score_fashohah,
+            'score_final' => $final,
+            'predicate' => $predicate,
+            'status' => $status,
+            'certificate_number' => $certNo,
+            'notes' => $request->notes,
+        ]);
+
+        return redirect()->route('admin.halaqah.index', ['tab' => 'tasmi'])
+            ->with('success', "Hasil Ujian Tasmi' untuk {$student->user?->name} berhasil dicatat!");
+    }
+
+    /**
+     * Cetak Syahadah / Sertifikat Tasmi' 1 Juz
+     */
+    public function printCertificate($id)
+    {
+        $exam = QuranTasmiExam::with(['student.user', 'student.class', 'teacher'])->findOrFail($id);
+        return view('admin.halaqah.certificate', compact('exam'));
     }
 }

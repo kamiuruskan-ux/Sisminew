@@ -21,6 +21,7 @@ class HalaqahRecord extends Model
         'assessment_date',
         'attendance_status',
         'program_type',
+        'record_category',
         'tahsin_type',
         'jilid_level',
         'page_start',
@@ -100,15 +101,21 @@ class HalaqahRecord extends Model
      */
     public function getMaterialSummaryAttribute(): string
     {
+        $catLabel = $this->record_category === 'murojaah' ? ' (Muroja\'ah)' : ' (Ziyadah)';
         if ($this->program_type === 'tahsin') {
-            $type = $this->tahsin_type === 'tilawah' ? 'Tilawah' : ($this->jilid_level ?? 'Jilid');
+            $type = $this->jilid_level ?? 'Jilid';
             $pages = ($this->page_start && $this->page_end) ? "hl. {$this->page_start} - {$this->page_end}" : ($this->page_start ? "hl. {$this->page_start}" : '');
             return "Tahsin: {$type} {$pages}";
+        } elseif ($this->program_type === 'tilawah') {
+            $surah = $this->surah_name ?? 'Surah';
+            $ayats = ($this->ayat_start && $this->ayat_end) ? "({$this->ayat_start}-{$this->ayat_end})" : '';
+            $juz = $this->juz_number ? " [Juz {$this->juz_number}]" : '';
+            return "Tilawah: Surah {$surah} {$ayats}{$juz}";
         } else {
             $surah = $this->surah_name ?? 'Surah';
             $ayats = ($this->ayat_start && $this->ayat_end) ? "({$this->ayat_start}-{$this->ayat_end})" : '';
             $juz = $this->juz_number ? " [Juz {$this->juz_number}]" : '';
-            return "Tahfidz: Surah {$surah} {$ayats}{$juz}";
+            return "Tahfidz{$catLabel}: Surah {$surah} {$ayats}{$juz}";
         }
     }
 }

@@ -519,6 +519,12 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::get('halaqah/export-excel', [\App\Http\Controllers\Admin\HalaqahController::class, 'exportExcel'])->name('halaqah.export-excel');
         Route::get('halaqah/group-students', [\App\Http\Controllers\Admin\HalaqahController::class, 'getGroupStudents'])->name('halaqah.group-students');
         Route::post('halaqah/save-group', [\App\Http\Controllers\Admin\HalaqahController::class, 'saveGroup'])->name('halaqah.save-group');
+        Route::get('halaqah/last-record/{studentId}', [\App\Http\Controllers\Admin\HalaqahController::class, 'getLastRecord'])->name('halaqah.last-record');
+        Route::get('halaqah/send-wa/{recordId}', [\App\Http\Controllers\Admin\HalaqahController::class, 'sendWa'])->name('halaqah.send-wa');
+        Route::post('halaqah/target', [\App\Http\Controllers\Admin\HalaqahController::class, 'storeTarget'])->name('halaqah.target.store');
+        Route::delete('halaqah/target/{id}', [\App\Http\Controllers\Admin\HalaqahController::class, 'destroyTarget'])->name('halaqah.target.destroy');
+        Route::post('halaqah/tasmi', [\App\Http\Controllers\Admin\HalaqahController::class, 'storeTasmi'])->name('halaqah.tasmi.store');
+        Route::get('halaqah/tasmi/certificate/{id}', [\App\Http\Controllers\Admin\HalaqahController::class, 'printCertificate'])->name('halaqah.tasmi.certificate');
 
         // Modul E-Raport Khusus Pembelajaran Al-Qur'an (Terpisah Sendiri)
         Route::get('quran-raport', [\App\Http\Controllers\Admin\QuranRaportController::class, 'index'])->name('quran-raport.index');
@@ -918,6 +924,9 @@ Route::middleware(['auth', 'role:guru|teacher|super-admin|admin'])->prefix('teac
 */
 Route::middleware(['auth', 'role:student', 'verify.pin'])->prefix('student')->name('student.')->group(function () {
     Route::get('/dashboard', [StudentDashboardController::class, 'index'])->name('dashboard');
+    
+    // Mutaba'ah Al-Qur'an (Tahsin, Tahfidz, Tilawah)
+    Route::get('/quran', [\App\Http\Controllers\Student\StudentQuranController::class, 'index'])->name('quran.index');
     
     // Profile & Account
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');

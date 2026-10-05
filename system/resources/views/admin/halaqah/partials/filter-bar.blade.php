@@ -75,6 +75,17 @@
                     <option value="all" {{ $filterProgram === 'all' ? 'selected' : '' }}>Semua Program</option>
                     <option value="tahsin" {{ $filterProgram === 'tahsin' ? 'selected' : '' }}>Tahsin (Bimbingan)</option>
                     <option value="tahfidz" {{ $filterProgram === 'tahfidz' ? 'selected' : '' }}>Tahfidz (Hafalan)</option>
+                    <option value="tilawah" {{ $filterProgram === 'tilawah' ? 'selected' : '' }}>Tilawah (Al-Qur'an)</option>
+                </select>
+            </div>
+
+            {{-- 4b. Filter Kategori Capaian --}}
+            <div>
+                <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Kategori Capaian</label>
+                <select name="record_category" class="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="all" {{ ($filterCategory ?? 'all') === 'all' ? 'selected' : '' }}>Semua Kategori</option>
+                    <option value="ziyadah" {{ ($filterCategory ?? '') === 'ziyadah' ? 'selected' : '' }}>Ziyadah (Baru)</option>
+                    <option value="murojaah" {{ ($filterCategory ?? '') === 'murojaah' ? 'selected' : '' }}>Muroja'ah (Ulang)</option>
                 </select>
             </div>
 
@@ -89,7 +100,7 @@
                 </select>
             </div>
 
-            {{-- 6. Filter Hafalan / Juz (Tahfidz) --}}
+            {{-- 6. Filter Hafalan / Juz (Tahfidz / Tilawah) --}}
             <div>
                 <label class="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">Hafalan / Juz</label>
                 <select name="juz" class="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500">
