@@ -66,7 +66,7 @@ class SpmbController extends Controller
     public function show($encodedId)
     {
         $id = $this->resolveId($encodedId);
-        $spmb = SpmbRegistration::with(['user', 'wave.academicYear', 'class', 'major'])->findOrFail($id);
+        $spmb = SpmbRegistration::with(['user', 'wave.academicYear', 'class', 'major', 'documents'])->findOrFail($id);
         $classes = ClassModel::where('is_active', true)->get();
         $majors = Major::where('is_active', true)->get();
         return view('admin.spmb.show', compact('spmb', 'classes', 'majors'));
@@ -272,6 +272,95 @@ class SpmbController extends Controller
         }
 
         return back()->with('success', 'Pendaftaran ditolak.');
+    }
+
+    public function updatePhoto($encodedId, Request $request)
+    {
+        $id = $this->resolveId($encodedId);
+        $spmb = SpmbRegistration::with('documents')->findOrFail($id);
+
+        $request->validate([
+            'photo' => 'required|image|mimes:jpeg,png,jpg,webp|max:3072',
+        ], [
+            'photo.required' => 'Pilih file pas foto terlebih dahulu.',
+            'photo.image' => 'File harus berupa gambar.',
+            'photo.mimes' => 'Format file foto harus jpeg, png, jpg, atau webp.',
+            'photo.max' => 'Ukuran file foto maksimal 3MB.',
+        ]);
+
+        $file = $request->file('photo');
+        $savedFile = save_uploaded_public_file($file, 'img/spmb/photos');
+        $fileName = basename($savedFile);
+
+        $oldPhoto = $spmb->documents->firstWhere('type', 'photo');
+        if ($oldPhoto) {
+            if ($oldPhoto->file_path) {
+                delete_public_file($oldPhoto->file_path, 'img/spmb/photos');
+            }
+            $oldPhoto->update([
+                'file_path' => 'spmb/photos/' . $fileName,
+                'file_name' => $fileName,
+                'file_mime' => $file->getMimeType(),
+                'file_size' => $file->getSize(),
+                'is_verified' => true,
+            ]);
+        } else {
+            $spmb->documents()->create([
+                'type' => 'photo',
+                'file_path' => 'spmb/photos/' . $fileName,
+                'file_name' => $fileName,
+                'file_mime' => $file->getMimeType(),
+                'file_size' => $file->getSize(),
+                'is_verified' => true,
+            ]);
+        }
+
+        return back()->with('success', 'Pas foto calon siswa berhasil diperbarui oleh Admin.');
+    }
+
+    public function requestRevision($encodedId, Request $request)
+    {
+        $id = $this->resolveId($encodedId);
+        $spmb = SpmbRegistration::findOrFail($id);
+
+        $request->validate([
+            'notes' => 'required|string|max:1000',
+        ], [
+            'notes.required' => 'Catatan perbaikan / revisi untuk wali murid wajib diisi.',
+        ]);
+
+        try {
+            $spmb->update([
+                'status' => 'need_revision',
+                'verification_notes' => $request->notes,
+                'verified_by' => auth()->id(),
+                'verified_at' => now(),
+            ]);
+        } catch (\Throwable $e) {
+            $spmb->update([
+                'status' => 'draft',
+                'verification_notes' => $request->notes,
+                'verified_by' => auth()->id(),
+                'verified_at' => now(),
+            ]);
+        }
+
+        // Send WA Notification if requested or enabled
+        $waTarget = $spmb->parent_phone ?? $spmb->phone;
+        if ($waTarget && ($request->boolean('send_wa', true) || \App\Models\Setting::get('wa_notify_spmb', '1') == '1')) {
+            $schoolName = \App\Models\Setting::get('school_name', 'Sekolah');
+            $waMsg = "Pemberitahuan Revisi Berkas SPMB - {$schoolName}\n\nHalo Bapak/Ibu wali dari *{$spmb->full_name}* (No: {$spmb->registration_number}).\n\nBerkas pendaftaran ananda memerlukan *perbaikan/revisi*.\n\n*Catatan Panitia SPMB:*\n\"{$request->notes}\"\n\nSilakan login ke portal SPMB untuk mengunggah berkas/foto perbaikan:\n" . route('spmb.dashboard.index') . "\n\nTerima kasih.";
+            \App\Services\WhatsAppService::sendMessage($waTarget, $waMsg);
+        }
+
+        if ($request->boolean('open_wa') && $spmb->whatsapp_phone) {
+            return back()->with([
+                'success' => 'Status pendaftaran diubah menjadi perlu revisi dan permintaan dikirimkan ke wali murid.',
+                'open_wa_url' => $spmb->whatsapp_url,
+            ]);
+        }
+
+        return back()->with('success', 'Permintaan revisi berkas berhasil disimpan. Wali murid diminta untuk memperbaiki berkas.');
     }
 
     public function resetPassword($encodedId, Request $request)

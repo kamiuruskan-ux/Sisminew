@@ -9,6 +9,25 @@
     showPasswordModal: false,
     showPreviewModal: false,
     showDeleteModal: false,
+    showPhotoModal: false,
+    photoPreviewUrl: null,
+    onPhotoFileChange(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                this.photoPreviewUrl = evt.target.result;
+            };
+            reader.readAsDataURL(file);
+        } else {
+            this.photoPreviewUrl = null;
+        }
+    },
+    showRevisionModal: false,
+    revisionNotes: '',
+    setRevisionPreset(text) {
+        this.revisionNotes = text;
+    },
     previewImage: '',
     previewTitle: '',
     deleteTarget: null,
@@ -64,7 +83,11 @@
         window.open(url, '_blank');
         this.showWaModal = false;
     }
-}">
+}"
+@if(session('open_wa_url'))
+x-init="setTimeout(() => window.open('{{ session('open_wa_url') }}', '_blank'), 300)"
+@endif
+>
     @include('components.delete-modal', ['title' => 'Hapus Pendaftaran SPMB', 'message' => 'Apakah Anda yakin ingin menghapus pendaftaran SPMB :name ini? Tindakan ini tidak dapat dibatalkan.'])
 
     @if(session('quota_warning'))
@@ -339,6 +362,157 @@
         </div>
     </div>
 
+    <!-- Modal Ganti / Upload Pas Foto Calon Siswa (Admin Fast-Track) -->
+    <div x-show="showPhotoModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
+        <div class="fixed inset-0 bg-slate-950/70 backdrop-blur-xs transition-opacity" @click="showPhotoModal = false"></div>
+
+        <div class="flex min-h-screen items-center justify-center p-4">
+            <div class="relative w-full max-w-lg transform rounded-3xl bg-white p-6 sm:p-8 text-left shadow-2xl transition-all border border-slate-100"
+                 @click.away="showPhotoModal = false">
+                
+                <!-- Modal Header -->
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-extrabold text-base text-slate-900">Upload / Ganti Pas Foto</h3>
+                            <p class="text-xs text-slate-500">Perbarui pas foto pendaftar langsung oleh Admin</p>
+                        </div>
+                    </div>
+                    <button type="button" @click="showPhotoModal = false" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <!-- Form Upload -->
+                <form action="{{ route('admin.spmb.update-photo', encode_id($spmb->id)) }}" method="POST" enctype="multipart/form-data" class="mt-5 space-y-5">
+                    @csrf
+                    
+                    <!-- Live Image Preview Area -->
+                    <div class="flex flex-col items-center justify-center p-5 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                        <template x-if="photoPreviewUrl">
+                            <div class="relative w-32 h-40 rounded-xl overflow-hidden shadow-md border-2 border-indigo-500 bg-white mb-3">
+                                <img :src="photoPreviewUrl" class="w-full h-full object-cover">
+                            </div>
+                        </template>
+                        <template x-if="!photoPreviewUrl">
+                            <div class="w-28 h-36 rounded-xl bg-slate-200 flex flex-col items-center justify-center text-slate-400 border border-slate-300 mb-3">
+                                <svg class="w-10 h-10" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                <span class="text-[9px] font-extrabold mt-1 uppercase tracking-wider">Pas Foto 3x4</span>
+                            </div>
+                        </template>
+                        
+                        <label class="cursor-pointer px-4 py-2.5 bg-white border border-slate-300 hover:border-indigo-500 text-indigo-600 hover:bg-indigo-50 rounded-xl font-extrabold text-xs shadow-2xs transition-all flex items-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                            <span>Pilih File Foto Baru</span>
+                            <input type="file" name="photo" accept="image/jpeg,image/png,image/jpg,image/webp" required class="hidden" @change="onPhotoFileChange($event)">
+                        </label>
+                        <p class="text-[11px] text-slate-400 mt-2 text-center leading-relaxed">Format didukung: <strong>JPG, JPEG, PNG, WEBP</strong> (Maks. 3MB).<br>Gunakan rasio 3:4 atau pas foto formal latar biru/merah.</p>
+                    </div>
+
+                    <div class="p-3.5 bg-indigo-50/70 border border-indigo-100 rounded-2xl text-[11px] text-indigo-900 leading-relaxed">
+                        <strong class="font-bold">Informasi:</strong> Pas foto ini akan langsung menggantikan berkas foto pendaftaran siswa a.n. <strong>{{ $spmb->full_name }}</strong> dan otomatis diterapkan pada Formulir SPMB, Kartu Ujian, dan Cetak Berkas.
+                    </div>
+
+                    <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                        <button type="button" @click="showPhotoModal = false; photoPreviewUrl = null"
+                                class="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-100 transition-colors">
+                            Batal
+                        </button>
+                        <button type="submit"
+                                class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-lg shadow-indigo-600/25 flex items-center gap-2 transition-all">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+                            <span>Simpan Pas Foto</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Minta Revisi Berkas ke Orang Tua -->
+    <div x-show="showRevisionModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
+        <div class="fixed inset-0 bg-slate-950/70 backdrop-blur-xs transition-opacity" @click="showRevisionModal = false"></div>
+
+        <div class="flex min-h-screen items-center justify-center p-4">
+            <div class="relative w-full max-w-xl transform rounded-3xl bg-white p-6 sm:p-8 text-left shadow-2xl transition-all border border-slate-100"
+                 @click.away="showRevisionModal = false">
+                
+                <!-- Modal Header -->
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-extrabold text-base text-slate-900">Minta Perbaikan / Revisi Berkas</h3>
+                            <p class="text-xs text-slate-500">Berikan instruksi revisi foto/dokumen untuk wali murid</p>
+                        </div>
+                    </div>
+                    <button type="button" @click="showRevisionModal = false" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <!-- Form Permintaan Revisi -->
+                <form action="{{ route('admin.spmb.request-revision', encode_id($spmb->id)) }}" method="POST" class="mt-4 space-y-4">
+                    @csrf
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">Pilihan Cepat Masalah Berkas:</label>
+                        <div class="flex flex-wrap gap-1.5">
+                            <button type="button" @click="setRevisionPreset('Pas foto calon siswa belum memenuhi syarat (mohon gunakan pas foto formal rapi/berseragam dengan latar belakang merah atau biru, wajah tampak jelas dan tidak buram).')"
+                                    class="px-2.5 py-1 bg-slate-100 hover:bg-amber-100 hover:text-amber-800 text-slate-700 text-[11px] font-bold rounded-lg transition">
+                                📷 Pas Foto Tidak Sesuai
+                            </button>
+                            <button type="button" @click="setRevisionPreset('File Kartu Keluarga (KK) yang diunggah buram / terpotong dan nomor NIK tidak terbaca. Mohon unggah ulang foto/scan KK yang jelas dan utuh.')"
+                                    class="px-2.5 py-1 bg-slate-100 hover:bg-amber-100 hover:text-amber-800 text-slate-700 text-[11px] font-bold rounded-lg transition">
+                                📄 Kartu Keluarga Buram
+                            </button>
+                            <button type="button" @click="setRevisionPreset('File Akta Kelahiran tidak terbaca jelas / salah file. Mohon unggah kembali dokumen/scan asli Akta Kelahiran.')"
+                                    class="px-2.5 py-1 bg-slate-100 hover:bg-amber-100 hover:text-amber-800 text-slate-700 text-[11px] font-bold rounded-lg transition">
+                                📜 Akta Lahir Kurang Jelas
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider">
+                            Catatan Instruksi Revisi untuk Wali Murid <span class="text-rose-500">*</span>
+                        </label>
+                        <textarea name="notes" x-model="revisionNotes" required rows="4"
+                                  class="w-full px-4 py-3 bg-slate-50 border border-slate-200/90 rounded-2xl text-xs font-medium text-slate-800 focus:bg-white focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 outline-none transition leading-relaxed"
+                                  placeholder="Tuliskan bagian berkas/foto mana yang harus diperbaiki oleh wali murid..."></textarea>
+                        <p class="text-[11px] text-slate-400">Catatan ini akan langsung tampil di akun portal SPMB wali murid dan dapat dikirimkan ke WhatsApp wali murid.</p>
+                    </div>
+
+                    @if($spmb->whatsapp_phone)
+                    <div class="p-3.5 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl flex items-center justify-between gap-3 text-xs">
+                        <label class="flex items-center gap-2 text-emerald-900 font-bold cursor-pointer select-none">
+                            <input type="checkbox" name="send_wa" value="1" checked class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500">
+                            <span>Kirim pemberitahuan revisi ke WhatsApp Wali ({{ $spmb->parent_phone ?: $spmb->phone }})</span>
+                        </label>
+                    </div>
+                    @endif
+
+                    <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                        <button type="button" @click="showRevisionModal = false"
+                                class="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-100 transition-colors">
+                            Batal
+                        </button>
+                        <button type="submit"
+                                class="px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-lg shadow-amber-600/25 flex items-center gap-2 transition-all">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                            <span>Kirim Permintaan Revisi</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Navigation Bar Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div class="flex items-center space-x-3">
@@ -402,7 +576,8 @@
                         'rejected' => ['bg' => 'bg-rose-500/20', 'text' => 'text-rose-300', 'border' => 'border-rose-500/30', 'label' => 'DITOLAK'],
                         'verified' => ['bg' => 'bg-blue-500/20', 'text' => 'text-blue-300', 'border' => 'border-blue-500/30', 'label' => 'TERVERIFIKASI'],
                         'submitted' => ['bg' => 'bg-amber-500/20', 'text' => 'text-amber-300', 'border' => 'border-amber-500/30', 'label' => 'PENDING VERIFIKASI'],
-                        default => ['bg' => 'bg-slate-500/20', 'text' => 'text-slate-300', 'border' => 'border-slate-500/30', 'label' => strtoupper($spmb->status)]
+                        'need_revision' => ['bg' => 'bg-amber-500/20', 'text' => 'text-amber-300', 'border' => 'border-amber-500/30', 'label' => 'PERLU REVISI BERKAS'],
+                        default => ($spmb->status === 'draft' && $spmb->verification_notes) ? ['bg' => 'bg-amber-500/20', 'text' => 'text-amber-300', 'border' => 'border-amber-500/30', 'label' => 'PERLU REVISI BERKAS'] : ['bg' => 'bg-slate-500/20', 'text' => 'text-slate-300', 'border' => 'border-slate-500/30', 'label' => strtoupper($spmb->status)]
                     };
                 @endphp
                 <div class="px-4 py-2 {{ $statusStyles['bg'] }} {{ $statusStyles['text'] }} rounded-2xl border {{ $statusStyles['border'] }} backdrop-blur-md flex items-center space-x-2 shadow-lg w-full sm:w-auto justify-center sm:justify-start">
@@ -625,27 +800,40 @@
             @endif
 
             <!-- Card 3: Dokumen Upload & Lampiran Berkas -->
-            @if($spmb->documents && $spmb->documents->count() > 0)
             <div class="premium-card overflow-hidden shadow-sm border-slate-200">
-                <div class="px-4 sm:px-8 py-4 sm:py-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                <div class="px-4 sm:px-8 py-4 sm:py-5 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-3">
                     <div class="flex items-center space-x-3">
                         <div class="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-extrabold text-xs border border-purple-100">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                         </div>
-                        <h2 class="text-base font-extrabold text-slate-900">Berkas Lampiran Pendukung</h2>
+                        <div>
+                            <h2 class="text-base font-extrabold text-slate-900">Berkas Lampiran Pendukung</h2>
+                            <p class="text-[11px] text-slate-400 font-semibold">{{ $spmb->documents ? $spmb->documents->count() : 0 }} Berkas Terunggah</p>
+                        </div>
                     </div>
-                    <span class="px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-extrabold border border-purple-200">
-                        {{ $spmb->documents->count() }} Berkas
-                    </span>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button type="button" @click="showPhotoModal = true"
+                                class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            <span>{{ ($spmb->documents && $spmb->documents->firstWhere('type', 'photo')) ? 'Ganti Pas Foto' : 'Upload Pas Foto' }}</span>
+                        </button>
+                        <button type="button" @click="showRevisionModal = true"
+                                class="px-3.5 py-2 bg-amber-50 text-amber-700 hover:bg-amber-600 hover:text-white border border-amber-200/80 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            <span>Minta Revisi ke Wali</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="p-4 sm:p-8">
+                    @if($spmb->documents && $spmb->documents->count() > 0)
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                         @foreach($spmb->documents as $doc)
                             @php
                                 $docSrc = \Illuminate\Support\Str::startsWith($doc->file_path, ['http://', 'https://', 'doc/', 'img/']) ? asset($doc->file_path) : (file_exists(public_path('doc/' . $doc->file_path)) ? asset('doc/' . $doc->file_path) : asset('img/' . $doc->file_path));
+                                $isPhoto = $doc->type === 'photo';
                             @endphp
-                            <div class="group relative flex flex-col p-3 bg-slate-50 border border-slate-200/90 rounded-2xl transition-all hover:bg-white hover:shadow-lg hover:border-purple-300">
+                            <div class="group relative flex flex-col p-3 bg-slate-50 border {{ $isPhoto ? 'border-indigo-300 ring-2 ring-indigo-500/10' : 'border-slate-200/90' }} rounded-2xl transition-all hover:bg-white hover:shadow-lg hover:border-purple-300">
                                 @if(str_contains($doc->file_mime, 'image'))
                                     <div class="relative aspect-[4/3] rounded-xl overflow-hidden bg-slate-200 group-hover:cursor-zoom-in"
                                          @click="openPreview('{{ $docSrc }}', '{{ ucfirst(str_replace('_', ' ', $doc->type)) }}')">
@@ -655,6 +843,11 @@
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                                             </div>
                                         </div>
+                                        @if($isPhoto)
+                                            <span class="absolute top-2 left-2 px-2 py-0.5 bg-indigo-600 text-white font-extrabold text-[9px] uppercase tracking-wider rounded-md shadow-sm">
+                                                Pas Foto Resmi
+                                            </span>
+                                        @endif
                                     </div>
                                 @else
                                     <div class="relative aspect-[4/3] rounded-xl overflow-hidden bg-white border border-slate-200 flex flex-col items-center justify-center space-y-2">
@@ -665,20 +858,47 @@
                                     </div>
                                 @endif
                                 <div class="pt-3 flex items-center justify-between">
-                                    <div>
+                                    <div class="min-w-0 pr-2">
                                         <p class="text-xs font-extrabold text-slate-900 uppercase tracking-wider truncate">{{ str_replace('_', ' ', $doc->type) }}</p>
                                         <p class="text-[10px] font-semibold text-slate-400">{{ number_format($doc->file_size / 1024, 0) }} KB</p>
                                     </div>
-                                    <a href="{{ $docSrc }}" target="_blank" class="p-2 bg-white border border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title="Unduh / Buka File">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                                    </a>
+                                    <div class="flex items-center gap-1.5 shrink-0">
+                                        @if($isPhoto)
+                                            <button type="button" @click="showPhotoModal = true" class="p-2 bg-indigo-50 border border-indigo-200 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-xl transition-all" title="Ganti Pas Foto">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                            </button>
+                                        @endif
+                                        <a href="{{ $docSrc }}" target="_blank" class="p-2 bg-white border border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title="Unduh / Buka File">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                         @endforeach
                     </div>
+                    @else
+                    <div class="p-8 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 space-y-3">
+                        <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        </div>
+                        <div>
+                            <h4 class="font-extrabold text-sm text-slate-800">Belum Ada Berkas yang Diunggah</h4>
+                            <p class="text-xs text-slate-500 max-w-md mx-auto mt-0.5">Wali murid belum mengunggah dokumen persyaratan, atau Anda dapat langsung mengunggah pas foto calon siswa sekarang (Fast-Track).</p>
+                        </div>
+                        <div class="pt-2 flex flex-wrap justify-center gap-2">
+                            <button type="button" @click="showPhotoModal = true" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition flex items-center gap-1.5">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                <span>Upload Pas Foto Sekarang</span>
+                            </button>
+                            <button type="button" @click="showRevisionModal = true" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-extrabold shadow-sm transition flex items-center gap-1.5">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                <span>Minta Berkas ke Wali</span>
+                            </button>
+                        </div>
+                    </div>
+                    @endif
                 </div>
             </div>
-            @endif
         </div>
 
         <!-- Right: Verification Sidebar & History (4 Columns) -->
@@ -777,7 +997,7 @@
                 </div>
 
                 <!-- Action Verification Panel -->
-                @if($spmb->status === 'submitted' || $spmb->status === 'verified')
+                @if($spmb->status === 'submitted' || $spmb->status === 'verified' || $spmb->status === 'need_revision')
                 <div class="premium-card overflow-hidden shadow-md border-indigo-200/80">
                     <div class="px-6 py-4 bg-gradient-to-r from-indigo-700 to-indigo-900 text-white flex items-center justify-between">
                         <div class="flex items-center space-x-2">
@@ -788,14 +1008,24 @@
                     </div>
 
                     <div class="p-6 space-y-5">
-                        @if($spmb->status === 'submitted')
+                        @if($spmb->status === 'submitted' || $spmb->status === 'need_revision')
                         <form action="{{ route('admin.spmb.verify', encode_id($spmb->id)) }}" method="POST">
                             @csrf
-                            <button type="submit" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all font-extrabold text-xs uppercase tracking-wider shadow-md flex items-center justify-center space-x-2">
+                            <button type="submit" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all font-extrabold text-xs uppercase tracking-wider shadow-md flex items-center justify-center space-x-2 cursor-pointer">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                 <span>Tandai Terverifikasi</span>
                             </button>
                         </form>
+                        @endif
+
+                        @if($spmb->status === 'need_revision')
+                        <div class="p-3.5 bg-amber-500/10 border border-amber-300 rounded-2xl text-amber-900 text-xs space-y-1">
+                            <p class="font-extrabold flex items-center gap-1.5 text-amber-800">
+                                <svg class="w-4 h-4 text-amber-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                Menunggu Perbaikan dari Wali Murid
+                            </p>
+                            <p class="text-[11px] text-amber-700 italic">"{{ $spmb->verification_notes }}"</p>
+                        </div>
                         @endif
 
                         <!-- Form Penerimaan Siswa Baru -->
@@ -835,16 +1065,22 @@
                             </button>
                         </form>
 
-                        <div class="pt-3 border-t border-slate-100 flex flex-col sm:flex-row gap-3">
+                        <div class="pt-3 border-t border-slate-100 flex flex-col sm:flex-row gap-2.5">
+                            <button type="button" @click="showRevisionModal = true"
+                                    class="w-full sm:flex-1 py-2.5 px-2 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-600 hover:text-white rounded-xl transition-all font-extrabold text-[11px] uppercase tracking-wider flex items-center justify-center space-x-1 cursor-pointer"
+                                    title="Minta perbaikan berkas ke wali murid">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                <span>Minta Revisi</span>
+                            </button>
                             <button type="button" @click="openRejectModal({{ $spmb->id }}, '{{ addslashes($spmb->full_name) }}')"
-                                    class="w-full sm:flex-1 py-2.5 px-3 bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-600 hover:text-white rounded-xl transition-all font-extrabold text-[11px] uppercase tracking-wider flex items-center justify-center space-x-1">
+                                    class="w-full sm:flex-1 py-2.5 px-2 bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-600 hover:text-white rounded-xl transition-all font-extrabold text-[11px] uppercase tracking-wider flex items-center justify-center space-x-1">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
-                                <span>Tolak Pendaftaran</span>
+                                <span>Tolak</span>
                             </button>
                             <button type="button" @click="openPasswordModal({{ $spmb->id }}, '{{ addslashes($spmb->full_name) }}')"
-                                    class="w-full sm:flex-1 py-2.5 px-3 bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-600 hover:text-white rounded-xl transition-all font-extrabold text-[11px] uppercase tracking-wider flex items-center justify-center space-x-1">
+                                    class="w-full sm:flex-1 py-2.5 px-2 bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-600 hover:text-white rounded-xl transition-all font-extrabold text-[11px] uppercase tracking-wider flex items-center justify-center space-x-1">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
-                                <span>Reset Password</span>
+                                <span>Password</span>
                             </button>
                         </div>
                     </div>
@@ -882,6 +1118,18 @@
                                     <p class="text-xs font-extrabold text-slate-900">Diverifikasi Admin</p>
                                     <p class="text-[10px] text-slate-400 font-medium">{{ $spmb->verified_at->format('d M Y, H:i') }} WIB</p>
                                     <p class="text-[10px] text-slate-500 font-bold">Oleh {{ $spmb->verifier->name ?? 'System' }}</p>
+                                </div>
+                            </div>
+                            @endif
+
+                            @if($spmb->status === 'need_revision')
+                            <div class="relative flex items-start space-x-4">
+                                <div class="w-6 h-6 bg-amber-500 text-white rounded-full flex items-center justify-center ring-4 ring-white shadow-sm shrink-0">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                </div>
+                                <div class="space-y-0.5 pt-0.5">
+                                    <p class="text-xs font-extrabold text-amber-600">Perbaikan Berkas Diminta</p>
+                                    <p class="text-[10px] text-slate-400 font-medium">{{ $spmb->updated_at->format('d M Y, H:i') }} WIB</p>
                                 </div>
                             </div>
                             @endif

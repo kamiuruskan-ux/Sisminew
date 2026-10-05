@@ -298,6 +298,21 @@
                 Upload Dokumen
             </h3>
 
+            @if($registration->verification_notes)
+                <div class="bg-amber-500/10 border-2 border-amber-400 rounded-2xl p-4 mb-4 shadow-sm">
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <h4 class="font-black text-amber-900 text-xs uppercase tracking-wider">Catatan Perbaikan / Revisi dari Panitia:</h4>
+                            <p class="text-xs text-amber-950 font-semibold leading-relaxed mt-1 bg-white/80 p-2.5 rounded-lg border border-amber-300">"{{ $registration->verification_notes }}"</p>
+                            <p class="text-[11px] text-amber-800 mt-1.5 font-medium">Silakan unggah berkas atau pas foto perbaikan di bawah ini, lalu klik tombol Simpan Perubahan di bagian bawah halaman.</p>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
                 <p class="text-xs text-amber-800">
                     <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -312,6 +327,10 @@
                     $photoDoc = $registration->documents()->where('type', 'photo')->first();
                     $kkDoc = $registration->documents()->where('type', 'kk')->first();
                     $birthDoc = $registration->documents()->where('type', 'birth_certificate')->first();
+
+                    $photoDocUrl = $photoDoc ? get_public_file_url($photoDoc->file_path, 'img/spmb/photos') : null;
+                    $kkDocUrl = $kkDoc ? get_public_file_url($kkDoc->file_path, 'doc/spmb/documents') : null;
+                    $birthDocUrl = $birthDoc ? get_public_file_url($birthDoc->file_path, 'doc/spmb/documents') : null;
                 @endphp
 
                 <!-- Foto -->
@@ -319,15 +338,15 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">Foto Siswa</label>
                     <div class="relative group" x-data="{ dragging: false }">
                         <input type="file" name="photo" accept="image/*" 
-                               @change="photoName = $event.target.files[0]?.name; photoSize = ($event.target.files[0]?.size / 1024 / 1024).toFixed(2)"
-                               @dragenter="dragging = true"
-                               @dragleave="dragging = false"
-                               @drop="dragging = false"
-                               class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+                                @change="photoName = $event.target.files[0]?.name; photoSize = ($event.target.files[0]?.size / 1024 / 1024).toFixed(2)"
+                                @dragenter="dragging = true"
+                                @dragleave="dragging = false"
+                                @drop="dragging = false"
+                                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
                         <div :class="dragging ? 'border-amber-500 bg-amber-50/80 scale-[1.02] ring-4 ring-amber-500/10' : 'border-gray-300 bg-white'" class="border-2 border-dashed rounded-xl p-4 text-center group-hover:border-amber-500 group-hover:bg-amber-50 transition-all duration-200">
-                            @if($photoDoc && file_exists(public_path('img/' . $photoDoc->file_path)))
-                                <img src="{{ asset('img/' . $photoDoc->file_path) }}" alt="Foto Siswa" 
-                                     @click="previewImage = '{{ asset('img/' . $photoDoc->file_path) }}'; previewTitle = 'Foto Siswa'; previewModal = true"
+                            @if($photoDocUrl)
+                                <img src="{{ $photoDocUrl }}" alt="Foto Siswa" 
+                                     @click="previewImage = '{{ $photoDocUrl }}'; previewTitle = 'Foto Siswa'; previewModal = true"
                                      class="w-20 h-20 mx-auto mb-2 object-cover rounded-lg border-2 border-amber-500 cursor-pointer hover:scale-110 transition-transform">
                             @else
                                 <div class="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-2">
@@ -341,7 +360,7 @@
                             <p class="text-xs text-blue-600 mt-1 font-medium" x-show="photoSize" x-text="photoSize + ' MB'"></p>
                         </div>
                     </div>
-                    @if($photoDoc)
+                    @if($photoDocUrl)
                         <div class="mt-2 flex items-center justify-between">
                             <p class="text-xs text-green-600 flex items-center">
                                 <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -349,7 +368,7 @@
                                 </svg>
                                 Terupload
                             </p>
-                            <button type="button" @click="previewImage = '{{ asset('img/' . $photoDoc->file_path) }}'; previewTitle = 'Foto Siswa'; previewModal = true" class="text-xs text-amber-600 hover:text-amber-700 font-medium flex items-center">
+                            <button type="button" @click="previewImage = '{{ $photoDocUrl }}'; previewTitle = 'Foto Siswa'; previewModal = true" class="text-xs text-amber-600 hover:text-amber-700 font-medium flex items-center">
                                 <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
@@ -371,10 +390,10 @@
                                @drop="dragging = false"
                                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
                         <div :class="dragging ? 'border-amber-500 bg-amber-50/80 scale-[1.02] ring-4 ring-amber-500/10' : 'border-gray-300 bg-white'" class="border-2 border-dashed rounded-xl p-4 text-center group-hover:border-amber-500 group-hover:bg-amber-50 transition-all duration-200">
-                            @if($kkDoc && file_exists(public_path('img/' . $kkDoc->file_path)))
+                            @if($kkDoc && $kkDocUrl)
                                 @if(str_contains($kkDoc->file_mime, 'image'))
-                                    <img src="{{ asset('img/' . $kkDoc->file_path) }}" alt="KK" 
-                                         @click="previewImage = '{{ asset('img/' . $kkDoc->file_path) }}'; previewTitle = 'Kartu Keluarga'; previewModal = true"
+                                    <img src="{{ $kkDocUrl }}" alt="KK" 
+                                         @click="previewImage = '{{ $kkDocUrl }}'; previewTitle = 'Kartu Keluarga'; previewModal = true"
                                          class="w-20 h-20 mx-auto mb-2 object-cover rounded-lg border-2 border-green-500 cursor-pointer hover:scale-110 transition-transform">
                                 @else
                                     <div class="w-12 h-12 bg-gradient-to-br from-green-100 to-emerald-100 rounded-full flex items-center justify-center mx-auto mb-2">
@@ -396,7 +415,7 @@
                             <p class="text-xs text-green-600 mt-1 font-medium" x-show="kkSize" x-text="kkSize + ' MB'"></p>
                         </div>
                     </div>
-                    @if($kkDoc)
+                    @if($kkDoc && $kkDocUrl)
                         <div class="mt-2 flex items-center justify-between">
                             <p class="text-xs text-green-600 flex items-center">
                                 <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -404,7 +423,7 @@
                                 </svg>
                                 Terupload
                             </p>
-                            <button type="button" @click="previewImage = '{{ asset('img/' . $kkDoc->file_path) }}'; previewTitle = 'Kartu Keluarga'; previewModal = true" class="text-xs text-amber-600 hover:text-amber-700 font-medium flex items-center">
+                            <button type="button" @click="previewImage = '{{ $kkDocUrl }}'; previewTitle = 'Kartu Keluarga'; previewModal = true" class="text-xs text-amber-600 hover:text-amber-700 font-medium flex items-center">
                                 <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
@@ -426,10 +445,10 @@
                                @drop="dragging = false"
                                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
                         <div :class="dragging ? 'border-amber-500 bg-amber-50/80 scale-[1.02] ring-4 ring-amber-500/10' : 'border-gray-300 bg-white'" class="border-2 border-dashed rounded-xl p-4 text-center group-hover:border-amber-500 group-hover:bg-amber-50 transition-all duration-200">
-                            @if($birthDoc && file_exists(public_path('img/' . $birthDoc->file_path)))
+                            @if($birthDoc && $birthDocUrl)
                                 @if(str_contains($birthDoc->file_mime, 'image'))
-                                    <img src="{{ asset('img/' . $birthDoc->file_path) }}" alt="Akta Kelahiran" 
-                                         @click="previewImage = '{{ asset('img/' . $birthDoc->file_path) }}'; previewTitle = 'Akta Kelahiran'; previewModal = true"
+                                    <img src="{{ $birthDocUrl }}" alt="Akta Kelahiran" 
+                                         @click="previewImage = '{{ $birthDocUrl }}'; previewTitle = 'Akta Kelahiran'; previewModal = true"
                                          class="w-20 h-20 mx-auto mb-2 object-cover rounded-lg border-2 border-purple-500 cursor-pointer hover:scale-110 transition-transform">
                                 @else
                                     <div class="w-12 h-12 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-2">

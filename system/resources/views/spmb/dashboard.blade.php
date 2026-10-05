@@ -96,7 +96,7 @@
                 </div>
                 <div class="bg-white/10 backdrop-blur-md border border-white/10 rounded-xl p-2 text-center min-w-0">
                     <p class="text-[9px] text-orange-100 font-semibold uppercase tracking-tight truncate">Status Berkas</p>
-                    <p class="text-xs font-extrabold capitalize text-white mt-0.5 truncate">{{ $registration?->status ?? 'draft' }}</p>
+                    <p class="text-xs font-extrabold capitalize text-white mt-0.5 truncate">{{ $registration?->isNeedRevision() ? 'Perlu Revisi' : ($registration?->status ?? 'draft') }}</p>
                 </div>
             </div>
         </div>
@@ -389,8 +389,49 @@
             </a>
         </div>
 
-        <!-- Final Submission Warning/Trigger for Draft status -->
-        @if($registration && $registration->status === 'draft')
+        <!-- Revision Request Warning for need_revision status -->
+        @if($registration && $registration->isNeedRevision())
+            <div class="bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-50 border-2 border-amber-400 rounded-2xl p-5 sm:p-6 shadow-md shadow-amber-500/10 space-y-4">
+                <div class="flex items-start gap-3.5">
+                    <div class="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                        <svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    </div>
+                    <div class="space-y-1 min-w-0 flex-1">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-500 text-white shadow-2xs">Perhatian Penting</span>
+                            <span class="text-xs font-bold text-amber-800">Perbaikan Berkas / Foto Diperlukan</span>
+                        </div>
+                        <h4 class="font-black text-amber-950 text-base">Berkas Pendaftaran Perlu Diperbaiki</h4>
+                        @if($registration->verification_notes)
+                            <div class="p-3.5 bg-white/90 rounded-xl border border-amber-300 text-amber-900 text-xs leading-relaxed font-medium mt-1">
+                                <span class="font-extrabold block text-[10px] text-amber-800 uppercase tracking-wider mb-0.5">Catatan dari Panitia SPMB:</span>
+                                "{{ $registration->verification_notes }}"
+                            </div>
+                        @else
+                            <p class="text-xs text-amber-800 leading-relaxed mt-1">
+                                Panitia SPMB menemukan adanya berkas atau pas foto yang belum memenuhi ketentuan. Mohon periksa dan unggah kembali berkas/foto yang sesuai.
+                            </p>
+                        @endif
+                    </div>
+                </div>
+                
+                <div class="pt-3 border-t border-amber-300/60 flex flex-col sm:flex-row gap-2.5 sm:items-center sm:justify-between">
+                    <a href="{{ route('spmb.dashboard.edit') }}" class="w-full sm:w-auto text-center px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold rounded-xl uppercase tracking-wider shadow-sm flex items-center justify-center gap-1.5 transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        <span>Perbaiki Berkas / Unggah Foto Sekarang</span>
+                    </a>
+                    
+                    <!-- Final Submit Form -->
+                    <form action="{{ route('spmb.dashboard.final-submit') }}" method="POST" class="w-full sm:w-auto m-0">
+                        @csrf
+                        <button type="submit" class="w-full px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl uppercase tracking-wider shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+                            <span>Kirim Ulang Pendaftaran</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        @elseif($registration && $registration->status === 'draft')
             <div class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5 space-y-4">
                 <div class="flex items-start gap-3">
                     <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -446,10 +487,12 @@
                     <span class="text-xs sm:text-sm font-semibold text-gray-800">{{ $registration->created_at->format('d M Y') }}</span>
                 </div>
                 
-                <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 p-3 {{ $registration->status === 'accepted' ? 'bg-green-50' : ($registration->status === 'rejected' ? 'bg-red-50' : 'bg-blue-50') }} rounded-lg">
+                <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 p-3 {{ $registration->status === 'accepted' ? 'bg-green-50' : ($registration->status === 'rejected' ? 'bg-red-50' : ($registration->isNeedRevision() ? 'bg-amber-50' : 'bg-blue-50')) }} rounded-lg">
                     <span class="text-xs sm:text-sm text-gray-600 font-semibold">Status Kelulusan</span>
-                    <span class="px-3 py-1 text-[10px] sm:text-xs font-bold rounded-full text-center {{ $registration->status === 'accepted' ? 'bg-green-100 text-green-700' : ($registration->status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700') }}">
-                        @if($registration->status === 'submitted')
+                    <span class="px-3 py-1 text-[10px] sm:text-xs font-bold rounded-full text-center {{ $registration->status === 'accepted' ? 'bg-green-100 text-green-700' : ($registration->status === 'rejected' ? 'bg-red-100 text-red-700' : ($registration->isNeedRevision() ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-blue-100 text-blue-700')) }}">
+                        @if($registration->isNeedRevision())
+                            Perlu Revisi Berkas
+                        @elseif($registration->status === 'submitted')
                             Menunggu Verifikasi Berkas
                         @elseif($registration->status === 'verified')
                             Berkas Terverifikasi

@@ -418,7 +418,7 @@
         <div class="px-6 border-b border-[#E2E8F0] dark:border-[#2E3A47] bg-slate-50/50 dark:bg-[#1A222C]/40 py-3 space-y-3">
             <div class="flex items-center justify-between gap-4 flex-wrap sm:flex-nowrap">
                 <div class="flex space-x-2 overflow-x-auto py-1">
-                    @foreach(['all' => 'Semua Pendaftar', 'submitted' => 'Pending Review', 'verified' => 'Terverifikasi', 'accepted' => 'Diterima', 'rejected' => 'Ditolak'] as $key => $label)
+                    @foreach(['all' => 'Semua Pendaftar', 'submitted' => 'Pending Review', 'need_revision' => 'Perlu Revisi', 'verified' => 'Terverifikasi', 'accepted' => 'Diterima', 'rejected' => 'Ditolak'] as $key => $label)
                         <a href="?status={{ $key === 'all' ? '' : $key }}{{ request('payment_status') ? '&payment_status=' . request('payment_status') : '' }}{{ request('wave_id') ? '&wave_id=' . request('wave_id') : '' }}"
                            class="px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center space-x-2 whitespace-nowrap
                                   {{ request('status') === $key || ($key === 'all' && !request('status')) 
@@ -561,18 +561,21 @@
                             </td>
                             <td class="px-6 py-4 text-center">
                                 @php
-                                    $badgeStyle = match($registration->status) {
-                                        'accepted' => 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
-                                        'rejected' => 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800',
-                                        'verified' => 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800',
-                                        'submitted' => 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800',
+                                    $isNeedRev = $registration->status === 'need_revision' || ($registration->status === 'draft' && !empty($registration->verification_notes));
+                                    $badgeStyle = match(true) {
+                                        $registration->status === 'accepted' => 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
+                                        $registration->status === 'rejected' => 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800',
+                                        $registration->status === 'verified' => 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800',
+                                        $isNeedRev => 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700',
+                                        $registration->status === 'submitted' => 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800',
                                         default => 'bg-slate-100 dark:bg-slate-800 text-slate-600 border-slate-200',
                                     };
-                                    $statusLabel = match($registration->status) {
-                                        'accepted' => 'Diterima',
-                                        'rejected' => 'Ditolak',
-                                        'verified' => 'Terverifikasi',
-                                        'submitted' => 'Menunggu',
+                                    $statusLabel = match(true) {
+                                        $registration->status === 'accepted' => 'Diterima',
+                                        $registration->status === 'rejected' => 'Ditolak',
+                                        $registration->status === 'verified' => 'Terverifikasi',
+                                        $isNeedRev => 'Perlu Revisi',
+                                        $registration->status === 'submitted' => 'Menunggu',
                                         default => ucfirst($registration->status),
                                     };
                                 @endphp

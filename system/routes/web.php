@@ -323,6 +323,8 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::post('spmb/{encodedId}/accept', [SpmbController::class, 'accept'])->name('spmb.accept');
         Route::post('spmb/{encodedId}/reject', [SpmbController::class, 'reject'])->name('spmb.reject');
         Route::post('spmb/{encodedId}/reset-password', [SpmbController::class, 'resetPassword'])->name('spmb.reset-password');
+        Route::post('spmb/{encodedId}/update-photo', [SpmbController::class, 'updatePhoto'])->name('spmb.update-photo');
+        Route::post('spmb/{encodedId}/request-revision', [SpmbController::class, 'requestRevision'])->name('spmb.request-revision');
     });
     
     // Classes

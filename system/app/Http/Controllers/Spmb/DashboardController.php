@@ -302,6 +302,8 @@ class DashboardController extends Controller
             return back()->withErrors(['error' => 'Berkas persyaratan wajib (Pasfoto, Kartu Keluarga, dan Akta Lahir) belum diunggah.']);
         }
 
+        $isRevision = $registration->isNeedRevision();
+
         // Complete the registration submission
         $registration->update([
             'status' => 'submitted',
@@ -310,11 +312,16 @@ class DashboardController extends Controller
         // Send WA Notification
         if ($registration->phone && Setting::get('wa_notify_spmb', '1') == '1') {
             $schoolName = Setting::get('school_name', 'Sekolah');
-            $msg = "Formulir Pendaftaran SPMB Dikirim - {$schoolName}\n\nHalo *{$registration->full_name}*,\n\nFormulir pendaftaran dan berkas persyaratan Anda telah berhasil dikirim untuk proses verifikasi berkas oleh admin.\n\nNomor Pendaftaran: *{$registration->registration_number}*\nStatus: *Menunggu Verifikasi Berkas*\n\nAnda akan menerima notifikasi berkala mengenai perkembangan status pendaftaran Anda.\nTerima kasih.";
+            $statusText = $isRevision ? 'Perbaikan Berkas Dikirim Ulang' : 'Menunggu Verifikasi Berkas';
+            $msg = "Formulir Pendaftaran SPMB Dikirim - {$schoolName}\n\nHalo *{$registration->full_name}*,\n\nFormulir pendaftaran dan berkas persyaratan Anda telah berhasil dikirim untuk proses verifikasi berkas oleh admin.\n\nNomor Pendaftaran: *{$registration->registration_number}*\nStatus: *{$statusText}*\n\nAnda akan menerima notifikasi berkala mengenai perkembangan status pendaftaran Anda.\nTerima kasih.";
             WhatsAppService::sendMessage($registration->phone, $msg);
         }
 
-        return redirect()->route('spmb.dashboard.index')->with('success', 'Formulir pendaftaran Anda berhasil dikirim secara resmi! Silakan pantau status seleksi secara berkala.');
+        $successMsg = $isRevision
+            ? 'Perbaikan berkas pendaftaran Anda berhasil dikirim ulang! Tim verifikator kami akan segera memeriksa kembali.'
+            : 'Formulir pendaftaran Anda berhasil dikirim secara resmi! Silakan pantau status seleksi secara berkala.';
+
+        return redirect()->route('spmb.dashboard.index')->with('success', $successMsg);
     }
 
     /**
@@ -442,8 +449,11 @@ class DashboardController extends Controller
                 $this->handleFileUpload($request, $registration, 'birth_certificate', 'spmb/documents');
             }
 
-            return redirect()->route('spmb.dashboard.edit')
-                ->with('success', 'Data pendaftaran berhasil diperbarui. Klik kembali ke dashboard untuk mengirimkan pendaftaran Anda.');
+            $updateMsg = $registration->isNeedRevision()
+                ? 'Perubahan data / berkas berhasil disimpan. Silakan kembali ke Dashboard dan klik "Kirim Ulang Pendaftaran" untuk diverifikasi ulang oleh tim sekolah.'
+                : 'Data pendaftaran berhasil diperbarui. Klik kembali ke dashboard untuk mengirimkan pendaftaran Anda.';
+
+            return redirect()->route('spmb.dashboard.edit')->with('success', $updateMsg);
         } catch (\Exception $e) {
             Log::error('SPMB Update Error: ' . $e->getMessage());
             return back()->withErrors(['error' => 'Gagal menyimpan perubahan. Pastikan semua data sudah benar'])->withInput();

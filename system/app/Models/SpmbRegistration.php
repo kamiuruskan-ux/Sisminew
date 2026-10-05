@@ -105,6 +105,16 @@ class SpmbRegistration extends Model
         return $this->status === 'rejected';
     }
 
+    public function isNeedRevision(): bool
+    {
+        return $this->status === 'need_revision' || ($this->status === 'draft' && !empty($this->verification_notes));
+    }
+
+    public function photoDocument()
+    {
+        return $this->documents->firstWhere('type', 'photo');
+    }
+
     public function paymentTransactions(): HasMany
     {
         return $this->hasMany(PaymentTransaction::class, 'reference_id')->where('reference_type', 'spmb');
@@ -144,7 +154,10 @@ class SpmbRegistration extends Model
         $schoolName = Setting::get('school_name', 'SDIT AL-FAHMI PALU');
         $portalUrl = route('spmb.dashboard.index');
 
-        if ($this->payment_status === 'paid' && $this->status === 'draft') {
+        if ($this->isNeedRevision()) {
+            $defaultTemplate = "Halo Bapak/Ibu orang tua/wali dari *{nama_siswa}*,\n\nKami dari panitia SPMB {sekolah} menginformasikan bahwa berkas pendaftaran ananda (No. Registrasi: *{no_daftar}*) memerlukan *perbaikan/revisi berkas*.\n\n*Catatan Panitia SPMB:*\n\"{catatan_revisi}\"\n\nMohon segera login ke akun SPMB Anda untuk mengunggah ulang berkas/foto yang sesuai di tautan berikut:\n{link_login}\n\nTerima kasih atas kerja samanya.";
+            $template = Setting::get('spmb_wa_template_revision', $defaultTemplate);
+        } elseif ($this->payment_status === 'paid' && $this->status === 'draft') {
             $defaultTemplate = "Halo Bapak/Ibu orang tua dari *{nama_siswa}*,\n\nKami dari panitia SPMB {sekolah} menginformasikan bahwa pembayaran uang pendaftaran ananda (No. Registrasi: *{no_daftar}*) telah berhasil terkonfirmasi lunas.\n\nNamun, formulir pendaftaran siswa tercatat masih berstatus *Draft (belum selesai diisi)*.\n\nMohon untuk segera login ke portal SPMB guna melengkapi formulir data diri dan mengunggah dokumen persyaratan di tautan berikut:\n{link_login}\n\nTerima kasih atas kerja samanya.";
             $template = Setting::get('spmb_wa_template_draft', $defaultTemplate);
         } else {
@@ -162,6 +175,7 @@ class SpmbRegistration extends Model
             '{no_daftar}' => $this->registration_number,
             '{sekolah}' => $schoolName,
             '{gelombang}' => $this->wave?->name ?? 'Gelombang SPMB',
+            '{catatan_revisi}' => $this->verification_notes ?: 'Mohon periksa dan unggah kembali kelengkapan berkas yang sesuai ketentuan.',
             '{link_login}' => $portalUrl,
             '{kontak_spmb}' => Setting::get('spmb_contact_phone', Setting::get('school_whatsapp', '')),
         ];
