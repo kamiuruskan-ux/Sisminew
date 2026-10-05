@@ -422,6 +422,41 @@
         </table>
     </div>
     
+    @php
+        $photoDoc = $spmb->documents->first(function($d) {
+            return in_array(strtolower($d->type), ['photo', 'foto', 'pas_foto', 'pasfoto']) 
+                || str_contains(strtolower($d->file_mime ?? ''), 'image');
+        });
+
+        $photoSrc = null;
+        $photoDataUri = null;
+
+        if ($photoDoc) {
+            $photoSrc = $photoDoc->file_url;
+            $rawPath = $photoDoc->file_path;
+
+            $possiblePaths = array_filter([
+                public_path($rawPath),
+                public_path('img/' . $rawPath),
+                public_path('doc/' . $rawPath),
+                public_path('img/spmb/photos/' . basename($rawPath)),
+                public_path('doc/spmb/photos/' . basename($rawPath)),
+                public_path('storage/' . $rawPath),
+                base_path('public/' . $rawPath),
+                base_path('public/img/' . $rawPath),
+                base_path('public/doc/' . $rawPath),
+            ]);
+
+            foreach ($possiblePaths as $path) {
+                if (file_exists($path) && is_file($path)) {
+                    $mime = mime_content_type($path) ?: ($photoDoc->file_mime ?: 'image/jpeg');
+                    $photoDataUri = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
+                    break;
+                }
+            }
+        }
+    @endphp
+
     <!-- Personal Data -->
     <div class="section">
         <div class="section-title">A. DATA PRIBADI</div>
@@ -430,8 +465,17 @@
                 <td class="label">Nama Lengkap</td>
                 <td class="colon">:</td>
                 <td><strong>{{ $spmb->full_name }}</strong></td>
-                <td rowspan="6" class="photo-box">
-                    Foto 3x4
+                <td rowspan="6" style="width: 115px; vertical-align: top; text-align: center; padding-left: 10px;">
+                    @if($photoDataUri || $photoSrc)
+                        <div style="width: 105px; height: 140px; border: 1px solid #000; margin: 0 auto; overflow: hidden; background: #fff; text-align: center;">
+                            <img src="{{ $photoDataUri ?: $photoSrc }}" alt="Pas Foto 3x4" style="width: 105px; height: 140px; object-fit: cover; display: block;">
+                        </div>
+                        <div style="font-size: 7.5pt; color: #555; margin-top: 3px; font-weight: bold; text-align: center;">Foto 3x4</div>
+                    @else
+                        <div style="width: 105px; height: 140px; border: 1px dashed #666; margin: 0 auto; text-align: center; padding-top: 55px; font-size: 8.5pt; color: #777; background: #fafafa; box-sizing: border-box;">
+                            Foto 3x4
+                        </div>
+                    @endif
                 </td>
             </tr>
             <tr>
@@ -559,12 +603,20 @@
                         'rapor' => 'Rapor/SKL',
                         'sertifikat' => 'Sertifikat Prestasi (jika ada)',
                     ];
-                    $uploadedDocs = $spmb->documents->pluck('type')->toArray();
+                    $uploadedDocs = $spmb->documents->pluck('type')->map(fn($t) => strtolower($t))->toArray();
                 @endphp
                 @foreach($documentsList as $key => $label)
+                @php
+                    $isUploaded = match($key) {
+                        'foto' => $spmb->documents->contains(fn($d) => in_array(strtolower($d->type), ['foto', 'photo', 'pas_foto', 'pasfoto']) || str_contains(strtolower($d->file_mime ?? ''), 'image')),
+                        'akte_kelahiran' => $spmb->documents->contains(fn($d) => in_array(strtolower($d->type), ['akte_kelahiran', 'akta_kelahiran', 'birth_certificate'])),
+                        'kk' => $spmb->documents->contains(fn($d) => in_array(strtolower($d->type), ['kk', 'kartu_keluarga'])),
+                        default => in_array($key, $uploadedDocs)
+                    };
+                @endphp
                 <tr>
                     <td class="check">
-                        @if(in_array($key, $uploadedDocs))
+                        @if($isUploaded)
                             ✓
                         @else
                             -

@@ -75,7 +75,7 @@ class SpmbController extends Controller
     public function printForm($encodedId)
     {
         $id = $this->resolveId($encodedId);
-        $spmb = SpmbRegistration::with(['user', 'wave.academicYear', 'class', 'major'])->findOrFail($id);
+        $spmb = SpmbRegistration::with(['user', 'wave.academicYear', 'class', 'major', 'documents'])->findOrFail($id);
         $schoolName = Setting::get('school_name', 'Sekolah');
         $schoolShortName = Setting::get('school_short_name', 'SCH');
         $schoolAddress = Setting::get('school_address', '');
