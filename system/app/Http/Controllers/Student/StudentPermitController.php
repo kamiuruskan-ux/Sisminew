@@ -20,7 +20,8 @@ class StudentPermitController extends Controller
 
         $permits = StudentPermit::where('student_id', $student->id)
             ->latest()
-            ->paginate(10);
+            ->paginate(10)
+            ->withQueryString();
 
         return view('student.permits.index', compact('permits'));
     }

@@ -54,7 +54,7 @@ class AttendanceController extends Controller
             })
             ->latest('date');
 
-        $attendances = $query->paginate(20);
+        $attendances = $query->paginate(20)->withQueryString();
         $classes = $allowedClassIds !== null ? ClassModel::whereIn('id', $allowedClassIds)->get() : ClassModel::all();
         $majors = Major::all();
         $students = $allowedClassIds !== null 

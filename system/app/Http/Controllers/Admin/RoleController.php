@@ -23,7 +23,7 @@ class RoleController extends Controller
 
         $this->ensureSpecializedRolesAndPermissions();
 
-        $roles = $query->latest()->paginate(15);
+        $roles = $query->latest()->paginate(15)->withQueryString();
         return view('admin.roles.index', compact('roles'));
     }
 

@@ -289,7 +289,8 @@ class StudentCanteenController extends Controller
         $orders = CanteenOrder::where('student_id', $student->id)
             ->with(['items'])
             ->latest()
-            ->paginate(10);
+            ->paginate(10)
+            ->withQueryString();
 
         return view('student.canteen.orders', compact('orders', 'student'));
     }

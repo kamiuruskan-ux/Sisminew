@@ -35,7 +35,7 @@ class AssignmentSubmissionController extends Controller
             })
             ->latest();
 
-        $submissions = $query->paginate(20);
+        $submissions = $query->paginate(20)->withQueryString();
         $assignments = $user->isTeacher() ? Assignment::where('teacher_id', $user->id)->get() : Assignment::all();
         $students = Student::with(['user', 'class'])->get();
 

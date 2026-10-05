@@ -38,7 +38,7 @@ class SpmbController extends Controller
             $query->where('wave_id', $request->wave_id);
         }
         
-        $registrations = $query->latest()->paginate(20);
+        $registrations = $query->latest()->paginate(20)->withQueryString();
 
         // Fetch waves for filter and quota monitoring
         $waves = Wave::with('academicYear')->orderBy('start_date', 'asc')->get();

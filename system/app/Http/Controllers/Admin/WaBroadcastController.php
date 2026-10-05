@@ -32,7 +32,7 @@ class WaBroadcastController extends Controller
             $query->where('title', 'like', "%{$search}%");
         }
 
-        $broadcasts = $query->paginate(12);
+        $broadcasts = $query->paginate(12)->withQueryString();
 
         $totalBroadcasts = WaBroadcast::count();
         $totalSent = WaBroadcastLog::where('status', 'sent')->count();
@@ -157,7 +157,7 @@ class WaBroadcastController extends Controller
     public function show($id)
     {
         $broadcast = WaBroadcast::with(['targetClass', 'creator'])->findOrFail($id);
-        $logs = $broadcast->logs()->paginate(25);
+        $logs = $broadcast->logs()->paginate(25)->withQueryString();
         $activeProvider = WhatsAppService::getActiveProvider();
 
         return view('admin.wa_broadcasts.show', compact('broadcast', 'logs', 'activeProvider'));

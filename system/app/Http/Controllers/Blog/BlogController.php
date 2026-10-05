@@ -38,7 +38,7 @@ class BlogController extends Controller
             });
         }
         
-        $posts = $query->latest('published_at')->paginate(9);
+        $posts = $query->latest('published_at')->paginate(9)->withQueryString();
         
         return view('landing.blog', compact('posts'));
     }

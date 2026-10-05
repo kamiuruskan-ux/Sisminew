@@ -25,7 +25,7 @@ class CategoryController extends Controller
             $query->where('is_active', $request->status === 'active');
         }
 
-        $categories = $query->latest()->paginate(20);
+        $categories = $query->latest()->paginate(20)->withQueryString();
         return view('admin.categories.index', compact('categories'));
     }
 

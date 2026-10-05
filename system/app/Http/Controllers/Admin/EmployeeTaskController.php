@@ -91,7 +91,8 @@ class EmployeeTaskController extends Controller
             })
             ->orderBy('completion_date', 'desc')
             ->orderBy('completed_at', 'desc')
-            ->paginate(15);
+            ->paginate(15)
+            ->withQueryString();
 
         return view('admin.employee-tasks.index', compact(
             'todayTasks',

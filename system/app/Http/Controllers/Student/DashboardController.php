@@ -138,7 +138,7 @@ class DashboardController extends Controller
 
     public function announcements()
     {
-        $announcements = Announcement::published()->latest()->paginate(10);
+        $announcements = Announcement::published()->latest()->paginate(10)->withQueryString();
         return view('student.announcements', compact('announcements'));
     }
 }

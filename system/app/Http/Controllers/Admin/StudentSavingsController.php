@@ -89,7 +89,8 @@ class StudentSavingsController extends Controller
         $transactions = SavingsTransaction::with(['creator', 'studentPaymentDetail.studentPaymentBill.paymentBill'])
             ->where('student_id', $student->id)
             ->latest()
-            ->paginate(15);
+            ->paginate(15)
+            ->withQueryString();
 
         $totalDeposit = SavingsTransaction::where('student_id', $student->id)->where('transaction_type', 'deposit')->sum('amount');
         $totalWithdraw = SavingsTransaction::where('student_id', $student->id)->where('transaction_type', 'withdraw')->sum('amount');

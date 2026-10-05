@@ -198,7 +198,7 @@ class QrAttendanceController extends Controller
             })
             ->latest('date');
 
-        $attendances = $query->paginate(20);
+        $attendances = $query->paginate(20)->withQueryString();
         $classes = ClassModel::all();
         $majors = Major::all();
         $students = Student::with(['user', 'class'])->get();

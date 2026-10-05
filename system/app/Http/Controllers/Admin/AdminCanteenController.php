@@ -49,7 +49,7 @@ class AdminCanteenController extends Controller
             });
         }
 
-        $orders = $query->latest()->paginate(15);
+        $orders = $query->latest()->paginate(15)->withQueryString();
 
         $counts = [
             'all' => CanteenOrder::count(),
@@ -132,7 +132,7 @@ class AdminCanteenController extends Controller
             $query->where('name', 'like', "%{$request->search}%");
         }
 
-        $items = $query->latest()->paginate(12);
+        $items = $query->latest()->paginate(12)->withQueryString();
 
         return view('admin.canteen.items', compact('items', 'categories', 'stalls'));
     }

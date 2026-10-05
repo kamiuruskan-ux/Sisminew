@@ -67,7 +67,7 @@ class GradeController extends Controller
         if (!$user->hasRole(['super-admin', 'admin', 'kepala-sekolah'])) {
             $historyQuery->where('teacher_id', $user->id);
         }
-        $teachingAgendas = $historyQuery->paginate(10, ['*'], 'history_page');
+        $teachingAgendas = $historyQuery->paginate(10, ['*'], 'history_page')->withQueryString();
 
         // Data Rerata Nilai Rapor Siswa (Tab 3)
         $query = Grade::with(['student', 'class', 'recordedBy'])
@@ -96,7 +96,7 @@ class GradeController extends Controller
             })
             ->latest();
 
-        $grades = $query->paginate(20);
+        $grades = $query->paginate(20)->withQueryString();
         $students = $allowedClassIds !== null 
             ? Student::with(['user', 'class'])->whereIn('class_id', $allowedClassIds)->get() 
             : Student::with(['user', 'class'])->get();

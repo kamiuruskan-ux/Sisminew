@@ -71,7 +71,8 @@ class FinancialTransactionController extends Controller
         $transactions = FinancialTransaction::with(['financialCategory', 'bankAccount'])
             ->where('type', 'pemasukan')
             ->latest('transaction_date')
-            ->paginate(15);
+            ->paginate(15)
+            ->withQueryString();
 
         return view('admin.financial-transactions.income', compact('transactions', 'categories', 'bankAccounts'));
     }
@@ -84,7 +85,8 @@ class FinancialTransactionController extends Controller
         $transactions = FinancialTransaction::with(['financialCategory', 'bankAccount'])
             ->where('type', 'pengeluaran')
             ->latest('transaction_date')
-            ->paginate(15);
+            ->paginate(15)
+            ->withQueryString();
 
         return view('admin.financial-transactions.expense', compact('transactions', 'categories', 'bankAccounts'));
     }

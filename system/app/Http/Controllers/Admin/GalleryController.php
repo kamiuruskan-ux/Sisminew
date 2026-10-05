@@ -13,7 +13,7 @@ class GalleryController extends Controller
 {
     public function index()
     {
-        $galleries = Gallery::with('category')->latest()->paginate(12);
+        $galleries = Gallery::with('category')->latest()->paginate(12)->withQueryString();
         $categories = Category::where('type', 'gallery')->orderBy('name')->get();
         return view('admin.gallery.index', compact('galleries', 'categories'));
     }

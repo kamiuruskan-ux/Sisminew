@@ -18,7 +18,7 @@ class AnnouncementController extends Controller
             ->when($user->isTeacher(), function ($q) use ($user) {
                 return $q->where('author_id', $user->id);
             })
-            ->latest()->paginate(15);
+            ->latest()->paginate(15)->withQueryString();
 
         return view('admin.announcements.index', compact('announcements'));
     }

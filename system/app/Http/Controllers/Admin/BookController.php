@@ -28,7 +28,7 @@ class BookController extends Controller
             $query->where('category', $request->category);
         }
 
-        $books = $query->latest()->paginate(15);
+        $books = $query->latest()->paginate(15)->withQueryString();
 
         $categories = Book::select('category')->distinct()->pluck('category');
 

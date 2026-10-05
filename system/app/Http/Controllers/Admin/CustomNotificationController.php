@@ -20,7 +20,8 @@ class CustomNotificationController extends Controller
     {
         $broadcasts = CustomNotification::with('sender')
             ->latest()
-            ->paginate(15);
+            ->paginate(15)
+            ->withQueryString();
 
         $classes = ClassModel::orderBy('name')->get();
 

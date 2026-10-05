@@ -23,7 +23,8 @@ class MaterialController extends Controller
             ->where('is_published', true)
             ->with(['teacher', 'class'])
             ->latest()
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
         return view('student.materials.index', compact('materials'));
     }

@@ -16,7 +16,8 @@ class WaveController extends Controller
                 'spmbRegistrations as pending_registrations_count' => fn($q) => $q->where('payment_status', 'pending'),
             ])
             ->latest()
-            ->paginate(15);
+            ->paginate(15)
+            ->withQueryString();
         return view('admin.waves.index', compact('waves'));
     }
 

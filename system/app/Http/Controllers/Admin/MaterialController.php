@@ -37,7 +37,7 @@ class MaterialController extends Controller
             })
             ->latest();
 
-        $materials = $query->paginate(20);
+        $materials = $query->paginate(20)->withQueryString();
         $classes = ClassModel::all();
         $subjects = $this->getSubjects();
 

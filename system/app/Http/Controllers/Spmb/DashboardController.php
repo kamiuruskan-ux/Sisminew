@@ -568,7 +568,8 @@ class DashboardController extends Controller
         $announcements = \App\Models\Announcement::published()
             ->where('type', 'spmb')
             ->latest()
-            ->paginate(10);
+            ->paginate(10)
+            ->withQueryString();
         
         return view('spmb.announcements', compact('announcements'));
     }
