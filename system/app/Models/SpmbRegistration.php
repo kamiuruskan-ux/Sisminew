@@ -105,9 +105,28 @@ class SpmbRegistration extends Model
         return $this->status === 'rejected';
     }
 
+    public function paymentTransactions(): HasMany
+    {
+        return $this->hasMany(PaymentTransaction::class, 'reference_id')->where('reference_type', 'spmb');
+    }
+
+    public function getActivePaymentProofAttribute(): ?string
+    {
+        if (!empty($this->payment_proof)) {
+            return $this->payment_proof;
+        }
+
+        return PaymentTransaction::where('reference_type', 'spmb')
+            ->where('reference_id', $this->id)
+            ->whereNotNull('payment_proof')
+            ->latest()
+            ->value('payment_proof');
+    }
+
     public function getPaymentProofUrlAttribute(): ?string
     {
-        return get_public_file_url($this->payment_proof, 'img/spmb/proofs');
+        $proof = $this->active_payment_proof;
+        return $proof ? get_public_file_url($proof, 'img/spmb/proofs') : null;
     }
 
     public function getWhatsappPhoneAttribute(): ?string

@@ -109,15 +109,28 @@ class DashboardController extends Controller
             'phone' => $registration->phone ?? $user->phone ?? '',
         ];
 
-        // Create transaction entry
-        $transaction = PaymentTransaction::create([
-            'reference_type' => 'spmb',
-            'reference_id' => $registration->id,
-            'payment_gateway' => $request->payment_gateway,
-            'invoice_number' => $invoiceNumber,
-            'amount' => $amount,
-            'status' => 'pending',
-        ]);
+        // Create transaction entry or reuse existing pending manual transaction
+        $transaction = null;
+        if ($request->payment_gateway === 'manual') {
+            $transaction = PaymentTransaction::where('reference_type', 'spmb')
+                ->where('reference_id', $registration->id)
+                ->where('payment_gateway', 'manual')
+                ->where('status', 'pending')
+                ->latest()
+                ->first();
+        }
+
+        if (!$transaction) {
+            $transaction = PaymentTransaction::create([
+                'reference_type' => 'spmb',
+                'reference_id' => $registration->id,
+                'payment_gateway' => $request->payment_gateway,
+                'invoice_number' => $invoiceNumber,
+                'amount' => $amount,
+                'status' => 'pending',
+                'payment_proof' => $registration->payment_proof,
+            ]);
+        }
 
         if ($request->payment_gateway === 'midtrans') {
             $response = PaymentGatewayService::createMidtransTransaction($invoiceNumber, $amount, $customerDetails, 'Uang Pendaftaran SPMB ' . $registration->registration_number);
@@ -216,11 +229,15 @@ class DashboardController extends Controller
 
             $proofPath = ($isDoc ? 'doc/spmb/proofs/' : 'spmb/proofs/') . basename($savedProof);
 
-            $transaction->update([
-                'payment_proof' => $proofPath,
-                'notes' => $notes,
-                'payment_method_code' => $bank ? $bank->bank_name : null,
-            ]);
+            // Sync all pending manual transactions for this registration so none are left without proof
+            PaymentTransaction::where('reference_type', 'spmb')
+                ->where('reference_id', $registration->id)
+                ->where('status', 'pending')
+                ->update([
+                    'payment_proof' => $proofPath,
+                    'notes' => $notes,
+                    'payment_method_code' => $bank ? $bank->bank_name : null,
+                ]);
 
             // Update registration payment status to pending confirmation
             $registration->update([

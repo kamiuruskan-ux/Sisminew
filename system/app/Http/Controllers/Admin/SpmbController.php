@@ -125,9 +125,18 @@ class SpmbController extends Controller
         
         $transaction = \App\Models\PaymentTransaction::where('reference_type', 'spmb')
             ->where('reference_id', $spmb->id)
-            ->where('payment_gateway', 'manual')
             ->where('status', 'pending')
+            ->whereNotNull('payment_proof')
+            ->latest()
             ->first();
+
+        if (!$transaction) {
+            $transaction = \App\Models\PaymentTransaction::where('reference_type', 'spmb')
+                ->where('reference_id', $spmb->id)
+                ->where('status', 'pending')
+                ->latest()
+                ->first();
+        }
 
         if (!$transaction) {
             $amount = $wave?->registration_fee ?? (float)Setting::get('spmb_registration_fee', 0);
@@ -139,10 +148,18 @@ class SpmbController extends Controller
                 'invoice_number' => $invoiceNumber,
                 'amount' => $amount,
                 'status' => 'pending',
+                'payment_proof' => $spmb->active_payment_proof ?? $spmb->payment_proof,
             ]);
         }
 
         \App\Http\Controllers\PaymentController::completePayment($transaction, ['confirmed_by' => auth()->id()]);
+
+        // Bersihkan transaksi pending lain yang mungkin tersisa agar tidak menggantung
+        \App\Models\PaymentTransaction::where('reference_type', 'spmb')
+            ->where('reference_id', $spmb->id)
+            ->where('id', '!=', $transaction->id)
+            ->where('status', 'pending')
+            ->update(['status' => 'cancelled']);
 
         $msg = 'Pembayaran uang pendaftaran berhasil dikonfirmasi.';
         if ($isOverQuota) {

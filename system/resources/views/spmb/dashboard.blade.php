@@ -29,7 +29,7 @@
         </div>
     @endif
 
-    @if($needsPayment ?? false)
+    @if(($needsPayment ?? false) && ($registration?->payment_status !== 'pending'))
     {{-- Banner: Belum Bayar - auto-scroll ke seksi pembayaran --}}
     <div id="payment-reminder" class="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 flex items-start gap-3">
         <div class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0">
@@ -119,10 +119,13 @@
                         Bukti transfer manual atau status pembayaran online Anda sedang diverifikasi oleh sistem / bendahara sekolah. Akun Anda akan diaktifkan secara otomatis setelah pembayaran sukses dikonfirmasi.
                     </p>
                 </div>
-                @if($latestTransaction && $latestTransaction->payment_gateway === 'manual')
+                @php
+                    $displayProof = $latestTransaction?->payment_proof ?? $registration?->active_payment_proof ?? $registration?->payment_proof;
+                @endphp
+                @if($displayProof)
                     <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 text-left space-y-2">
                         <p class="text-[10px] font-extrabold uppercase text-slate-400">Bukti Transfer Diunggah</p>
-                        <a href="{{ asset('img/' . $latestTransaction->payment_proof) }}" target="_blank" class="text-xs text-indigo-600 underline font-semibold flex items-center">
+                        <a href="{{ get_public_file_url($displayProof, 'img/spmb/proofs') }}" target="_blank" class="text-xs text-indigo-600 underline font-semibold flex items-center">
                             <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                             Lihat File Bukti
                         </a>

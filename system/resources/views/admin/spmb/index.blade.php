@@ -545,7 +545,7 @@
                                             <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                                             <span>Menunggu Verifikasi</span>
                                         </span>
-                                        @if($registration->payment_proof)
+                                        @if($registration->active_payment_proof)
                                             <a href="{{ route('admin.spmb.show', encode_id($registration->id)) }}" class="text-[9px] text-[#3C50E0] hover:underline font-extrabold mt-1 inline-flex items-center gap-0.5">
                                                 <span>Cek Bukti</span>
                                                 <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>

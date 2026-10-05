@@ -699,32 +699,45 @@
 
                     <div class="p-6 space-y-4">
                         @php
+                            // Ambil transaksi yang memiliki bukti transfer terlebih dahulu
                             $manualTx = \App\Models\PaymentTransaction::where('reference_type', 'spmb')
                                 ->where('reference_id', $spmb->id)
+                                ->whereNotNull('payment_proof')
                                 ->latest()
                                 ->first();
+
+                            // Fallback jika belum ada transaksi yang kolom payment_proof-nya terisi
+                            if (!$manualTx) {
+                                $manualTx = \App\Models\PaymentTransaction::where('reference_type', 'spmb')
+                                    ->where('reference_id', $spmb->id)
+                                    ->latest()
+                                    ->first();
+                            }
+
+                            // Dapatkan bukti transfer (dari transaksi atau dari tabel pendaftaran siswa)
+                            $proofImage = $manualTx?->payment_proof ?? $spmb->active_payment_proof ?? $spmb->payment_proof;
                         @endphp
 
-                        @if($manualTx)
+                        @if($manualTx || $proofImage)
                             <div class="space-y-2">
                                 <div class="flex justify-between py-1 text-xs">
                                     <span class="text-slate-400 font-semibold">Nomor Invoice:</span>
-                                    <span class="font-mono font-bold text-slate-800">{{ $manualTx->invoice_number }}</span>
+                                    <span class="font-mono font-bold text-slate-800">{{ $manualTx?->invoice_number ?? ('INV-SPMB-' . $spmb->id) }}</span>
                                 </div>
                                 <div class="flex justify-between py-1 text-xs border-t border-slate-50">
                                     <span class="text-slate-400 font-semibold">Nominal Tagihan:</span>
-                                    <span class="font-bold text-slate-800">Rp {{ number_format($manualTx->amount, 0, ',', '.') }}</span>
+                                    <span class="font-bold text-slate-800">Rp {{ number_format($manualTx?->amount ?? ($spmb->wave?->registration_fee ?? 0), 0, ',', '.') }}</span>
                                 </div>
                                 <div class="flex justify-between py-1 text-xs border-t border-slate-50">
                                     <span class="text-slate-400 font-semibold">Metode:</span>
-                                    <span class="font-bold uppercase text-indigo-600">{{ $manualTx->payment_gateway }}</span>
+                                    <span class="font-bold uppercase text-indigo-600">{{ $manualTx?->payment_gateway ?? 'MANUAL' }}</span>
                                 </div>
-                                @if($manualTx->payment_proof)
+                                @if($proofImage)
                                     <div class="pt-3 border-t border-slate-100">
                                         <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2">Bukti Transfer Calon Siswa</p>
                                         <div class="relative rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 group cursor-zoom-in"
-                                             @click="openPreview('{{ get_public_file_url($manualTx->payment_proof, 'img/spmb/proofs') }}', 'Bukti Transfer Pendaftaran')">
-                                            <img src="{{ get_public_file_url($manualTx->payment_proof, 'img/spmb/proofs') }}" class="w-full max-h-48 object-cover group-hover:scale-105 transition-transform duration-300">
+                                             @click="openPreview('{{ get_public_file_url($proofImage, 'img/spmb/proofs') }}', 'Bukti Transfer Pendaftaran')">
+                                            <img src="{{ get_public_file_url($proofImage, 'img/spmb/proofs') }}" class="w-full max-h-48 object-cover group-hover:scale-105 transition-transform duration-300">
                                             <div class="absolute inset-0 bg-slate-950/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                 <div class="w-8 h-8 bg-white/25 backdrop-blur-md rounded-lg flex items-center justify-center text-white border border-white/40 shadow-sm">
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
