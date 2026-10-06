@@ -87,10 +87,6 @@
 
                     <div class="space-y-3 sm:space-y-4 mb-5 sm:mb-6 text-xs">
                         <div class="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between gap-2">
-                            <span class="text-slate-400 font-medium">Kuota Pendaftaran:</span>
-                            <span class="font-extrabold text-white text-xs sm:text-sm text-right">{{ isset($totalQuota) && $totalQuota > 0 ? number_format($totalQuota) . ' Formulir' : '300 Formulir' }}</span>
-                        </div>
-                        <div class="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between gap-2">
                             <span class="text-slate-400 font-medium">Biaya Formulir:</span>
                             <span class="font-extrabold text-amber-400 text-xs sm:text-sm text-right">Rp {{ number_format($activeWave?->registration_fee ?? Setting::get('spmb_registration_fee', 150000), 0, ',', '.') }}</span>
                         </div>
@@ -129,8 +125,8 @@
             <p class="text-xs sm:text-sm text-slate-500 mt-2 leading-relaxed">{{ Setting::get('spmb_wave_subtitle', 'Membuka pilihan gelombang pendaftaran murid baru.') }}</p>
         </div>
 
-        <!-- 3 Wave Cards Full Width -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 items-stretch">
+        <!-- Wave Cards Centered -->
+        <div class="flex flex-wrap justify-center gap-6 sm:gap-8 items-stretch">
             @if(isset($waves) && count($waves) > 0)
                 @foreach($waves as $wave)
                     @php
@@ -143,7 +139,7 @@
                         $isClosed = $now->gt($endDate) || in_array($wave->status, ['closed', 'inactive', 'draft']);
                         $isQuotaFull = $wave->isQuotaFull();
                     @endphp
-                    <div class="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 border {{ $isCurrentActive ? ($isQuotaFull ? 'border-2 border-rose-400 bg-rose-50/10' : 'border-2 border-blue-500 shadow-card') : ($isUpcoming ? 'border-amber-200 bg-amber-50/10' : 'border-slate-200/80 bg-slate-50/50') }} hover:shadow-card transition-all relative flex flex-col justify-between group" data-aos="fade-up">
+                    <div class="w-full max-w-sm sm:max-w-md {{ count($waves) >= 3 ? 'lg:w-[calc(33.333%-1.5rem)]' : (count($waves) == 2 ? 'lg:w-[calc(50%-1.5rem)]' : 'lg:max-w-md') }} bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 border {{ $isCurrentActive ? ($isQuotaFull ? 'border-2 border-rose-400 bg-rose-50/10' : 'border-2 border-blue-500 shadow-card') : ($isUpcoming ? 'border-amber-200 bg-amber-50/10' : 'border-slate-200/80 bg-slate-50/50') }} hover:shadow-card transition-all relative flex flex-col justify-between group" data-aos="fade-up">
                         <div>
                             <div class="flex items-center justify-end mb-4">
                                 @if($isCurrentActive)
@@ -159,9 +155,9 @@
                                 @endif
                             </div>
                             <h3 class="text-lg sm:text-xl font-extrabold text-slate-900 mb-2">{{ $wave->name }}</h3>
-                            <p class="text-xs text-slate-500 mb-5 leading-relaxed">{{ $wave->description ?? 'Pendaftaran siswa baru jalur reguler & prestasi.' }}</p>
+                            <p class="text-xs text-slate-500 mb-5 leading-relaxed">{{ $wave->description ?: 'Jalur tes potensi akademik dan wawancara minat bakat calon siswa baru.' }}</p>
                             
-                            <div class="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 mb-5 space-y-2 text-xs">
+                            <div class="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 mb-5 space-y-2.5 text-xs">
                                 <div class="flex justify-between items-center gap-2">
                                     <span class="text-slate-500 font-medium">Tahun Akademik:</span>
                                     <span class="font-bold text-slate-800">{{ $wave->academicYear->name ?? $wave->year }}</span>
@@ -177,31 +173,6 @@
                                 <div class="flex justify-between items-center gap-2">
                                     <span class="text-slate-500 font-medium">Biaya Formulir:</span>
                                     <span class="font-bold text-indigo-600">Rp {{ number_format($wave->registration_fee, 0, ',', '.') }}</span>
-                                </div>
-                                <div class="flex justify-between items-center gap-2">
-                                    <span class="text-slate-500 font-medium">Kuota Pendaftaran:</span>
-                                    <span class="font-bold text-indigo-600">{{ $wave->quota ? number_format($wave->quota) . ' Formulir' : 'Tanpa Batas' }}</span>
-                                </div>
-
-                                @php
-                                    $filledCount = $wave->reserved_count;
-                                    $targetQuota = $wave->quota > 0 ? $wave->quota : 100;
-                                    $quotaPercent = min(100, round(($filledCount / $targetQuota) * 100));
-                                    $remainingSeats = $wave->remaining_quota;
-                                @endphp
-                                <!-- Visual Quota Progress Bar -->
-                                <div class="pt-2 border-t border-slate-200/60 mt-2 space-y-1.5">
-                                    <div class="flex justify-between items-center text-[11px] font-bold">
-                                        <span class="text-slate-500 font-medium">Status Kuota Formulir:</span>
-                                        <span class="text-slate-900 font-mono">{{ $filledCount }} / {{ $targetQuota }} Formulir</span>
-                                    </div>
-                                    <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden p-0.5 border border-slate-200/80">
-                                        <div class="bg-gradient-to-r {{ $isQuotaFull ? 'from-amber-500 to-rose-600' : 'from-blue-500 via-indigo-500 to-purple-600' }} h-full rounded-full transition-all duration-500" style="width: {{ max(5, $quotaPercent) }}%"></div>
-                                    </div>
-                                    <div class="flex justify-between items-center text-[10px] text-slate-400 font-semibold">
-                                        <span>Sisa: <strong class="{{ $remainingSeats === 0 ? 'text-rose-600 font-extrabold' : 'text-slate-700' }}">{{ $remainingSeats }} Formulir</strong></span>
-                                        <span class="font-extrabold {{ $isQuotaFull ? 'text-rose-600' : 'text-blue-600' }}">{{ $quotaPercent }}% Terisi</span>
-                                    </div>
                                 </div>
                             </div>
                         </div>

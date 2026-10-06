@@ -48,6 +48,10 @@
                 <label class="block text-sm font-medium text-gray-700 mb-2">Kuota</label>
                 <input type="number" name="quota" class="w-full px-4 py-2 border rounded-lg" placeholder="Opsional">
             </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Keterangan / Deskripsi Jalur</label>
+                <textarea name="description" class="w-full px-4 py-2 border rounded-lg" rows="2" placeholder="Jalur tes potensi akademik dan wawancara minat bakat calon siswa baru.">{{ old('description', 'Jalur tes potensi akademik dan wawancara minat bakat calon siswa baru.') }}</textarea>
+            </div>
             <div class="flex gap-2">
                 <button type="submit" class="bg-primary text-white px-6 py-2 rounded-lg">Simpan</button>
                 <a href="{{ route('admin.waves.index') }}" class="bg-gray-200 px-6 py-2 rounded-lg">Batal</a>

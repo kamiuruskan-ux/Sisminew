@@ -37,6 +37,7 @@ class WaveController extends Controller
             'quota' => 'nullable|integer',
             'registration_fee' => 'nullable|numeric|min:0',
             'spp_discount' => 'nullable|numeric|min:0',
+            'description' => 'nullable|string|max:1000',
         ]);
 
         if (!isset($validated['registration_fee'])) {
@@ -70,6 +71,7 @@ class WaveController extends Controller
             'quota' => 'nullable|integer',
             'registration_fee' => 'nullable|numeric|min:0',
             'spp_discount' => 'nullable|numeric|min:0',
+            'description' => 'nullable|string|max:1000',
         ]);
 
         $wave->update($validated);

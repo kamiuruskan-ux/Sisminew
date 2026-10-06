@@ -274,6 +274,13 @@
                     </div>
                 </div>
 
+                <!-- Keterangan / Deskripsi Jalur Gelombang -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Keterangan / Deskripsi Jalur</label>
+                    <textarea name="description" x-model="formData.description" rows="2" placeholder="Jalur tes potensi akademik dan wawancara minat bakat calon siswa baru." class="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl p-2.5 focus:bg-white focus:ring-1 focus:ring-indigo-500"></textarea>
+                    <p class="text-[10px] text-slate-400 mt-0.5">Teks keterangan jalur yang ditampilkan pada kartu gelombang di halaman publik SPMB.</p>
+                </div>
+
                 <div class="flex items-center justify-end space-x-2 pt-4 border-t border-slate-100">
                     <button type="button" @click="showModal = false" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl border border-slate-200 transition">
                         Batal
@@ -321,7 +328,7 @@ function waveData() {
         editMode: false,
         deleteTarget: null,
         deleteFormAction: '',
-        formData: { id: null, name: '', academic_year_id: '', start_date: '', end_date: '', quota: '', registration_fee: '', spp_discount: '', status: 'draft' },
+        formData: { id: null, name: '', academic_year_id: '', start_date: '', end_date: '', quota: '', registration_fee: '', spp_discount: '', status: 'draft', description: 'Jalur tes potensi akademik dan wawancara minat bakat calon siswa baru.' },
         openModal(edit = false, waveId = null) {
             this.editMode = edit;
             if (edit && waveId) {
@@ -335,10 +342,11 @@ function waveData() {
                     quota: waveData.quota ?? '',
                     registration_fee: waveData.registration_fee ?? {{ (float)\App\Models\Setting::get('spmb_registration_fee', 350000) }},
                     spp_discount: waveData.spp_discount ?? 0,
-                    status: waveData.status || 'draft'
+                    status: waveData.status || 'draft',
+                    description: waveData.description || 'Jalur tes potensi akademik dan wawancara minat bakat calon siswa baru.'
                 };
             } else {
-                this.formData = { id: null, name: '', academic_year_id: '', start_date: '', end_date: '', quota: '', registration_fee: {{ (float)\App\Models\Setting::get('spmb_registration_fee', 350000) }}, spp_discount: '', status: 'draft' };
+                this.formData = { id: null, name: '', academic_year_id: '', start_date: '', end_date: '', quota: '', registration_fee: {{ (float)\App\Models\Setting::get('spmb_registration_fee', 350000) }}, spp_discount: '', status: 'draft', description: 'Jalur tes potensi akademik dan wawancara minat bakat calon siswa baru.' };
             }
             this.showModal = true;
         },
