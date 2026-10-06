@@ -61,7 +61,7 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Kota / Tempat Cetak</label>
-                        <input type="text" name="raport_place" value="{{ old('raport_place', \App\Models\Setting::get('raport_place', \App\Models\Setting::get('school_city', 'Jakarta'))) }}"
+                        <input type="text" name="raport_place" value="{{ old('raport_place', \App\Models\Setting::get('raport_place', \App\Models\Setting::get('school_city', 'Palu'))) }}"
                                class="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl font-medium focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition">
                     </div>
                     <div>
@@ -77,6 +77,45 @@
                     <textarea name="raport_default_note" rows="2"
                               placeholder="Kosongkan jika ingin menggunakan catatan otomatis per-predikat di bawah..."
                               class="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl font-medium focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition">{{ old('raport_default_note', \App\Models\Setting::get('raport_default_note')) }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        {{-- Card 2: Bobot Perhitungan Nilai Rapor --}}
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 space-y-5">
+            <h3 class="text-base font-extrabold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    <span>Bobot Komponen Penilaian Nilai Akhir</span>
+                </div>
+                <span class="text-xs font-bold text-slate-400">Total: 100%</span>
+            </h3>
+
+            <p class="text-xs text-slate-500 dark:text-slate-400">Tentukan persentase bobot penilaian untuk kalkulasi Nilai Akhir Rapor setiap mata pelajaran:</p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-1.5">
+                    <label class="block font-bold text-slate-800 dark:text-slate-200">Nilai Harian / Formatif (%)</label>
+                    <input type="number" min="0" max="100" name="raport_weight_daily" 
+                           value="{{ old('raport_weight_daily', \App\Models\Setting::get('raport_weight_daily', 40)) }}"
+                           class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl font-black text-sm text-center">
+                    <p class="text-[10px] text-slate-400">Default: 40% (Ulangan harian &amp; tugas)</p>
+                </div>
+
+                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-1.5">
+                    <label class="block font-bold text-slate-800 dark:text-slate-200">Tengah Semester / UTS (%)</label>
+                    <input type="number" min="0" max="100" name="raport_weight_mid" 
+                           value="{{ old('raport_weight_mid', \App\Models\Setting::get('raport_weight_mid', 30)) }}"
+                           class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl font-black text-sm text-center">
+                    <p class="text-[10px] text-slate-400">Default: 30% (Sumatif Tengah Semester)</p>
+                </div>
+
+                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-1.5">
+                    <label class="block font-bold text-slate-800 dark:text-slate-200">Akhir Semester / UAS (%)</label>
+                    <input type="number" min="0" max="100" name="raport_weight_final" 
+                           value="{{ old('raport_weight_final', \App\Models\Setting::get('raport_weight_final', 30)) }}"
+                           class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl font-black text-sm text-center">
+                    <p class="text-[10px] text-slate-400">Default: 30% (Sumatif Akhir Semester)</p>
                 </div>
             </div>
         </div>

@@ -512,8 +512,86 @@
             </div>
         </div>
 
+        {{-- D. Ekstrakurikuler & E. Perkembangan Karakter Islami --}}
+        <div style="margin-bottom: 12px;">
+            <div class="section-header">D. KEGIATAN EKSTRAKURIKULER</div>
+            <table class="data-table" style="margin-bottom: 12px;">
+                <thead>
+                    <tr>
+                        <th style="width: 5%;">No</th>
+                        <th style="width: 35%;">Nama Kegiatan</th>
+                        <th style="width: 15%;">Predikat</th>
+                        <th style="width: 45%;">Keterangan</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($data['extracurriculars'] ?? [] as $idx => $ekskul)
+                    <tr>
+                        <td class="text-center">{{ $loop->iteration }}</td>
+                        <td class="font-bold">{{ $ekskul['name'] }}</td>
+                        <td class="text-center font-bold" style="color: #1e3a8a;">{{ $ekskul['predicate'] }}</td>
+                        <td>{{ $ekskul['description'] }}</td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="4" class="text-center" style="color: #64748b; font-style: italic;">
+                            Belum mengikuti kegiatan ekstrakurikuler khusus pada semester ini.
+                        </td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        <div style="margin-bottom: 12px;">
+            <div class="section-header">E. PERKEMBANGAN KARAKTER ISLAMI & PROFIL PELAJAR PANCASILA</div>
+            <table class="data-table" style="margin-bottom: 12px;">
+                <thead>
+                    <tr>
+                        <th style="width: 5%;">No</th>
+                        <th style="width: 35%;">Dimensi Karakter</th>
+                        <th style="width: 15%;">Predikat</th>
+                        <th style="width: 45%;">Catatan Pengamatan Guru</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($data['character_development'] ?? [] as $idx => $char)
+                    <tr>
+                        <td class="text-center">{{ $loop->iteration }}</td>
+                        <td class="font-bold">{{ $char['dimension'] }}</td>
+                        <td class="text-center font-bold" style="color: #166534;">{{ $char['predicate'] }}</td>
+                        <td>{{ $char['notes'] }}</td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="4" class="text-center" style="color: #64748b; font-style: italic;">
+                            Data perkembangan karakter belum diinput.
+                        </td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        {{-- F. Keputusan Kenaikan Kelas / Kelulusan (Semester Genap) --}}
+        @if(!empty($data['promotion_decision']))
+        <div style="margin-bottom: 16px; border: 1.5px solid #0f172a; padding: 10px 14px; background-color: #f8fafc; border-radius: 4px;">
+            <div style="font-weight: 800; font-size: 9.5pt; text-transform: uppercase; color: #0f172a; margin-bottom: 4px;">
+                F. KEPUTUSAN AKHIR TAHUN AJARAN
+            </div>
+            <p style="margin: 0; font-size: 9.5pt; color: #334155;">
+                Berdasarkan pencapaian seluruh kriteria ketuntasan tujuan pembelajaran dan kehadiran santri:
+            </p>
+            <div style="margin-top: 6px; padding: 6px 10px; background: #ffffff; border: 1px dashed #0284c7; text-align: center;">
+                <span style="font-size: 11pt; font-weight: 900; color: #0369a1; letter-spacing: 0.5px;">
+                    DITETAPKAN: {{ $data['promotion_decision'] }}
+                </span>
+            </div>
+        </div>
+        @endif
+
         {{-- Tanggal Cetak Raport --}}
-        <div style="display: flex; justify-content: flex-end; margin-top: 55px; margin-bottom: 8px; font-size: 9.5pt;">
+        <div style="display: flex; justify-content: flex-end; margin-top: 25px; margin-bottom: 8px; font-size: 9.5pt;">
             <div style="width: 30%; text-align: center;">
                 <p>{{ $raportSettings['city'] }}, {{ $raportSettings['date'] }}</p>
             </div>

@@ -507,12 +507,13 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::delete('grades/agenda/{id}', [GradeController::class, 'destroyAgenda'])->name('grades.destroy-agenda');
         Route::get('grades/{grade}', [GradeController::class, 'show'])->name('grades.show');
 
-        // Cetak Raport Siswa
+        // Cetak Raport Siswa & Leger Nilai
         Route::get('raport', [\App\Http\Controllers\Admin\RaportController::class, 'index'])->name('raport.index');
         Route::get('raport/settings', [\App\Http\Controllers\Admin\RaportController::class, 'settings'])->name('raport.settings');
         Route::put('raport/settings', [\App\Http\Controllers\Admin\RaportController::class, 'updateSettings'])->name('raport.update-settings');
         Route::get('raport/print', [\App\Http\Controllers\Admin\RaportController::class, 'print'])->name('raport.print');
         Route::post('raport/print-bulk', [\App\Http\Controllers\Admin\RaportController::class, 'print'])->name('raport.print-bulk');
+        Route::get('raport/export-leger', [\App\Http\Controllers\Admin\RaportController::class, 'exportLeger'])->name('raport.export-leger');
 
         // Modul Halaqah Al-Qur'an (Tahsin & Tahfidz Harian/Massal/Laporan/Grafik)
         Route::get('halaqah', [\App\Http\Controllers\Admin\HalaqahController::class, 'index'])->name('halaqah.index');

@@ -27,9 +27,14 @@
         </div>
         <div class="flex items-center gap-2.5 flex-wrap">
             @if($selectedClass)
+            <a href="{{ route('admin.raport.export-leger', ['class_id' => $selectedClass->id, 'academic_year_id' => request('academic_year_id'), 'semester' => request('semester', 'Ganjil')]) }}"
+               class="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-xs shadow-md shadow-emerald-600/20 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                <span>Unduh Leger Nilai (Excel)</span>
+            </a>
             <a href="{{ route('admin.raport.print', ['class_id' => encrypt_id($selectedClass->id), 'academic_year_id' => request('academic_year_id'), 'semester' => request('semester', 'Ganjil')]) }}"
                target="_blank"
-               class="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-2xl font-bold text-xs shadow-lg shadow-teal-500/20 transition">
+               class="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold text-xs shadow-lg shadow-indigo-600/20 transition">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                 <span>Cetak 1 Kelas ({{ $selectedClass->name }})</span>
             </a>
@@ -39,19 +44,19 @@
 
     {{-- Filter Panel (Real-Time Auto Submit) --}}
     <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-sm border border-slate-200 dark:border-slate-800 space-y-4">
-        <form action="{{ route('admin.raport.index') }}" method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-            <x-major-class-select 
-                :selected-major="request('major_id')" 
-                :selected-class="request('class_id')" 
-                :is-filter="true" 
-                layout="inline" 
-                major-label="Jurusan" 
-                class-label="Kelas" 
-                select-class="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition" 
-                label-class="block text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5" 
-                :on-major-change="'$el.closest(\'form\').submit()'" 
-                :on-class-change="'$el.closest(\'form\').submit()'" 
-            />
+        <form action="{{ route('admin.raport.index') }}" method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <div>
+                <label class="block text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Pilih Kelas</label>
+                <select name="class_id" @change="$el.closest('form').submit()"
+                        class="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition">
+                    <option value="">Semua Kelas</option>
+                    @foreach($classes as $c)
+                        <option value="{{ $c->id }}" {{ request('class_id') == $c->id ? 'selected' : '' }}>
+                            {{ $c->name }} ({{ $c->students_count ?? 0 }} Siswa)
+                        </option>
+                    @endforeach
+                </select>
+            </div>
 
             <div>
                 <label class="block text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Tahun Ajaran</label>

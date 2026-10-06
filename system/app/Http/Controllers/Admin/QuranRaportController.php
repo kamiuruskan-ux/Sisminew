@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
 use App\Models\ClassModel;
 use App\Models\HalaqahRecord;
+use App\Models\QuranJilidExam;
+use App\Models\QuranTasmiExam;
 use App\Models\Setting;
 use App\Models\Student;
 use App\Models\User;
@@ -418,11 +420,28 @@ class QuranRaportController extends Controller
         // 6. Catatan Pembimbing
         $teacherNote = $records->first()?->teacher_notes ?: "Alhamdulillah ananda menunjukkan adab dan ketekunan yang baik dalam mempelajari Al-Qur'an. Terus istiqamah dalam muroja'ah di rumah.";
 
+        // 7. Capaian Ujian Resmi & Syahadah (Ujian Kenaikan Jilid & Ujian Tasmi' 1 Juz)
+        $jilidExam = null;
+        $tasmiExam = null;
+        if ($student->id && $student->exists) {
+            $jilidExam = QuranJilidExam::where('student_id', $student->id)
+                ->when($academicYear, fn($q) => $q->where('academic_year_id', $academicYear->id))
+                ->latest('exam_date')
+                ->first();
+
+            $tasmiExam = QuranTasmiExam::where('student_id', $student->id)
+                ->when($academicYear, fn($q) => $q->where('academic_year_id', $academicYear->id))
+                ->latest('exam_date')
+                ->first();
+        }
+
         return [
             'student' => $student,
             'teacher_name' => $teacherName,
             'teacher_note' => $teacherNote,
             'attendance' => $attendance,
+            'jilid_exam' => $jilidExam,
+            'tasmi_exam' => $tasmiExam,
             'tahsin' => [
                 'has_data' => $tahsinRecords->isNotEmpty(),
                 'last_jilid' => $lastTahsin ? ($lastTahsin->tahsin_type === 'tilawah' ? 'Al-Quran / Tilawah' : ($lastTahsin->jilid_level ?? 'Jilid 1')) : 'Al-Qur\'an / Tilawah',

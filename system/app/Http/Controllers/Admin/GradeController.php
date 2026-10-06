@@ -684,7 +684,16 @@ class GradeController extends Controller
         $subjects = \App\Models\Subject::where('is_active', true)->orderBy('order', 'asc')->orderBy('name', 'asc')->pluck('name')->toArray();
         if (empty($subjects)) {
             return [
-                'Matematika', 'Bahasa Indonesia', 'Bahasa Inggris', 'Fisika', 'Kimia', 'Biologi', 'Sejarah', 'Pendidikan Agama'
+                'Pendidikan Agama Islam & Budi Pekerti',
+                'Pendidikan Pancasila',
+                'Bahasa Indonesia',
+                'Matematika',
+                'Ilmu Pengetahuan Alam dan Sosial (IPAS)',
+                'Pendidikan Jasmani, Olahraga & Kesehatan (PJOK)',
+                'Seni Budaya & Prakarya (SBdP)',
+                'Bahasa Inggris',
+                'Bahasa Arab',
+                'Tahsin & Tahfidz Al-Qur\'an',
             ];
         }
         return $subjects;

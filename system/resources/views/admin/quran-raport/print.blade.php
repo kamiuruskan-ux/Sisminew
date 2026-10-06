@@ -436,10 +436,85 @@
             </tbody>
         </table>
 
+        {{-- BAGIAN C: CAPAIAN UJIAN RESMI & SYAHADAH AL-QUR'AN --}}
+        <div class="section-header">C. CAPAIAN UJIAN RESMI &amp; SYAHADAH AL-QUR'AN</div>
+        <table class="data-table" style="margin-bottom: 12px;">
+            <thead>
+                <tr>
+                    <th style="width: 5%;">No</th>
+                    <th style="width: 25%;">Jenis Ujian Resmi</th>
+                    <th style="width: 30%;">Materi / Target Capaian</th>
+                    <th style="width: 12%;">Nilai Akhir</th>
+                    <th style="width: 13%;">Predikat</th>
+                    <th style="width: 15%;">Status / Syahadah</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="text-center">1</td>
+                    <td class="font-bold">Ujian Kenaikan Jilid (Tahsin)</td>
+                    <td>
+                        @if($data['jilid_exam'])
+                            Kenaikan ke <strong>Jilid {{ $data['jilid_exam']->target_jilid }}</strong> (Tgl: {{ $data['jilid_exam']->exam_date?->format('d/m/Y') }})
+                        @else
+                            <span style="color: #64748b; font-style: italic;">Belum menempuh ujian kenaikan jilid semester ini</span>
+                        @endif
+                    </td>
+                    <td class="text-center font-bold">
+                        {{ $data['jilid_exam'] ? $data['jilid_exam']->score_final : '-' }}
+                    </td>
+                    <td class="text-center font-bold" style="color: #059669;">
+                        {{ $data['jilid_exam'] ? $data['jilid_exam']->predicate : '-' }}
+                    </td>
+                    <td class="text-center font-bold">
+                        @if($data['jilid_exam'])
+                            <span style="color: {{ $data['jilid_exam']->isLulus() ? '#059669' : '#dc2626' }};">
+                                {{ strtoupper($data['jilid_exam']->status) }}
+                            </span>
+                            @if($data['jilid_exam']->certificate_number)
+                                <div style="font-size: 7.5pt; color: #475569; font-weight: normal;">No: {{ $data['jilid_exam']->certificate_number }}</div>
+                            @endif
+                        @else
+                            <span style="color: #94a3b8; font-weight: normal; font-size: 8pt;">Dalam Proses KBM</span>
+                        @endif
+                    </td>
+                </tr>
+                <tr>
+                    <td class="text-center">2</td>
+                    <td class="font-bold">Ujian Tasmi' 1 Juz Sekali Duduk</td>
+                    <td>
+                        @if($data['tasmi_exam'])
+                            Ujian Tasmi' <strong>Juz {{ $data['tasmi_exam']->juz_tested }}</strong> (Tgl: {{ $data['tasmi_exam']->exam_date?->format('d/m/Y') }})
+                        @else
+                            <span style="color: #64748b; font-style: italic;">Belum menempuh ujian tasmi' 1 juz semester ini</span>
+                        @endif
+                    </td>
+                    <td class="text-center font-bold">
+                        {{ $data['tasmi_exam'] ? $data['tasmi_exam']->score_final : '-' }}
+                    </td>
+                    <td class="text-center font-bold" style="color: #059669;">
+                        {{ $data['tasmi_exam'] ? $data['tasmi_exam']->predicate : '-' }}
+                    </td>
+                    <td class="text-center font-bold">
+                        @if($data['tasmi_exam'])
+                            <span style="color: {{ $data['tasmi_exam']->status === 'lulus' ? '#059669' : '#dc2626' }};">
+                                {{ strtoupper($data['tasmi_exam']->status) }}
+                            </span>
+                            @if($data['tasmi_exam']->certificate_number)
+                                <div style="font-size: 7.5pt; color: #475569; font-weight: normal;">No: {{ $data['tasmi_exam']->certificate_number }}</div>
+                            @endif
+                        @else
+                            <span style="color: #94a3b8; font-weight: normal; font-size: 8pt;">Persiapan Mutqin</span>
+                        @endif
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
         {{-- REKAP KEHADIRAN & CATATAN MUSYRIF --}}
         <div class="info-grid">
             <div class="attendance-box">
-                <div class="section-header">C. KEHADIRAN HALAQAH</div>
+                <div class="section-header">D. KEHADIRAN HALAQAH</div>
                 <table class="data-table" style="margin-bottom: 0;">
                     <thead>
                         <tr>
@@ -469,7 +544,7 @@
             </div>
 
             <div class="notes-box">
-                <div class="section-header">D. PESAN &amp; CATATAN MUSYRIF HALAQAH</div>
+                <div class="section-header">E. PESAN &amp; CATATAN MUSYRIF HALAQAH</div>
                 <div class="box-container">
                     <p style="font-style: italic; color: #334155; line-height: 1.5;">
                         "{{ $data['teacher_note'] }}"
