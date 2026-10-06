@@ -7,6 +7,7 @@ use App\Models\ClassModel;
 use App\Models\Major;
 use App\Models\Role;
 use App\Models\Setting;
+use App\Models\SpmbFormField;
 use App\Models\SpmbRegistration;
 use App\Models\Student;
 use App\Models\User;
@@ -14,6 +15,13 @@ use App\Models\Wave;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
 class SpmbController extends Controller
 {
@@ -36,6 +44,20 @@ class SpmbController extends Controller
 
         if ($request->filled('wave_id') && $request->wave_id !== 'all') {
             $query->where('wave_id', $request->wave_id);
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('full_name', 'like', "%{$search}%")
+                  ->orWhere('registration_number', 'like', "%{$search}%")
+                  ->orWhere('nisn', 'like', "%{$search}%")
+                  ->orWhere('nik', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%")
+                  ->orWhere('parent_phone', 'like', "%{$search}%")
+                  ->orWhere('parent_name', 'like', "%{$search}%")
+                  ->orWhere('origin_school', 'like', "%{$search}%");
+            });
         }
         
         $registrations = $query->latest()->paginate(20)->withQueryString();
@@ -61,6 +83,297 @@ class SpmbController extends Controller
         $activeWaveUnpaid = $activeWave ? $activeWave->spmbRegistrations()->where('payment_status', 'unpaid')->count() : 0;
 
         return view('admin.spmb.index', compact('registrations', 'activeWave', 'activeWaveUnpaid', 'waves'));
+    }
+
+    /**
+     * Export Data Pendaftaran SPMB ke Excel (.xlsx)
+     */
+    public function exportExcel(Request $request)
+    {
+        $query = SpmbRegistration::with(['user', 'wave.academicYear', 'verifier', 'class', 'major']);
+
+        // Saring data sesuai filter aktif
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('payment_status') && $request->payment_status !== 'all') {
+            $query->where('payment_status', $request->payment_status);
+        }
+
+        if ($request->filled('wave_id') && $request->wave_id !== 'all') {
+            $query->where('wave_id', $request->wave_id);
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('full_name', 'like', "%{$search}%")
+                  ->orWhere('registration_number', 'like', "%{$search}%")
+                  ->orWhere('nisn', 'like', "%{$search}%")
+                  ->orWhere('nik', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%")
+                  ->orWhere('parent_phone', 'like', "%{$search}%")
+                  ->orWhere('parent_name', 'like', "%{$search}%")
+                  ->orWhere('origin_school', 'like', "%{$search}%");
+            });
+        }
+
+        $registrations = $query->orderBy('created_at', 'asc')->get();
+
+        // Ambil Custom Form Fields aktif untuk kolom dinamis
+        $customFormFields = SpmbFormField::active()->ordered()->get();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Data SPMB');
+
+        $schoolName = Setting::get('school_name', 'SDIT AL-FAHMI PALU');
+
+        // Header Dokumen / Kop Excel
+        $sheet->setCellValue('A1', 'DATA PENDAFTARAN SISWA BARU (SPMB)');
+        $sheet->setCellValue('A2', strtoupper($schoolName));
+
+        // Rincian Filter & Metadata
+        $filterDetails = [];
+        if ($request->filled('wave_id') && $request->wave_id !== 'all') {
+            $w = Wave::find($request->wave_id);
+            $filterDetails[] = 'Gelombang: ' . ($w ? $w->name : '-');
+        } else {
+            $filterDetails[] = 'Gelombang: Semua Gelombang';
+        }
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            $statusTrans = match($request->status) {
+                'submitted' => 'Pending Review',
+                'need_revision' => 'Perlu Revisi',
+                'verified' => 'Terverifikasi',
+                'accepted' => 'Diterima',
+                'rejected' => 'Ditolak',
+                default => ucfirst($request->status),
+            };
+            $filterDetails[] = 'Status: ' . $statusTrans;
+        }
+
+        if ($request->filled('payment_status') && $request->payment_status !== 'all') {
+            $payTrans = match($request->payment_status) {
+                'paid' => 'Lunas',
+                'pending' => 'Menunggu Verifikasi',
+                'unpaid' => 'Belum Bayar',
+                default => ucfirst($request->payment_status),
+            };
+            $filterDetails[] = 'Pembayaran: ' . $payTrans;
+        }
+
+        $filterDetails[] = 'Total: ' . $registrations->count() . ' Pendaftar';
+        $filterDetails[] = 'Diekspor: ' . date('d/m/Y H:i') . ' WIB';
+
+        $sheet->setCellValue('A3', implode('  |  ', $filterDetails));
+
+        // Format Teks Judul
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(15)->getColor()->setRGB('1C2434');
+        $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(12)->getColor()->setRGB('3C50E0');
+        $sheet->getStyle('A3')->getFont()->setSize(10)->setItalic(true)->getColor()->setRGB('64748B');
+
+        // Daftar Kolom Utama
+        $headers = [
+            'No.',
+            'No. Registrasi',
+            'Tanggal Daftar',
+            'Gelombang',
+            'Tahun Akademik',
+            'Status Verifikasi',
+            'Status Pembayaran',
+            'Nama Calon Siswa',
+            'Jenis Kelamin',
+            'NISN',
+            'NIK',
+            'Tempat Lahir',
+            'Tanggal Lahir',
+            'No. WhatsApp Siswa',
+            'Email Akun',
+            'Alamat Lengkap',
+            'Asal Sekolah / TK',
+            'Nama Orang Tua / Wali',
+            'No. WhatsApp Orang Tua',
+            'Alamat Orang Tua',
+            'Jurusan Pilihan',
+            'Kelas / Penempatan',
+            'Catatan Verifikasi Panitia',
+            'Diverifikasi Oleh',
+            'Waktu Verifikasi',
+        ];
+
+        // Tambahkan Kolom dari Pertanyaan Kustom / Form Fields
+        foreach ($customFormFields as $cf) {
+            $headers[] = $cf->label;
+        }
+
+        $headerRow = 5;
+        $colIndex = 1;
+
+        foreach ($headers as $h) {
+            $colLetter = Coordinate::stringFromColumnIndex($colIndex);
+            $sheet->setCellValue($colLetter . $headerRow, $h);
+            $colIndex++;
+        }
+
+        $lastColLetter = Coordinate::stringFromColumnIndex(count($headers));
+
+        // Styling Baris Header Tabel
+        $sheet->getStyle("A{$headerRow}:{$lastColLetter}{$headerRow}")->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+                'size' => 11,
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '1C2434'],
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'wrapText' => true,
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '334155'],
+                ],
+            ],
+        ]);
+        $sheet->getRowDimension($headerRow)->setRowHeight(32);
+
+        // Isi Data Pendaftar
+        $currentRow = $headerRow + 1;
+        $no = 1;
+
+        foreach ($registrations as $reg) {
+            $colIndex = 1;
+
+            $statusLabel = match($reg->status) {
+                'submitted' => 'Pending Review',
+                'need_revision' => 'Perlu Revisi',
+                'verified' => 'Terverifikasi',
+                'accepted' => 'Diterima',
+                'rejected' => 'Ditolak',
+                default => 'Draft',
+            };
+
+            $payLabel = match($reg->payment_status) {
+                'paid' => 'Lunas',
+                'pending' => 'Menunggu Verifikasi',
+                default => 'Belum Bayar',
+            };
+
+            $genderLabel = match(strtolower($reg->gender ?? '')) {
+                'male', 'l', 'laki-laki' => 'Laki-laki',
+                'female', 'p', 'perempuan' => 'Perempuan',
+                default => $reg->gender ?? '-',
+            };
+
+            $rowValues = [
+                $no++,
+                ['val' => $reg->registration_number ?? '-', 'type' => DataType::TYPE_STRING],
+                $reg->created_at ? $reg->created_at->format('d/m/Y H:i') : '-',
+                $reg->wave->name ?? '-',
+                $reg->wave->academicYear->name ?? ($reg->wave->year ?? '-'),
+                $statusLabel,
+                $payLabel,
+                $reg->full_name ?? '-',
+                $genderLabel,
+                ['val' => $reg->nisn ?? '-', 'type' => DataType::TYPE_STRING],
+                ['val' => $reg->nik ?? '-', 'type' => DataType::TYPE_STRING],
+                $reg->birth_place ?? '-',
+                $reg->birth_date ? $reg->birth_date->format('d/m/Y') : '-',
+                ['val' => $reg->phone ?? '-', 'type' => DataType::TYPE_STRING],
+                $reg->email ?? ($reg->user->email ?? '-'),
+                $reg->address ?? '-',
+                $reg->origin_school ?? '-',
+                $reg->parent_name ?? '-',
+                ['val' => $reg->parent_phone ?? '-', 'type' => DataType::TYPE_STRING],
+                $reg->parent_address ?? '-',
+                $reg->major->name ?? '-',
+                $reg->class->name ?? '-',
+                $reg->verification_notes ?? '-',
+                $reg->verifier->name ?? '-',
+                $reg->verified_at ? $reg->verified_at->format('d/m/Y H:i') : '-',
+            ];
+
+            // Masukkan data jawaban dari pertanyaan kustom
+            foreach ($customFormFields as $cf) {
+                $val = $reg->getCustomFieldValue($cf->field_key, '-');
+                $rowValues[] = ['val' => (string)$val, 'type' => DataType::TYPE_STRING];
+            }
+
+            foreach ($rowValues as $item) {
+                $colLetter = Coordinate::stringFromColumnIndex($colIndex);
+                if (is_array($item)) {
+                    $sheet->setCellValueExplicit($colLetter . $currentRow, $item['val'], $item['type']);
+                } else {
+                    $sheet->setCellValue($colLetter . $currentRow, $item);
+                }
+                $colIndex++;
+            }
+
+            // Zebra striping halus
+            if ($currentRow % 2 == 0) {
+                $sheet->getStyle("A{$currentRow}:{$lastColLetter}{$currentRow}")->getFill()->applyFromArray([
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => 'F8FAFC'],
+                ]);
+            }
+
+            // Alignment spesifik
+            $sheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("B{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("C{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("F{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("G{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("I{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("J{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("K{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("M{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("N{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("S{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("Y{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            $sheet->getRowDimension($currentRow)->setRowHeight(24);
+            $currentRow++;
+        }
+
+        $lastDataRow = $currentRow - 1;
+
+        if ($lastDataRow >= $headerRow + 1) {
+            $sheet->getStyle("A" . ($headerRow + 1) . ":{$lastColLetter}{$lastDataRow}")->applyFromArray([
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => Border::BORDER_THIN,
+                        'color' => ['rgb' => 'E2E8F0'],
+                    ],
+                ],
+                'alignment' => [
+                    'vertical' => Alignment::VERTICAL_CENTER,
+                ],
+            ]);
+        }
+
+        // Auto-fit kolom dengan minimum padding
+        for ($i = 1; $i <= count($headers); $i++) {
+            $colLetter = Coordinate::stringFromColumnIndex($i);
+            $sheet->getColumnDimension($colLetter)->setAutoSize(true);
+        }
+
+        $filename = 'Data_Pendaftaran_SPMB_' . date('Y-m-d_H-i') . '.xlsx';
+
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
+
+        $writer = new Xlsx($spreadsheet);
+        $writer->save('php://output');
+        exit;
     }
 
     public function show($encodedId)

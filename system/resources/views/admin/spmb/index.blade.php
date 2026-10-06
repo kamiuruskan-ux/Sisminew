@@ -192,6 +192,11 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-3 shrink-0">
+                <a href="{{ route('admin.spmb.export', request()->query()) }}" 
+                   class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all flex items-center space-x-2 shadow-lg shadow-emerald-950/40 border border-emerald-500/30">
+                    <svg class="w-4 h-4 text-emerald-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <span>Ekspor Data (Excel)</span>
+                </a>
                 <a href="{{ route('spmb.register') }}" target="_blank" 
                    class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-all border border-white/10 flex items-center space-x-2 backdrop-blur-md shadow-xs">
                     <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
@@ -416,10 +421,10 @@
     <div class="tailadmin-card overflow-hidden">
         <!-- Filter Tabs Header & Bulk Delete Action -->
         <div class="px-6 border-b border-[#E2E8F0] dark:border-[#2E3A47] bg-slate-50/50 dark:bg-[#1A222C]/40 py-3 space-y-3">
-            <div class="flex items-center justify-between gap-4 flex-wrap sm:flex-nowrap">
-                <div class="flex space-x-2 overflow-x-auto py-1">
+            <div class="flex items-center justify-between gap-4 flex-wrap lg:flex-nowrap">
+                <div class="flex space-x-2 overflow-x-auto py-1 scrollbar-none">
                     @foreach(['all' => 'Semua Pendaftar', 'submitted' => 'Pending Review', 'need_revision' => 'Perlu Revisi', 'verified' => 'Terverifikasi', 'accepted' => 'Diterima', 'rejected' => 'Ditolak'] as $key => $label)
-                        <a href="?status={{ $key === 'all' ? '' : $key }}{{ request('payment_status') ? '&payment_status=' . request('payment_status') : '' }}{{ request('wave_id') ? '&wave_id=' . request('wave_id') : '' }}"
+                        <a href="?status={{ $key === 'all' ? '' : $key }}{{ request('payment_status') ? '&payment_status=' . request('payment_status') : '' }}{{ request('wave_id') ? '&wave_id=' . request('wave_id') : '' }}{{ request('search') ? '&search=' . urlencode(request('search')) : '' }}"
                            class="px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider rounded-xl transition-all flex items-center space-x-2 whitespace-nowrap
                                   {{ request('status') === $key || ($key === 'all' && !request('status')) 
                                      ? 'bg-[#3C50E0] text-white shadow-md shadow-[#3C50E0]/20' 
@@ -430,6 +435,17 @@
                                 if ($key !== 'all') $countQ->where('status', $key);
                                 if (request('payment_status') && request('payment_status') !== 'all') $countQ->where('payment_status', request('payment_status'));
                                 if (request('wave_id') && request('wave_id') !== 'all') $countQ->where('wave_id', request('wave_id'));
+                                if (request('search')) {
+                                    $s = request('search');
+                                    $countQ->where(function($q) use ($s) {
+                                        $q->where('full_name', 'like', "%{$s}%")
+                                          ->orWhere('registration_number', 'like', "%{$s}%")
+                                          ->orWhere('nisn', 'like', "%{$s}%")
+                                          ->orWhere('nik', 'like', "%{$s}%")
+                                          ->orWhere('phone', 'like', "%{$s}%")
+                                          ->orWhere('parent_name', 'like', "%{$s}%");
+                                    });
+                                }
                                 $count = $countQ->count();
                             @endphp
                             @if($count > 0)
@@ -437,6 +453,28 @@
                             @endif
                         </a>
                     @endforeach
+                </div>
+
+                <!-- Search & Quick Export Tools -->
+                <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
+                    <form method="GET" action="{{ route('admin.spmb.index') }}" class="relative flex items-center">
+                        @if(request('status'))<input type="hidden" name="status" value="{{ request('status') }}">@endif
+                        @if(request('payment_status'))<input type="hidden" name="payment_status" value="{{ request('payment_status') }}">@endif
+                        @if(request('wave_id'))<input type="hidden" name="wave_id" value="{{ request('wave_id') }}">@endif
+                        <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari nama, no. reg, WA..." 
+                               class="w-48 sm:w-56 pl-8 pr-6 py-1.5 text-xs bg-white dark:bg-[#1A222C] border border-[#E2E8F0] dark:border-[#2E3A47] rounded-xl text-[#1C2434] dark:text-white placeholder-[#64748B] outline-none focus:ring-2 focus:ring-[#3C50E0]">
+                        <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        @if(request('search'))
+                            <a href="?status={{ request('status') }}&payment_status={{ request('payment_status') }}&wave_id={{ request('wave_id') }}" class="absolute right-2 text-slate-400 hover:text-rose-500 text-xs font-bold" title="Reset pencarian">&times;</a>
+                        @endif
+                    </form>
+
+                    <a href="{{ route('admin.spmb.export', request()->query()) }}" 
+                       class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 shadow-sm transition-all shrink-0"
+                       title="Ekspor data pendaftaran ke file Excel (.xlsx)">
+                        <svg class="w-4 h-4 text-emerald-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <span class="hidden md:inline">Ekspor Excel</span>
+                    </a>
                 </div>
             </div>
 
@@ -447,7 +485,7 @@
                     @php
                         $isActivePayment = request('payment_status') === $pKey || ($pKey === 'all' && !request('payment_status'));
                     @endphp
-                    <a href="?payment_status={{ $pKey === 'all' ? '' : $pKey }}{{ request('status') ? '&status=' . request('status') : '' }}{{ request('wave_id') ? '&wave_id=' . request('wave_id') : '' }}"
+                    <a href="?payment_status={{ $pKey === 'all' ? '' : $pKey }}{{ request('status') ? '&status=' . request('status') : '' }}{{ request('wave_id') ? '&wave_id=' . request('wave_id') : '' }}{{ request('search') ? '&search=' . urlencode(request('search')) : '' }}"
                        class="px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all flex items-center space-x-1.5 whitespace-nowrap {{ $isActivePayment ? 'bg-slate-800 text-white dark:bg-white dark:text-slate-900 shadow-xs' : 'text-[#64748B] dark:text-[#8A99AD] hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }}">
                         <span>{{ $pLabel }}</span>
                     </a>

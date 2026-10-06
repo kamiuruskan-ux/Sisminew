@@ -286,6 +286,7 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
     // SPMB
     Route::middleware('permission:view-spmb')->group(function () {
         Route::get('spmb', [SpmbController::class, 'index'])->name('spmb.index');
+        Route::get('spmb/export', [SpmbController::class, 'exportExcel'])->name('spmb.export');
         Route::get('spmb/{encodedId}', [SpmbController::class, 'show'])->name('spmb.show');
         Route::get('spmb/{encodedId}/print', [SpmbController::class, 'printForm'])->name('spmb.print');
         
