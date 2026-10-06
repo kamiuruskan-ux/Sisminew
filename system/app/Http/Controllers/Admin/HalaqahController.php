@@ -9,6 +9,7 @@ use App\Models\HalaqahRecord;
 use App\Models\QuranHalaqahMember;
 use App\Models\QuranTarget;
 use App\Models\QuranTasmiExam;
+use App\Models\QuranJilidExam;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\DatabaseSchemaChecker;
@@ -740,6 +741,12 @@ class HalaqahController extends Controller
             ->paginate(15, ['*'], 'tasmi_page')
             ->withQueryString();
 
+        // ── UJIAN KENAIKAN JILID TAHSIN ──
+        $jilidExams = QuranJilidExam::with(['student.user', 'student.class', 'teacher'])
+            ->latest('exam_date')
+            ->paginate(15, ['*'], 'jilid_page')
+            ->withQueryString();
+
         $surahOptions = \App\Helpers\QuranHelper::getDropdownOptions();
         $classesInSelectedGrade = ClassModel::whereIn('id', $inputGradeClassIds)->orderBy('name', 'asc')->get();
         $filterCategory = $request->get('record_category', $request->get('category', 'all'));
@@ -818,7 +825,8 @@ class HalaqahController extends Controller
             'allJuzOptions',
             'attentionStudents',
             'targets',
-            'tasmiExams'
+            'tasmiExams',
+            'jilidExams'
         ));
     }
 
@@ -1390,5 +1398,84 @@ class HalaqahController extends Controller
     {
         $exam = QuranTasmiExam::with(['student.user', 'student.class', 'teacher'])->findOrFail($id);
         return view('admin.halaqah.certificate', compact('exam'));
+    }
+
+    /**
+     * Simpan Data Ujian Kenaikan Jilid Tahsin
+     */
+    public function storeJilidExam(Request $request)
+    {
+        $request->validate([
+            'student_id' => 'required|exists:students,id',
+            'exam_date' => 'required|date',
+            'current_jilid' => 'required|string',
+            'score_makhraj' => 'required|numeric|min:0|max:100',
+            'score_mad' => 'required|numeric|min:0|max:100',
+            'score_kelancaran' => 'required|numeric|min:0|max:100',
+        ]);
+
+        $scoreMakhraj = (float) $request->score_makhraj;
+        $scoreMad = (float) $request->score_mad;
+        $scoreKelancaran = (float) $request->score_kelancaran;
+
+        // Bobot: Makharijul Huruf (35%), Ketepatan Mad (35%), Kelancaran (30%)
+        $final = round(($scoreMakhraj * 0.35) + ($scoreMad * 0.35) + ($scoreKelancaran * 0.30), 1);
+        $predicate = HalaqahRecord::calculatePredicate($final);
+        $status = $final >= 75 ? 'lulus' : 'perbaikan';
+
+        // Auto target jilid jika tidak diisi manual (Jilid 1 -> Jilid 2, Jilid 2 -> Jilid 3, Jilid 3 -> Jilid 4, Jilid 4 -> Al-Qur'an)
+        $currentJilid = $request->current_jilid;
+        $defaultTarget = match($currentJilid) {
+            'Jilid 1' => 'Jilid 2',
+            'Jilid 2' => 'Jilid 3',
+            'Jilid 3' => 'Jilid 4',
+            'Jilid 4' => 'Al-Qur\'an',
+            default => 'Lulus Tahsin',
+        };
+        $targetJilid = $request->input('target_jilid') ?: $defaultTarget;
+
+        $student = Student::findOrFail($request->student_id);
+        $certNo = 'SKJ/' . date('Ym') . '/' . str_pad($student->id, 4, '0', STR_PAD_LEFT) . '/' . rand(100, 999);
+
+        QuranJilidExam::create([
+            'student_id' => $request->student_id,
+            'teacher_id' => Auth::id(),
+            'academic_year_id' => AcademicYear::getActive()?->id,
+            'exam_date' => $request->exam_date,
+            'current_jilid' => $currentJilid,
+            'target_jilid' => $targetJilid,
+            'page_tested' => $request->page_tested,
+            'score_makhraj' => $scoreMakhraj,
+            'score_mad' => $scoreMad,
+            'score_kelancaran' => $scoreKelancaran,
+            'score_final' => $final,
+            'predicate' => $predicate,
+            'status' => $status,
+            'certificate_number' => $certNo,
+            'notes' => $request->notes,
+        ]);
+
+        return redirect()->route('admin.halaqah.index', ['tab' => 'jilid'])
+            ->with('success', "Hasil Ujian Kenaikan {$currentJilid} untuk {$student->user?->name} berhasil dicatat!");
+    }
+
+    /**
+     * Hapus Data Ujian Kenaikan Jilid
+     */
+    public function destroyJilidExam($id)
+    {
+        $exam = QuranJilidExam::findOrFail($id);
+        $exam->delete();
+        return redirect()->route('admin.halaqah.index', ['tab' => 'jilid'])
+            ->with('success', 'Data ujian kenaikan jilid berhasil dihapus.');
+    }
+
+    /**
+     * Cetak Syahadah / Surat Tanda Lulus Kenaikan Jilid
+     */
+    public function printJilidCertificate($id)
+    {
+        $exam = QuranJilidExam::with(['student.user', 'student.class', 'teacher'])->findOrFail($id);
+        return view('admin.halaqah.jilid-certificate', compact('exam'));
     }
 }

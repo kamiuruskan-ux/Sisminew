@@ -528,6 +528,9 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::delete('halaqah/target/{id}', [\App\Http\Controllers\Admin\HalaqahController::class, 'destroyTarget'])->name('halaqah.target.destroy');
         Route::post('halaqah/tasmi', [\App\Http\Controllers\Admin\HalaqahController::class, 'storeTasmi'])->name('halaqah.tasmi.store');
         Route::get('halaqah/tasmi/certificate/{id}', [\App\Http\Controllers\Admin\HalaqahController::class, 'printCertificate'])->name('halaqah.tasmi.certificate');
+        Route::post('halaqah/jilid-exam', [\App\Http\Controllers\Admin\HalaqahController::class, 'storeJilidExam'])->name('halaqah.jilid-exam.store');
+        Route::delete('halaqah/jilid-exam/{id}', [\App\Http\Controllers\Admin\HalaqahController::class, 'destroyJilidExam'])->name('halaqah.jilid-exam.destroy');
+        Route::get('halaqah/jilid-exam/certificate/{id}', [\App\Http\Controllers\Admin\HalaqahController::class, 'printJilidCertificate'])->name('halaqah.jilid-exam.certificate');
 
         // Modul E-Raport Khusus Pembelajaran Al-Qur'an (Terpisah Sendiri)
         Route::get('quran-raport', [\App\Http\Controllers\Admin\QuranRaportController::class, 'index'])->name('quran-raport.index');

@@ -8,6 +8,7 @@ use App\Models\HalaqahRecord;
 use App\Models\QuranHalaqahMember;
 use App\Models\QuranTarget;
 use App\Models\QuranTasmiExam;
+use App\Models\QuranJilidExam;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -95,6 +96,12 @@ class StudentQuranController extends Controller
             ->latest('exam_date')
             ->get();
 
+        // 6. Riwayat Ujian Kenaikan Jilid Tahsin
+        $jilidExams = QuranJilidExam::with('teacher')
+            ->where('student_id', $student->id)
+            ->latest('exam_date')
+            ->get();
+
         return view('student.quran.index', compact(
             'student',
             'halaqahMembership',
@@ -113,6 +120,7 @@ class StudentQuranController extends Controller
             'latestTilawah',
             'targets',
             'tasmiExams',
+            'jilidExams',
             'studentGrade',
             'filterProgram',
             'filterCategory'

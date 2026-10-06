@@ -199,10 +199,8 @@
                 @endif
             </div>
         </div>
-    </div>
-
-    {{-- TARGET CAPAIAN TINGKAT KELAS & UJIAN TASMI' SYAHADAH --}}
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+     {{-- TARGET CAPAIAN TINGKAT KELAS & UJIAN SYAHADAH (JILID & TASMI') --}}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {{-- Target Kurikulum Tingkat Kelas --}}
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
             <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -248,16 +246,70 @@
             @endif
         </div>
 
+        {{-- Ujian Kenaikan Jilid Tahsin & Syahadah --}}
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    <h3 class="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                        Ujian Kenaikan Jilid
+                    </h3>
+                </div>
+                <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400">Metode Tilawah</span>
+            </div>
+
+            @if($jilidExams->isEmpty())
+                <div class="text-center py-8 space-y-2">
+                    <div class="w-12 h-12 mx-auto rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                    </div>
+                    <p class="text-xs font-bold text-slate-700 dark:text-slate-300">Belum Ada Riwayat Ujian Jilid</p>
+                    <p class="text-[11px] text-slate-400 max-w-sm mx-auto">
+                        Setelah menuntaskan evaluasi jilid berjalan, ananda dapat mengikuti Munaqasyah Kenaikan Jilid dan mendapatkan Syahadah resmi.
+                    </p>
+                </div>
+            @else
+                <div class="space-y-3">
+                    @foreach($jilidExams as $exam)
+                        <div class="p-3.5 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/80 dark:border-emerald-800/40 flex items-center justify-between gap-3">
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200">
+                                        {{ $exam->current_jilid }} ➜ {{ $exam->target_jilid }}
+                                    </span>
+                                    <span class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider {{ $exam->isLulus() ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-amber-100 text-amber-800' }}">
+                                        {{ $exam->isLulus() ? 'NAIK JILID' : 'PERBAIKAN' }}
+                                    </span>
+                                </div>
+                                <h4 class="text-xs font-black text-slate-900 dark:text-white">
+                                    Predikat: {{ $exam->predicate }} (Nilai: {{ $exam->score_final }})
+                                </h4>
+                                <p class="text-[10px] text-slate-500 font-mono">
+                                    No: {{ $exam->certificate_number ?? '-' }}
+                                </p>
+                            </div>
+
+                            <a href="{{ route('admin.halaqah.jilid-exam.certificate', $exam->id) }}" target="_blank"
+                               class="px-2.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1 shrink-0">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                <span>Syahadah</span>
+                            </a>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+
         {{-- Ujian Tasmi' 1 Juz Sekali Duduk & Syahadah --}}
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
             <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div class="flex items-center gap-2">
                     <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
                     <h3 class="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
-                        Ujian Tasmi' &amp; Syahadah 1 Juz
+                        Ujian Tasmi' 1 Juz
                     </h3>
                 </div>
-                <span class="text-xs font-bold text-amber-600 dark:text-amber-400">Sertifikasi Resmi</span>
+                <span class="text-xs font-bold text-amber-600 dark:text-amber-400">Tahfidz Bil-Ghoib</span>
             </div>
 
             @if($tasmiExams->isEmpty())
@@ -292,7 +344,7 @@
                             </div>
 
                             <a href="{{ route('admin.halaqah.tasmi.certificate', $exam->id) }}" target="_blank"
-                               class="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5 shrink-0">
+                               class="px-2.5 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1 shrink-0">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                 <span>Syahadah</span>
                             </a>

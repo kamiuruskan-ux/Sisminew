@@ -251,6 +251,12 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
                 <span>Ujian Tasmi' 1 Juz</span>
             </a>
+
+            <a href="{{ route('admin.halaqah.index', ['tab' => 'jilid']) }}"
+               class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'jilid' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                <span>Ujian Kenaikan Jilid</span>
+            </a>
         </div>
 
         <div class="flex items-center gap-2 shrink-0">
@@ -2462,6 +2468,375 @@
                     </div>
                     <p class="text-xs font-bold text-slate-600 dark:text-slate-300">Belum Ada Riwayat Ujian Tasmi'</p>
                     <p class="text-[11px] text-slate-400">Gunakan form di sebelah kiri untuk mencatat hasil ujian tasmi' 1 juz santri.</p>
+                </div>
+                @endif
+            </div>
+
+        </div>
+
+    </div>
+    @endif
+
+    {{-- ========================================================================= --}}
+    {{-- TAB 7: UJIAN KENAIKAN JILID TAHSIN & SYAHADAH --}}
+    {{-- ========================================================================= --}}
+    @if($tab === 'jilid')
+    <div class="space-y-6" x-data="{
+        currentJilid: 'Jilid 1',
+        targetJilid: 'Jilid 2',
+        makhraj: 85,
+        mad: 85,
+        kelancaran: 85,
+        updateTargetJilid() {
+            if (this.currentJilid === 'Jilid 1') this.targetJilid = 'Jilid 2';
+            else if (this.currentJilid === 'Jilid 2') this.targetJilid = 'Jilid 3';
+            else if (this.currentJilid === 'Jilid 3') this.targetJilid = 'Jilid 4';
+            else if (this.currentJilid === 'Jilid 4') this.targetJilid = 'Al-Qur\'an';
+            else this.targetJilid = 'Lulus Tahsin';
+        },
+        get totalScore() {
+            let sc = (Number(this.makhraj) * 0.35) + (Number(this.mad) * 0.35) + (Number(this.kelancaran) * 0.30);
+            return Math.round(sc * 10) / 10;
+        },
+        get isLulus() {
+            return this.totalScore >= 75;
+        },
+        get predicateText() {
+            if (this.totalScore >= 90) return 'Mumtaz';
+            if (this.totalScore >= 80) return 'Jayyid Jiddan';
+            if (this.totalScore >= 75) return 'Jayyid';
+            return 'Maqbul';
+        }
+    }">
+        
+        {{-- Header Tab Kenaikan Jilid --}}
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider">
+                        Tahsin &amp; Syahadah
+                    </span>
+                    <h2 class="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                        Ujian Kenaikan Jilid Tahsin
+                    </h2>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Pencatatan pengujian kenaikan jilid tilawah santri (Jilid 1 s/d Jilid 4 hingga Al-Qur'an), penilaian makharijul huruf, ketepatan mad, kelancaran, dan cetak Syahadah Kenaikan Jilid.
+                </p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 rounded-xl text-xs font-bold border border-emerald-200 dark:border-emerald-800">
+                    📖 Metode Tilawah (Jilid 1 - 4)
+                </span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {{-- Form Input Ujian Kenaikan Jilid Baru --}}
+            <div class="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+                <div class="border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <h3 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                        <span>📖 CATAT UJIAN KENAIKAN JILID</span>
+                    </h3>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Penilaian dewan asatidz penguji tahsin Al-Qur'an</p>
+                </div>
+
+                <form action="{{ route('admin.halaqah.jilid-exam.store') }}" method="POST" class="space-y-4">
+                    @csrf
+                    
+                    {{-- Selector Santri Cepat (Filter Rombel & Live Search) --}}
+                    <div x-data="{
+                        allStudents: {{ json_encode($tasmiStudents ?? []) }},
+                        classFilter: '',
+                        searchQuery: '',
+                        selectedStudentId: '',
+                        get filteredStudents() {
+                            return this.allStudents.filter(s => {
+                                const matchClass = !this.classFilter || s.class_id == this.classFilter;
+                                const q = this.searchQuery.toLowerCase().trim();
+                                const matchQuery = !q || (s.name && s.name.toLowerCase().includes(q)) || (s.nisn && s.nisn.toLowerCase().includes(q));
+                                return matchClass && matchQuery;
+                            });
+                        },
+                        get selectedStudent() {
+                            return this.allStudents.find(s => s.id == this.selectedStudentId);
+                        }
+                    }" class="space-y-2.5 p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-700">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-200">
+                                🔍 Pilih Santri yang Diuji
+                            </label>
+                            <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400" x-text="filteredStudents.length + ' santri ditemukan'"></span>
+                        </div>
+
+                        {{-- Filter Kelas & Live Search Bar --}}
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <select x-model="classFilter" class="w-full text-[11px] font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-1.5 px-2 text-slate-700 dark:text-slate-200 focus:ring-emerald-500">
+                                    <option value="">👥 Semua Kelas</option>
+                                    @foreach($allClasses as $c)
+                                        <option value="{{ $c->id }}">{{ $c->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <input type="text" x-model="searchQuery" placeholder="Cari nama / NISN..." class="w-full text-[11px] font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-1.5 px-2.5 text-slate-800 dark:text-white focus:ring-emerald-500">
+                            </div>
+                        </div>
+
+                        {{-- Dropdown Hasil Filter --}}
+                        <select name="student_id" x-model="selectedStudentId" class="w-full text-xs font-bold rounded-xl border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-800 py-2 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white" required>
+                            <option value="">-- Pilih Santri Terdaftar --</option>
+                            <template x-for="st in filteredStudents" :key="st.id">
+                                <option :value="st.id" x-text="st.name + ' (' + st.class_name + ' • ' + st.nisn + ')'"></option>
+                            </template>
+                        </select>
+
+                        {{-- Preview Card Santri Terpilih --}}
+                        <template x-if="selectedStudent">
+                            <div class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between text-xs">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-7 h-7 rounded-lg bg-emerald-600 text-white font-black flex items-center justify-center text-[11px] shadow-xs">
+                                        ✓
+                                    </span>
+                                    <div>
+                                        <div class="font-black text-emerald-950 dark:text-emerald-100" x-text="selectedStudent.name"></div>
+                                        <div class="text-[10px] text-emerald-700 dark:text-emerald-400" x-text="'Kelas: ' + selectedStudent.class_name + ' • NISN: ' + selectedStudent.nisn"></div>
+                                    </div>
+                                </div>
+                                <button type="button" @click="selectedStudentId = ''" class="px-2 py-0.5 text-[10px] font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded transition cursor-pointer">
+                                    Ganti
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+
+                    {{-- Jilid yang Diuji & Target Kenaikan --}}
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Jilid yang Diuji</label>
+                            <select name="current_jilid" x-model="currentJilid" @change="updateTargetJilid()" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white" required>
+                                <option value="Jilid 1">Jilid 1</option>
+                                <option value="Jilid 2">Jilid 2</option>
+                                <option value="Jilid 3">Jilid 3</option>
+                                <option value="Jilid 4">Jilid 4</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Target Naik Ke</label>
+                            <select name="target_jilid" x-model="targetJilid" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white" required>
+                                <option value="Jilid 2">Jilid 2</option>
+                                <option value="Jilid 3">Jilid 3</option>
+                                <option value="Jilid 4">Jilid 4</option>
+                                <option value="Al-Qur'an">Al-Qur'an (Khatam Tahsin)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {{-- Halaman Diuji & Tanggal Ujian --}}
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Halaman / Materi</label>
+                            <input type="text" name="page_tested" placeholder="Hal 1 - 40 / Akhir" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Tanggal Ujian</label>
+                            <input type="date" name="exam_date" value="{{ date('Y-m-d') }}" class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2.5 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white" required>
+                        </div>
+                    </div>
+
+                    {{-- 3 Aspek Penilaian Terbobot --}}
+                    <div class="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-700 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-black uppercase text-slate-400">Komponen Penilaian (0-100)</span>
+                            <span class="text-[10px] font-bold text-emerald-600">Bobot Terstandar</span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-0.5">Makhraj (35%)</label>
+                                <input type="number" name="score_makhraj" x-model="makhraj" min="0" max="100" class="w-full text-center text-xs font-black rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-2 text-slate-800 dark:text-white" required>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-0.5">Mad (35%)</label>
+                                <input type="number" name="score_mad" x-model="mad" min="0" max="100" class="w-full text-center text-xs font-black rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-2 text-slate-800 dark:text-white" required>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-0.5">Lancar (30%)</label>
+                                <input type="number" name="score_kelancaran" x-model="kelancaran" min="0" max="100" class="w-full text-center text-xs font-black rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 py-2 text-slate-800 dark:text-white" required>
+                            </div>
+                        </div>
+
+                        {{-- Kalkulasi Otomatis --}}
+                        <div class="pt-2 border-t border-slate-200/60 dark:border-slate-700 flex items-center justify-between">
+                            <div>
+                                <span class="text-xs font-bold text-slate-500">Nilai Akhir: <strong class="text-slate-900 dark:text-white font-black" x-text="totalScore"></strong></span>
+                                <span class="text-[10px] text-slate-400 font-bold ml-1" x-text="'(' + predicateText + ')'"></span>
+                            </div>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black" :class="isLulus ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'" x-text="isLulus ? '✓ NAIK JILID' : '⚠ PERBAIKAN'"></span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Catatan &amp; Rekomendasi Penguji</label>
+                        <textarea name="notes" rows="2" placeholder="Catatan huruf yang perlu dilatih, ketukan mad, atau kelancaran..." class="w-full text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2 px-3 focus:ring-emerald-500 text-slate-800 dark:text-white"></textarea>
+                    </div>
+
+                    <button type="submit" class="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black shadow-md shadow-emerald-600/30 transition flex items-center justify-center gap-2 cursor-pointer">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>Simpan Hasil Ujian Kenaikan Jilid</span>
+                    </button>
+                </form>
+            </div>
+
+            {{-- Tabel Riwayat Ujian Kenaikan Jilid --}}
+            <div class="lg:col-span-8 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
+                <div class="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs sm:text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">
+                            Riwayat Ujian Kenaikan Jilid
+                        </span>
+                        <span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-md text-[10px] font-bold">
+                            {{ $jilidExams->total() }} Ujian
+                        </span>
+                    </div>
+                </div>
+
+                @if($jilidExams->count() > 0)
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 text-[11px] font-extrabold text-slate-400 uppercase">
+                                <th class="py-3 px-4">Santri</th>
+                                <th class="py-3 px-4 text-center">Jilid ➜ Target</th>
+                                <th class="py-3 px-4 text-center">Tanggal</th>
+                                <th class="py-3 px-4 text-center">Nilai (M/M/L)</th>
+                                <th class="py-3 px-4 text-center">Hasil</th>
+                                <th class="py-3 px-4">Penguji</th>
+                                <th class="py-3 px-4 text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-200">
+                            @foreach($jilidExams as $exam)
+                            @php
+                                $waPhone = $exam->student?->parent_phone ?? $exam->student?->phone ?? '';
+                                $waPhoneClean = preg_replace('/[^0-9]/', '', $waPhone);
+                                if (str_starts_with($waPhoneClean, '0')) {
+                                    $waPhoneClean = '62' . substr($waPhoneClean, 1);
+                                }
+                                $isExamLulus = $exam->isLulus();
+                                $waText = rawurlencode(
+                                    "*SDIT AL-FAHMI PALU - HASIL UJIAN KENAIKAN JILID TAHSIN*\n\n" .
+                                    "Assalamu'alaikum Warahmatullahi Wabarakatuh,\n" .
+                                    "Yth. Ayah/Bunda dari ananda *{$exam->student?->user?->name}* (Kelas {$exam->student?->class?->name}):\n\n" .
+                                    "Alhamdulillah ananda telah mengikuti Munaqasyah / Ujian Kenaikan Jilid:\n" .
+                                    "• Materi Diuji: *{$exam->current_jilid}*\n" .
+                                    "• Tanggal: {$exam->exam_date->format('d/m/Y')}\n" .
+                                    "• Nilai Makhraj: {$exam->score_makhraj}\n" .
+                                    "• Nilai Mad: {$exam->score_mad}\n" .
+                                    "• Nilai Kelancaran: {$exam->score_kelancaran}\n" .
+                                    "• Nilai Akhir: *{$exam->score_final}* (Predikat: {$exam->predicate})\n" .
+                                    "• Keputusan: *" . ($isExamLulus ? "LULUS (Naik ke {$exam->target_jilid})" : "PERBAIKAN (Pemantapan {$exam->current_jilid})") . "*\n\n" .
+                                    ($exam->notes ? "Catatan Asatidz: \"{$exam->notes}\"\n\n" : "") .
+                                    "Semoga ananda semakin istiqomah dan fasih dalam membaca Al-Qur'an. Aamiin.\n\n" .
+                                    "Wassalamu'alaikum Warahmatullahi Wabarakatuh."
+                                );
+                            @endphp
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
+                                <td class="py-3 px-4">
+                                    <div class="font-black text-slate-900 dark:text-white">{{ $exam->student?->user?->name ?? 'Santri' }}</div>
+                                    <p class="text-[10px] text-slate-400">Kelas {{ $exam->student?->class?->name ?? '-' }} &bull; NISN: {{ $exam->student?->nisn ?? $exam->student?->nis ?? '-' }}</p>
+                                </td>
+                                <td class="py-3 px-4 text-center whitespace-nowrap">
+                                    <div class="inline-flex items-center gap-1">
+                                        <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 font-bold text-xs">
+                                            {{ $exam->current_jilid }}
+                                        </span>
+                                        <span class="text-emerald-500 font-black">➜</span>
+                                        <span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-black text-xs">
+                                            {{ $exam->target_jilid }}
+                                        </span>
+                                    </div>
+                                    @if($exam->page_tested)
+                                    <p class="text-[9px] text-slate-400 mt-0.5">{{ $exam->page_tested }}</p>
+                                    @endif
+                                </td>
+                                <td class="py-3 px-4 text-center whitespace-nowrap text-slate-500">
+                                    {{ $exam->exam_date->format('d/m/Y') }}
+                                </td>
+                                <td class="py-3 px-4 text-center whitespace-nowrap">
+                                    <div class="font-black text-slate-900 dark:text-white">
+                                        {{ number_format($exam->score_final, 1) }}
+                                    </div>
+                                    <p class="text-[9px] text-slate-400">
+                                        {{ number_format($exam->score_makhraj, 0) }} / {{ number_format($exam->score_mad, 0) }} / {{ number_format($exam->score_kelancaran, 0) }}
+                                    </p>
+                                </td>
+                                <td class="py-3 px-4 text-center whitespace-nowrap">
+                                    @if($exam->isLulus())
+                                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                            ✓ NAIK JILID
+                                        </span>
+                                    @else
+                                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                                            PERBAIKAN
+                                        </span>
+                                    @endif
+                                    <p class="text-[9px] text-slate-400 font-bold mt-0.5">{{ $exam->predicate }}</p>
+                                </td>
+                                <td class="py-3 px-4 whitespace-nowrap text-[11px] text-slate-600 dark:text-slate-300">
+                                    Ust. {{ $exam->teacher?->name ?? 'Penguji' }}
+                                </td>
+                                <td class="py-3 px-4 text-right whitespace-nowrap">
+                                    <div class="inline-flex items-center gap-1.5">
+                                        {{-- Cetak Syahadah --}}
+                                        <a href="{{ route('admin.halaqah.jilid-exam.certificate', $exam->id) }}" target="_blank"
+                                           class="px-2.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-[11px] font-bold shadow-xs transition inline-flex items-center gap-1"
+                                           title="Cetak Syahadah Kenaikan Jilid">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                            <span>Syahadah</span>
+                                        </a>
+
+                                        {{-- WhatsApp Share --}}
+                                        @if($waPhoneClean)
+                                        <a href="https://wa.me/{{ $waPhoneClean }}?text={{ $waText }}" target="_blank"
+                                           class="px-2 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-xl text-[11px] font-bold border border-emerald-200 dark:border-emerald-800 transition inline-flex items-center gap-1"
+                                           title="Kirim Hasil ke WhatsApp Wali Santri">
+                                            <span>📱 WA</span>
+                                        </a>
+                                        @endif
+
+                                        {{-- Hapus --}}
+                                        <form action="{{ route('admin.halaqah.jilid-exam.destroy', $exam->id) }}" method="POST" class="inline"
+                                              onsubmit="return confirm('Apakah Anda yakin ingin menghapus catatan ujian kenaikan jilid ini?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition" title="Hapus Catatan">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- Pagination --}}
+                @if($jilidExams->hasPages())
+                <div class="p-4 border-t border-slate-100 dark:border-slate-800">
+                    {{ $jilidExams->links() }}
+                </div>
+                @endif
+
+                @else
+                <div class="p-12 text-center text-slate-400 space-y-2">
+                    <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 mx-auto flex items-center justify-center">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                    </div>
+                    <p class="text-xs font-bold text-slate-600 dark:text-slate-300">Belum Ada Riwayat Ujian Kenaikan Jilid</p>
+                    <p class="text-[11px] text-slate-400">Gunakan form di sebelah kiri untuk mencatat hasil ujian kenaikan jilid tahsin santri.</p>
                 </div>
                 @endif
             </div>

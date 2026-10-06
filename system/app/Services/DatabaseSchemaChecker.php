@@ -125,6 +125,33 @@ class DatabaseSchemaChecker
                 $createdTables[] = 'quran_tasmi_exams';
             }
 
+            // 1d. Tabel Ujian Kenaikan Jilid Tahsin (quran_jilid_exams)
+            if (!Schema::hasTable('quran_jilid_exams')) {
+                Schema::create('quran_jilid_exams', function (Blueprint $table) {
+                    $table->id();
+                    $table->unsignedBigInteger('student_id')->index();
+                    $table->unsignedBigInteger('teacher_id')->nullable()->index(); // Asatidz Penguji
+                    $table->unsignedBigInteger('academic_year_id')->nullable();
+                    $table->date('exam_date');
+                    $table->string('current_jilid', 50)->default('Jilid 1'); // Jilid yang diuji
+                    $table->string('target_jilid', 50)->default('Jilid 2'); // Target kenaikan
+                    $table->string('page_tested', 100)->nullable(); // Hal 1 - 40 / Evaluasi Akhir
+                    $table->decimal('score_makhraj', 5, 2)->default(0); // Makhorijul & sifat huruf
+                    $table->decimal('score_mad', 5, 2)->default(0); // Ketepatan mad & panjang pendek
+                    $table->decimal('score_kelancaran', 5, 2)->default(0); // Kelancaran & fashohah
+                    $table->decimal('score_final', 5, 2)->default(0);
+                    $table->string('predicate', 50)->default('Mumtaz');
+                    $table->string('status', 30)->default('lulus'); // lulus, perbaikan
+                    $table->string('certificate_number', 100)->nullable()->unique();
+                    $table->text('notes')->nullable();
+                    $table->timestamps();
+
+                    $table->index(['student_id', 'exam_date']);
+                    $table->index(['current_jilid', 'status']);
+                });
+                $createdTables[] = 'quran_jilid_exams';
+            }
+
             // 2. Tabel quran_halaqah_members
             if (!Schema::hasTable('quran_halaqah_members')) {
                 Schema::create('quran_halaqah_members', function (Blueprint $table) {
