@@ -123,8 +123,8 @@ Route::middleware('guest')->group(function () {
     Route::get('login', [LoginController::class, 'showStudentLoginForm'])->name('login');
     Route::post('login', [LoginController::class, 'studentLogin'])->name('login.submit');
     Route::post('login-nisn', [LoginController::class, 'studentLoginNisn'])->name('login-nisn.submit');
-    Route::get('verify-otp', [LoginController::class, 'showStudentOtpForm'])->name('verify-otp');
-    Route::post('verify-otp', [LoginController::class, 'verifyStudentOtp'])->name('verify-otp.submit');
+    Route::get('verify-otp', [LoginController::class, 'showStudentOtpForm'])->name('student.verify-otp');
+    Route::post('verify-otp', [LoginController::class, 'verifyStudentOtp'])->name('student.verify-otp.submit');
     Route::get('captcha/refresh', [SecurityCaptchaController::class, 'refresh'])->name('captcha.refresh');
 
     // Forgot Password
