@@ -267,27 +267,27 @@
                         <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
                     </div>
                     <p class="text-2xl font-black text-emerald-700 dark:text-emerald-400">{{ number_format($paidCount) }} <span class="text-xs font-bold">Siswa</span></p>
-                    <p class="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 font-semibold">Kursi terkunci permanen</p>
+                    <p class="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 font-semibold">Formulir terverifikasi</p>
                 </div>
 
-                <!-- Pending Proof (Mereservasi Kursi) -->
+                <!-- Pending Proof (Mereservasi Kuota) -->
                 <div class="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/40 space-y-1">
                     <div class="flex items-center justify-between">
                         <p class="text-[10px] font-extrabold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Menunggu Verifikasi</p>
                         <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
                     </div>
-                    <p class="text-2xl font-black text-amber-700 dark:text-amber-400">{{ number_format($pendingCount) }} <span class="text-xs font-bold">Siswa</span></p>
-                    <p class="text-[10px] text-amber-600/80 dark:text-amber-400/80 font-semibold">Bukti upload (mereservasi kursi)</p>
+                    <p class="text-2xl font-black text-amber-700 dark:text-amber-400">{{ number_format($pendingCount) }} <span class="text-xs font-bold">Formulir</span></p>
+                    <p class="text-[10px] text-amber-600/80 dark:text-amber-400/80 font-semibold">Bukti upload (mengamankan kuota)</p>
                 </div>
 
-                <!-- Remaining Seats -->
+                <!-- Remaining Quota -->
                 <div class="p-4 rounded-2xl {{ $remainingQuota === 0 ? 'bg-rose-50/60 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/40' : 'bg-blue-50/60 dark:bg-blue-950/20 border-blue-200/80 dark:border-blue-800/40' }} border space-y-1">
                     <div class="flex items-center justify-between">
-                        <p class="text-[10px] font-extrabold {{ $remainingQuota === 0 ? 'text-rose-700 dark:text-rose-400' : 'text-blue-700 dark:text-blue-400' }} uppercase tracking-wider">Sisa Kursi Tersedia</p>
+                        <p class="text-[10px] font-extrabold {{ $remainingQuota === 0 ? 'text-rose-700 dark:text-rose-400' : 'text-blue-700 dark:text-blue-400' }} uppercase tracking-wider">Sisa Kuota Pendaftaran</p>
                         <span class="w-2 h-2 rounded-full {{ $remainingQuota === 0 ? 'bg-rose-500' : 'bg-blue-500' }}"></span>
                     </div>
                     <p class="text-2xl font-black {{ $remainingQuota === 0 ? 'text-rose-700 dark:text-rose-400' : 'text-blue-700 dark:text-blue-400' }}">
-                        {{ $targetQuota > 0 ? number_format($remainingQuota) : 'Tanpa Batas' }} <span class="text-xs font-bold">Kursi</span>
+                        {{ $targetQuota > 0 ? number_format($remainingQuota) : 'Tanpa Batas' }} <span class="text-xs font-bold">Formulir</span>
                     </p>
                     <p class="text-[10px] {{ $remainingQuota === 0 ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-blue-600/80 dark:text-blue-400/80 font-semibold' }}">
                         {{ $remainingQuota === 0 ? 'Pendaftaran otomatis tertutup' : 'Dapat diperebutkan pendaftar' }}
@@ -299,7 +299,7 @@
             <div class="space-y-2 pt-1">
                 <div class="flex items-center justify-between text-xs font-bold">
                     <div class="flex items-center space-x-4">
-                        <span class="text-[#1C2434] dark:text-white font-extrabold">Akumulasi Kuota Terpakai:</span>
+                        <span class="text-[#1C2434] dark:text-white font-extrabold">Akumulasi Kuota Formulir:</span>
                         <div class="flex items-center space-x-3 text-[11px]">
                             <span class="flex items-center space-x-1.5 text-emerald-600 dark:text-emerald-400">
                                 <span class="w-2.5 h-2.5 rounded-sm bg-emerald-500"></span>
@@ -311,12 +311,12 @@
                             </span>
                             <span class="flex items-center space-x-1.5 text-slate-500 dark:text-slate-400">
                                 <span class="w-2.5 h-2.5 rounded-sm bg-slate-300 dark:bg-slate-700"></span>
-                                <span>Sisa Kursi ({{ $remainingQuota }})</span>
+                                <span>Sisa Kuota ({{ $remainingQuota }})</span>
                             </span>
                         </div>
                     </div>
                     <span class="text-xs font-extrabold {{ $isFull ? 'text-rose-600 dark:text-rose-400' : 'text-[#3C50E0]' }}">
-                        {{ $reservedCount }} / {{ $targetQuota }} Siswa ({{ $totalPercent }}% Terisi)
+                        {{ $reservedCount }} / {{ $targetQuota }} Formulir ({{ $totalPercent }}% Terisi)
                     </span>
                 </div>
 
@@ -330,7 +330,7 @@
                 </div>
 
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-[#64748B] dark:text-[#8A99AD] pt-1">
-                    <span>*Calon siswa yang telah mengunggah bukti transfer otomatis <strong>mereservasi 1 kursi</strong> selama menunggu verifikasi bendahara.</span>
+                    <span>*Calon siswa yang telah mengunggah bukti transfer otomatis <strong>mengamankan 1 kuota pendaftaran</strong> selama menunggu verifikasi bendahara.</span>
                     @if(isset($activeWaveUnpaid) && $activeWaveUnpaid > 0)
                         <span class="text-amber-600 dark:text-amber-400 font-semibold mt-1 sm:mt-0">• {{ $activeWaveUnpaid }} akun terdaftar belum membayar / belum upload bukti.</span>
                     @endif

@@ -87,12 +87,16 @@
 
                     <div class="space-y-3 sm:space-y-4 mb-5 sm:mb-6 text-xs">
                         <div class="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between gap-2">
+                            <span class="text-slate-400 font-medium">Kuota Pendaftaran:</span>
+                            <span class="font-extrabold text-white text-xs sm:text-sm text-right">{{ isset($totalQuota) && $totalQuota > 0 ? number_format($totalQuota) . ' Formulir' : '300 Formulir' }}</span>
+                        </div>
+                        <div class="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between gap-2">
                             <span class="text-slate-400 font-medium">Biaya Formulir:</span>
                             <span class="font-extrabold text-amber-400 text-xs sm:text-sm text-right">Rp {{ number_format($activeWave?->registration_fee ?? Setting::get('spmb_registration_fee', 150000), 0, ',', '.') }}</span>
                         </div>
                         <div class="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between gap-2">
-                            <span class="text-slate-400 font-medium">Beasiswa Prestasi:</span>
-                            <span class="font-extrabold text-emerald-400 text-xs sm:text-sm text-right">{{ Setting::get('spmb_scholarship_info', 's.d. 100% Bebas SPP') }}</span>
+                            <span class="text-slate-400 font-medium">Pengumuman:</span>
+                            <span class="font-extrabold text-emerald-400 text-xs sm:text-sm text-right">{{ Setting::get('spmb_scholarship_info', 'Pengumuman langsung dalam aplikasi') }}</span>
                         </div>
                     </div>
 
@@ -113,16 +117,16 @@
 </section>
 
 <!-- ==========================================
-     2. GELOMBANG SELEKSI (FULL CONTAINER WIDTH)
+     2. GELOMBANG PENDAFTARAN (FULL CONTAINER WIDTH)
      ========================================== -->
 <section class="py-12 sm:py-16 lg:py-24 bg-white">
     <div class="container-edunova px-4 sm:px-6">
         
         <!-- Section Title Header -->
         <div class="text-center max-w-2xl mx-auto mb-10 sm:mb-14" data-aos="fade-up">
-            <span class="text-xs font-extrabold uppercase tracking-widest text-blue-600 block mb-1">{{ Setting::get('spmb_wave_badge', 'GELOMBANG & JALUR SELEKSI') }}</span>
+            <span class="text-xs font-extrabold uppercase tracking-widest text-blue-600 block mb-1">{{ Setting::get('spmb_wave_badge', 'GELOMBANG PENDAFTARAN') }}</span>
             <h2 class="text-xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">{{ Setting::get('spmb_wave_title', 'Pilihan Gelombang Pendaftaran') }}</h2>
-            <p class="text-xs sm:text-sm text-slate-500 mt-2 leading-relaxed">{{ Setting::get('spmb_wave_subtitle', 'Membuka beberapa jalur pendaftaran dengan fasilitas beasiswa menarik pada setiap gelombangnya.') }}</p>
+            <p class="text-xs sm:text-sm text-slate-500 mt-2 leading-relaxed">{{ Setting::get('spmb_wave_subtitle', 'Membuka pilihan gelombang pendaftaran murid baru.') }}</p>
         </div>
 
         <!-- 3 Wave Cards Full Width -->
@@ -141,8 +145,7 @@
                     @endphp
                     <div class="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 border {{ $isCurrentActive ? ($isQuotaFull ? 'border-2 border-rose-400 bg-rose-50/10' : 'border-2 border-blue-500 shadow-card') : ($isUpcoming ? 'border-amber-200 bg-amber-50/10' : 'border-slate-200/80 bg-slate-50/50') }} hover:shadow-card transition-all relative flex flex-col justify-between group" data-aos="fade-up">
                         <div>
-                            <div class="flex items-center justify-between mb-4">
-                                <span class="text-[10px] font-extrabold uppercase tracking-widest text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">SELEKSI RESMI</span>
+                            <div class="flex items-center justify-end mb-4">
                                 @if($isCurrentActive)
                                     @if($isQuotaFull)
                                         <span class="px-2.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-bold shadow-xs">Kuota Penuh</span>
@@ -177,7 +180,7 @@
                                 </div>
                                 <div class="flex justify-between items-center gap-2">
                                     <span class="text-slate-500 font-medium">Kuota Pendaftaran:</span>
-                                    <span class="font-bold text-indigo-600">{{ $wave->quota ? number_format($wave->quota) . ' Siswa' : 'Tanpa Batas' }}</span>
+                                    <span class="font-bold text-indigo-600">{{ $wave->quota ? number_format($wave->quota) . ' Formulir' : 'Tanpa Batas' }}</span>
                                 </div>
 
                                 @php
@@ -189,14 +192,14 @@
                                 <!-- Visual Quota Progress Bar -->
                                 <div class="pt-2 border-t border-slate-200/60 mt-2 space-y-1.5">
                                     <div class="flex justify-between items-center text-[11px] font-bold">
-                                        <span class="text-slate-500 font-medium">Status Kuota Terisi:</span>
-                                        <span class="text-slate-900 font-mono">{{ $filledCount }} / {{ $targetQuota }} Siswa</span>
+                                        <span class="text-slate-500 font-medium">Status Kuota Formulir:</span>
+                                        <span class="text-slate-900 font-mono">{{ $filledCount }} / {{ $targetQuota }} Formulir</span>
                                     </div>
                                     <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden p-0.5 border border-slate-200/80">
                                         <div class="bg-gradient-to-r {{ $isQuotaFull ? 'from-amber-500 to-rose-600' : 'from-blue-500 via-indigo-500 to-purple-600' }} h-full rounded-full transition-all duration-500" style="width: {{ max(5, $quotaPercent) }}%"></div>
                                     </div>
                                     <div class="flex justify-between items-center text-[10px] text-slate-400 font-semibold">
-                                        <span>Sisa: <strong class="{{ $remainingSeats === 0 ? 'text-rose-600 font-extrabold' : 'text-slate-700' }}">{{ $remainingSeats }} Kursi</strong></span>
+                                        <span>Sisa: <strong class="{{ $remainingSeats === 0 ? 'text-rose-600 font-extrabold' : 'text-slate-700' }}">{{ $remainingSeats }} Formulir</strong></span>
                                         <span class="font-extrabold {{ $isQuotaFull ? 'text-rose-600' : 'text-blue-600' }}">{{ $quotaPercent }}% Terisi</span>
                                     </div>
                                 </div>
@@ -206,7 +209,7 @@
                         @if($isCurrentActive)
                             @if($isQuotaFull)
                                 <button type="button" disabled class="w-full py-3.5 rounded-xl sm:rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 font-bold text-xs uppercase tracking-wider text-center block cursor-not-allowed">
-                                    Kuota Penuh (Tutup)
+                                    Kuota Formulir Penuh (Tutup)
                                 </button>
                             @else
                                 <a href="{{ route('spmb.register') }}" class="w-full py-3.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs uppercase tracking-wider text-center block shadow-glow transition-all">
@@ -258,8 +261,8 @@
                         <span class="px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold">Mendatang</span>
                     </div>
                     <div>
-                        <h3 class="text-lg sm:text-xl font-extrabold text-slate-900 mb-2">Jalur Reguler & Tes Akademik</h3>
-                        <p class="text-xs text-slate-500 mb-5 leading-relaxed">Seleksi penerimaan umum berdasarkan Tes Potensi Akademik (TPA), psikotes, dan wawancara pemetaan bakat minat calon siswa.</p>
+                        <h3 class="text-lg sm:text-xl font-extrabold text-slate-900 mb-2">Jalur Reguler</h3>
+                        <p class="text-xs text-slate-500 mb-5 leading-relaxed">Pendaftaran umum berdasarkan observasi kesiapan belajar dan wawancara pemetaan minat bakat calon siswa.</p>
                         
                         <div class="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 mb-5 space-y-2 text-xs">
                             <div class="flex justify-between items-center gap-2">
@@ -267,8 +270,8 @@
                                 <span class="font-bold text-slate-900">01 Juli - 31 Juli</span>
                             </div>
                             <div class="flex justify-between items-center gap-2">
-                                <span class="text-slate-500 font-medium">Jalur Tes:</span>
-                                <span class="font-bold text-purple-600">TPA & Wawancara</span>
+                                <span class="text-slate-500 font-medium">Tahapan:</span>
+                                <span class="font-bold text-purple-600">Observasi & Wawancara</span>
                             </div>
                         </div>
                     </div>
@@ -277,15 +280,15 @@
                     </a>
                 </div>
 
-                <!-- Fallback Wave 3: Undangan -->
+                <!-- Fallback Wave 3: Kemitraan -->
                 <div class="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 border border-slate-200/80 shadow-xs hover:shadow-card transition-all relative flex flex-col justify-between group" data-aos="fade-up" data-aos-delay="200">
                     <div class="flex items-center justify-between mb-4">
                         <span class="text-[10px] font-extrabold uppercase tracking-widest text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-100">GELOMBANG III</span>
                         <span class="px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold">Mendatang</span>
                     </div>
                     <div>
-                        <h3 class="text-lg sm:text-xl font-extrabold text-slate-900 mb-2">Jalur Khusus Undangan</h3>
-                        <p class="text-xs text-slate-500 mb-5 leading-relaxed">Jalur apresiasi bagi lulusan SMP/MTs mitra terbaik berdasarkan peringkat paralel sekolah rekomendasi.</p>
+                        <h3 class="text-lg sm:text-xl font-extrabold text-slate-900 mb-2">Jalur Khusus Kemitraan</h3>
+                        <p class="text-xs text-slate-500 mb-5 leading-relaxed">Pendaftaran jalur apresiasi kemitraan dan rekomendasi sekolah mitra terbaik.</p>
                         
                         <div class="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 mb-5 space-y-2 text-xs">
                             <div class="flex justify-between items-center gap-2">
@@ -293,8 +296,8 @@
                                 <span class="font-bold text-slate-900">01 Ags - 15 Ags</span>
                             </div>
                             <div class="flex justify-between items-center gap-2">
-                                <span class="text-slate-500 font-medium">Seleksi:</span>
-                                <span class="font-bold text-amber-600">Bebas Tes TPA</span>
+                                <span class="text-slate-500 font-medium">Tahapan:</span>
+                                <span class="font-bold text-amber-600">Observasi Berkas</span>
                             </div>
                         </div>
                     </div>
@@ -347,9 +350,9 @@
                 <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-purple-50 text-purple-600 font-extrabold text-xs sm:text-sm flex items-center justify-center mb-3.5 border border-purple-100 shadow-xs">
                     03
                 </div>
-                <span class="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest text-purple-600 block mb-1">TES SELEKSI</span>
-                <h4 class="text-sm sm:text-base font-extrabold text-slate-900 mb-1">{{ Setting::get('spmb_step_3_title', 'Tes TPA & Wawancara') }}</h4>
-                <p class="text-xs text-slate-500 leading-relaxed">{{ Setting::get('spmb_step_3_desc', 'Mengikuti ujian potensi akademik secara online / hadir di sekolah serta sesi pemetaan minat bakat.') }}</p>
+                <span class="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest text-purple-600 block mb-1">OBSERVASI & PEMETAAN</span>
+                <h4 class="text-sm sm:text-base font-extrabold text-slate-900 mb-1">{{ Setting::get('spmb_step_3_title', 'Observasi & Wawancara') }}</h4>
+                <p class="text-xs text-slate-500 leading-relaxed">{{ Setting::get('spmb_step_3_desc', 'Mengikuti observasi kesiapan belajar dan sesi pemetaan minat bakat calon murid bersama orang tua.') }}</p>
             </div>
 
             <!-- Step 4 -->
@@ -357,9 +360,9 @@
                 <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-emerald-50 text-emerald-600 font-extrabold text-xs sm:text-sm flex items-center justify-center mb-3.5 border border-emerald-100 shadow-xs">
                     04
                 </div>
-                <span class="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest text-emerald-600 block mb-1">HASIL SELEKSI</span>
-                <h4 class="text-sm sm:text-base font-extrabold text-slate-900 mb-1">{{ Setting::get('spmb_step_4_title', 'Pengumuman & Re-Registrasi') }}</h4>
-                <p class="text-xs text-slate-500 leading-relaxed">{{ Setting::get('spmb_step_4_desc', 'Pengumuman hasil kelulusan di portal SPMB dan verifikasi pendaftaran ulang calon siswa baru.') }}</p>
+                <span class="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest text-emerald-600 block mb-1">HASIL PENDAFTARAN</span>
+                <h4 class="text-sm sm:text-base font-extrabold text-slate-900 mb-1">{{ Setting::get('spmb_step_4_title', 'Pengumuman & Daftar Ulang') }}</h4>
+                <p class="text-xs text-slate-500 leading-relaxed">{{ Setting::get('spmb_step_4_desc', 'Pengumuman hasil penerimaan di portal SPMB dan verifikasi pendaftaran ulang calon siswa baru.') }}</p>
             </div>
 
         </div>
