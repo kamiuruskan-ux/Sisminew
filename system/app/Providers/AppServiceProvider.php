@@ -67,6 +67,35 @@ class AppServiceProvider extends ServiceProvider
                     date_default_timezone_set($timezone);
                     config(['app.timezone' => $timezone]);
                 }
+
+                // Global Dynamic Mail / SMTP Configuration from Admin Setting
+                $mailMailer = \App\Models\Setting::get('email_mail_mailer', 'smtp');
+                $mailHost = \App\Models\Setting::get('email_mail_host', config('mail.mailers.smtp.host', 'smtp.gmail.com'));
+                $mailPort = \App\Models\Setting::get('email_mail_port', config('mail.mailers.smtp.port', 587));
+                $mailUsername = \App\Models\Setting::get('email_mail_username', config('mail.mailers.smtp.username'));
+                $mailPassword = \App\Models\Setting::get('email_mail_password', config('mail.mailers.smtp.password'));
+                $mailEncryption = \App\Models\Setting::get('email_mail_encryption', config('mail.mailers.smtp.encryption', 'tls'));
+                $mailFromAddress = \App\Models\Setting::get('email_mail_from_address', config('mail.from.address'));
+                $mailFromName = \App\Models\Setting::get('email_mail_from_name', config('mail.from.name'));
+
+                if (!empty($mailUsername) && !empty($mailPassword)) {
+                    // Clean spaces if Google App Password was copied with spaces
+                    if (str_contains(strtolower($mailHost ?? ''), 'gmail')) {
+                        $mailPassword = str_replace(' ', '', $mailPassword);
+                    }
+
+                    config([
+                        'mail.default' => $mailMailer ?: 'smtp',
+                        'mail.mailers.smtp.transport' => 'smtp',
+                        'mail.mailers.smtp.host' => $mailHost ?: 'smtp.gmail.com',
+                        'mail.mailers.smtp.port' => (int) ($mailPort ?: 587),
+                        'mail.mailers.smtp.encryption' => ($mailEncryption === 'none' || empty($mailEncryption)) ? null : $mailEncryption,
+                        'mail.mailers.smtp.username' => $mailUsername,
+                        'mail.mailers.smtp.password' => $mailPassword,
+                        'mail.from.address' => $mailFromAddress ?: $mailUsername,
+                        'mail.from.name' => $mailFromName ?: config('app.name'),
+                    ]);
+                }
             }
         } catch (\Throwable $e) {
             date_default_timezone_set(config('app.timezone', 'Asia/Jakarta'));

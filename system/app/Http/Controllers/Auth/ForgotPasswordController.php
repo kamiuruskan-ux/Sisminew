@@ -57,8 +57,9 @@ class ForgotPasswordController extends Controller
 
             return back()->with('success', 'Link reset password telah dikirim ke Email & WhatsApp Anda. Link berlaku selama 60 menit.');
         } catch (\Exception $e) {
+            \Log::error('Reset password email delivery error: ' . $e->getMessage(), ['exception' => $e]);
             return back()->withErrors([
-                'email' => 'Gagal mengirim email reset password. Silakan coba lagi atau hubungi administrator.',
+                'email' => 'Gagal mengirim email reset password (' . $e->getMessage() . '). Silakan coba lagi atau hubungi administrator.',
             ])->onlyInput('email');
         }
     }

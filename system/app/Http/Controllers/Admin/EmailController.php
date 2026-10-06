@@ -67,6 +67,40 @@ class EmailController extends Controller
         ]);
 
         try {
+            $mailer = Setting::get('email_mail_mailer', 'smtp');
+            $host = Setting::get('email_mail_host', 'smtp.gmail.com');
+            $port = Setting::get('email_mail_port', 587);
+            $username = Setting::get('email_mail_username');
+            $password = Setting::get('email_mail_password');
+            $encryption = Setting::get('email_mail_encryption', 'tls');
+            $fromAddress = Setting::get('email_mail_from_address', $username);
+            $fromName = Setting::get('email_mail_from_name', Setting::get('school_name', config('app.name')));
+
+            if (empty($username) || empty($password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal: SMTP Username atau Password masih kosong di pengaturan.'
+                ], 422);
+            }
+
+            if (str_contains(strtolower($host ?? ''), 'gmail')) {
+                $password = str_replace(' ', '', $password);
+            }
+
+            config([
+                'mail.default' => $mailer ?: 'smtp',
+                'mail.mailers.smtp.transport' => 'smtp',
+                'mail.mailers.smtp.host' => $host ?: 'smtp.gmail.com',
+                'mail.mailers.smtp.port' => (int) ($port ?: 587),
+                'mail.mailers.smtp.encryption' => ($encryption === 'none' || empty($encryption)) ? null : $encryption,
+                'mail.mailers.smtp.username' => $username,
+                'mail.mailers.smtp.password' => $password,
+                'mail.from.address' => $fromAddress ?: $username,
+                'mail.from.name' => $fromName ?: config('app.name'),
+            ]);
+
+            \Illuminate\Support\Facades\Mail::purge();
+
             Mail::to($validated['test_email'])
                 ->send(new TestEmailMail(['to' => $validated['test_email']]));
 
@@ -79,6 +113,8 @@ class EmailController extends Controller
 
             return back()->with('success', 'Email test berhasil dikirim ke ' . $validated['test_email']);
         } catch (\Exception $e) {
+            \Log::error('Email test failed: ' . $e->getMessage());
+
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => false,

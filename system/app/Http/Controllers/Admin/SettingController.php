@@ -329,8 +329,43 @@ class SettingController extends Controller
 
         foreach ($settingsMap as $input => $key) {
             if ($request->has($input)) {
-                Setting::set($key, $request->input($input));
+                $val = $request->input($input);
+                if ($input === 'mail_password' && !empty($val)) {
+                    $val = str_replace(' ', '', $val);
+                }
+                Setting::set($key, $val);
             }
+        }
+
+        // Sync email settings to .env if email configuration was provided
+        if ($request->has('mail_host') || $request->has('mail_username')) {
+            $mailer = $request->input('mail_mailer', Setting::get('email_mail_mailer', 'smtp'));
+            $host = $request->input('mail_host', Setting::get('email_mail_host', 'smtp.gmail.com'));
+            $port = $request->input('mail_port', Setting::get('email_mail_port', '587'));
+            $username = $request->input('mail_username', Setting::get('email_mail_username', ''));
+            $password = $request->filled('mail_password') 
+                ? str_replace(' ', '', $request->input('mail_password')) 
+                : Setting::get('email_mail_password', '');
+            $encryption = $request->input('mail_encryption', Setting::get('email_mail_encryption', 'tls'));
+            $fromAddress = $request->input('mail_from_address', Setting::get('email_mail_from_address', $username));
+            $fromName = $request->input('mail_from_name', Setting::get('email_mail_from_name', Setting::get('school_name', 'Sekolah')));
+
+            $envUpdates = [
+                'MAIL_MAILER' => $mailer ?: 'smtp',
+                'MAIL_HOST' => $host ?: 'smtp.gmail.com',
+                'MAIL_PORT' => $port ?: '587',
+                'MAIL_USERNAME' => $username ? "\"{$username}\"" : '',
+                'MAIL_PASSWORD' => $password ? "\"{$password}\"" : '',
+                'MAIL_ENCRYPTION' => ($encryption === 'none' || empty($encryption)) ? '' : $encryption,
+                'MAIL_FROM_ADDRESS' => $fromAddress ? "\"{$fromAddress}\"" : '',
+                'MAIL_FROM_NAME' => "\"{$fromName}\"",
+            ];
+
+            $this->updateEnvFile($envUpdates);
+
+            try {
+                \Illuminate\Support\Facades\Mail::purge();
+            } catch (\Throwable $e) {}
         }
 
 
@@ -555,5 +590,36 @@ class SettingController extends Controller
         return back()->with('success', 'Profil berhasil diperbarui.');
     }
 
+    /**
+     * Update .env file with given key-value pairs
+     */
+    private function updateEnvFile(array $settings): void
+    {
+        try {
+            $envFile = base_path('.env');
+            if (!File::exists($envFile)) {
+                return;
+            }
+            $envContent = File::get($envFile);
 
+            foreach ($settings as $key => $value) {
+                $pattern = "/^{$key}=.*/m";
+                $replacement = "{$key}={$value}";
+
+                if (preg_match($pattern, $envContent)) {
+                    $envContent = preg_replace($pattern, $replacement, $envContent);
+                } else {
+                    $envContent .= "\n{$key}={$value}";
+                }
+            }
+
+            File::put($envFile, $envContent);
+
+            try {
+                \Artisan::call('config:clear');
+            } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+            \Log::warning('Gagal memperbarui file .env: ' . $e->getMessage());
+        }
+    }
 }
