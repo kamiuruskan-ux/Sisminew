@@ -87,10 +87,6 @@
 
                     <div class="space-y-3 sm:space-y-4 mb-5 sm:mb-6 text-xs">
                         <div class="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between gap-2">
-                            <span class="text-slate-400 font-medium">Kuota Penerimaan:</span>
-                            <span class="font-extrabold text-white text-xs sm:text-sm text-right">{{ isset($totalQuota) && $totalQuota > 0 ? number_format($totalQuota) . ' Siswa Baru' : '280 Siswa Baru' }}</span>
-                        </div>
-                        <div class="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between gap-2">
                             <span class="text-slate-400 font-medium">Biaya Formulir:</span>
                             <span class="font-extrabold text-amber-400 text-xs sm:text-sm text-right">Rp {{ number_format($activeWave?->registration_fee ?? Setting::get('spmb_registration_fee', 150000), 0, ',', '.') }}</span>
                         </div>
