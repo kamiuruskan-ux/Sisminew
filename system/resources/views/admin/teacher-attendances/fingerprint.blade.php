@@ -419,28 +419,32 @@
 
                         const data = await res.json();
 
-                        if (data.success) {
-                            this.scannedTeacher = data.teacher;
+                        if (data.success || data.already_complete || data.locked) {
+                            this.scannedTeacher = data.teacher || data.user;
                             this.scannedTime = new Date().toLocaleTimeString('id-ID');
                             this.scannedSession = data.session_name || data.action_type || 'Presensi';
                             this.qualityScore = data.confidence || 96;
+
+                            const teacherName = (this.scannedTeacher && this.scannedTeacher.name) ? this.scannedTeacher.name : '';
 
                             if (data.already_complete || data.locked) {
                                 this.scanStage = 'already';
                                 this.deviceStatus = 'Ready';
                                 this.scanMessage = data.message;
                                 this.playAudio('already');
-                                this.playVoice('Afwan, presensi sudah tercatat sebelumnya.');
+                                const voiceMsg = teacherName ? `Afwan, presensi ${teacherName} sudah tercatat sebelumnya.` : 'Afwan, presensi sudah tercatat sebelumnya.';
+                                this.playVoice(voiceMsg);
                             } else {
                                 this.scanStage = 'success';
                                 this.deviceStatus = 'Ready';
                                 this.scannedAction = data.session_name || (data.action_type === 'check_in' ? 'MASUK' : 'PULANG');
                                 this.scanMessage = 'Fingerprint Captured Successfully! ' + data.message;
                                 this.playAudio('success');
-                                this.playVoice('Alhamdulillah, presensi sudah berhasil. Syukron.');
+                                const voiceMsg = teacherName ? `Alhamdulillah, presensi ${teacherName} sudah berhasil. Syukron.` : 'Alhamdulillah, presensi sudah berhasil. Syukron.';
+                                this.playVoice(voiceMsg);
 
                                 this.prependLiveAttendance({
-                                    name: data.teacher.name,
+                                    name: (this.scannedTeacher && this.scannedTeacher.name) ? this.scannedTeacher.name : 'Guru',
                                     time: this.scannedTime,
                                     action: this.scannedAction,
                                     method: 'Sidik Jari (HID 4500)'
@@ -450,8 +454,9 @@
                             setTimeout(() => {
                                 this.scanStage = 'idle';
                                 this.deviceStatus = 'Ready';
+                                this.scannedTeacher = null;
                                 this.rearmSensor();
-                            }, 4000);
+                            }, 4500);
                         } else {
                             this.scanStage = 'error';
                             this.deviceStatus = 'Ready';
@@ -886,6 +891,37 @@
                                 (sensorArmed ? 'READY • TEMPELKAN JARI DI KACA SCANNER' : 'SENSOR BELUM AKTIF • KLIK UNTUK AKTIFKAN')
                              "></div>
                         <p class="text-xs text-slate-400" x-text="deviceConnected ? scanMessage : (sslUnauthorized ? 'Browser memerlukan otorisasi untuk berkomunikasi dengan driver scanner USB.' : 'Pastikan kabel scanner USB terpasang ke komputer piket.')"></p>
+                        
+                        <!-- Card Identitas Guru (Berhasil atau Sudah Tercatat Sebelumnya) -->
+                        <template x-if="scannedTeacher">
+                            <div class="mt-4 p-4 rounded-2xl border text-left transition-all shadow-xl max-w-md mx-auto"
+                                 :class="scanStage === 'already' ? 'bg-amber-950/60 border-amber-500/50 text-amber-200' : 'bg-emerald-950/60 border-emerald-500/50 text-emerald-200'">
+                                <div class="flex items-center justify-between pb-2 border-b"
+                                     :class="scanStage === 'already' ? 'border-amber-500/20' : 'border-emerald-500/20'">
+                                    <span class="text-[10px] font-mono uppercase font-black tracking-wider flex items-center gap-1.5"
+                                          :class="scanStage === 'already' ? 'text-amber-400' : 'text-emerald-400'">
+                                        <span x-text="scanStage === 'already' ? '⚠️ SUDAH TERCATAT HARI INI' : '✓ PRESENSI BERHASIL'"></span>
+                                    </span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold"
+                                          :class="scanStage === 'already' ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300'"
+                                          x-text="scannedTime"></span>
+                                </div>
+                                <div class="flex items-center space-x-3 mt-3">
+                                    <div class="w-12 h-12 rounded-xl flex items-center justify-center font-black text-sm border shrink-0"
+                                         :class="scanStage === 'already' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'"
+                                         x-text="scannedTeacher.name ? scannedTeacher.name.substring(0, 2).toUpperCase() : 'ID'">
+                                    </div>
+                                    <div>
+                                        <h4 class="font-extrabold text-white text-base" x-text="scannedTeacher.name"></h4>
+                                        <div class="flex items-center space-x-2 text-xs font-mono mt-0.5">
+                                            <span class="text-slate-300">ID / NIP: <strong class="text-white" x-text="scannedTeacher.nip || '-'"></strong></span>
+                                            <span>•</span>
+                                            <span class="text-cyan-400 font-bold" x-text="scannedSession"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
                         
                         <!-- SSL / Browser Bridge Authorization Assistant -->
                         <div x-show="sslUnauthorized" class="mt-4 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-left space-y-4 shadow-xl">

@@ -39,16 +39,19 @@
     scanLocation: 'school',
     scanStatus: 'scanning', // 'scanning', 'verifying', 'success', 'already', 'failed'
     autoScan: true,
+    hasFaceInView: false,
     isProcessing: false,
     lastScanTime: 0,
     scanConfidence: 0,
-    scanMessage: 'Sistem AI Biometrik Aktif. Berdirilah di depan kamera...',
+    scanMessage: 'Menunggu wajah di depan kamera... Posisikan wajah pada bingkai',
     scannedUser: null,
     latitude: '',
     longitude: '',
     isLocating: false,
     currentTime: '',
     activeSessionLabel: 'Otomatis Sesuai Waktu',
+    nativeFaceDetector: null,
+    tempDetectorCanvas: null,
 
     init() {
         this.updateClock();
@@ -56,15 +59,30 @@
         this.getLocation();
         this.startCamera();
 
-        // Hands-Free Auto Scan Loop: Continuously detects face every 2.2 seconds
-        setInterval(() => {
-            if (this.autoScan && this.scanStatus === 'scanning' && !this.isProcessing) {
+        // Hands-Free Auto Scan Loop: HANYA MEMINDAI JIKA WAJAH TERDETEKSI!
+        setInterval(async () => {
+            if (!this.autoScan || this.isProcessing || this.scanStatus === 'verifying' || this.scanStatus === 'success' || this.scanStatus === 'already') {
+                return;
+            }
+
+            const video = document.getElementById('scanVideo');
+            if (!video || video.readyState < 2) return;
+
+            const faceDetected = await this.isFacePresent(video);
+            this.hasFaceInView = faceDetected;
+
+            if (faceDetected) {
                 const now = Date.now();
-                if (now - this.lastScanTime > 2500) {
+                if (now - this.lastScanTime > 3000) {
+                    this.scanMessage = '🟢 Wajah terdeteksi! Memverifikasi biometrik...';
                     this.verifyFace(true);
                 }
+            } else {
+                if (this.scanStatus === 'scanning') {
+                    this.scanMessage = 'Menunggu wajah di depan kamera... Posisikan wajah pada bingkai';
+                }
             }
-        }, 1200);
+        }, 800);
 
         // Pre-unlock speech synthesis & audio on user click
         const unlockAudio = () => {
@@ -80,6 +98,60 @@
         };
         document.addEventListener('click', unlockAudio);
         document.addEventListener('touchstart', unlockAudio);
+    },
+
+    async isFacePresent(video) {
+        if (!video || video.readyState < 2) return false;
+
+        // 1. Native Chromium FaceDetector API jika browser mendukung
+        if ('FaceDetector' in window) {
+            try {
+                if (!this.nativeFaceDetector) {
+                    this.nativeFaceDetector = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+                }
+                const faces = await this.nativeFaceDetector.detect(video);
+                return faces && faces.length > 0;
+            } catch (e) {}
+        }
+
+        // 2. Optical Center-Box Face & Skin Tone Analyzer (Ultra-cepat ~10ms)
+        try {
+            if (!this.tempDetectorCanvas) {
+                this.tempDetectorCanvas = document.createElement('canvas');
+                this.tempDetectorCanvas.width = 160;
+                this.tempDetectorCanvas.height = 120;
+            }
+            const ctx = this.tempDetectorCanvas.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(video, 0, 0, 160, 120);
+
+            // Kotak tengah reticle (x 45-115, y 25-95)
+            const imgData = ctx.getImageData(45, 25, 70, 70);
+            const data = imgData.data;
+            let skinPixels = 0;
+            const total = data.length / 4;
+            let lumSum = 0;
+
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i+1];
+                const b = data[i+2];
+                const lum = (r + g + b) / 3;
+                lumSum += lum;
+
+                // Ciri rona kulit wajah: R > G > B dengan kontras wajar
+                if (r > 65 && g > 40 && b > 25 && r > g && (r - g) > 10 && (r - b) > 12 && lum > 45 && lum < 240) {
+                    skinPixels++;
+                }
+            }
+
+            const avgLum = lumSum / total;
+            const skinRatio = skinPixels / total;
+
+            // Dianggap ada wajah jika terdapat proporsi rona wajah minimal 14%
+            return skinRatio >= 0.14 && avgLum > 40 && avgLum < 245;
+        } catch (e) {
+            return false;
+        }
     },
 
     updateClock() {
@@ -218,29 +290,34 @@
             const data = await res.json();
             this.lastScanTime = Date.now();
 
-            if (data.success) {
+            if (data.success || data.already_complete || data.locked) {
                 this.scanConfidence = data.confidence || 98;
                 this.scanMessage = data.message;
-                this.scannedUser = data.user;
+                this.scannedUser = data.user || data.teacher;
+
+                const teacherName = (this.scannedUser && this.scannedUser.name) ? this.scannedUser.name : '';
 
                 if (data.already_complete || data.locked) {
                     this.scanStatus = 'already';
                     this.playTone('already');
-                    this.playVoice('Afwan, presensi sudah tercatat sebelumnya.');
+                    const voiceMsg = teacherName ? `Afwan, presensi ${teacherName} sudah tercatat sebelumnya.` : 'Afwan, presensi sudah tercatat sebelumnya.';
+                    this.playVoice(voiceMsg);
                 } else {
                     this.scanStatus = 'success';
                     this.playTone('success');
-                    this.playVoice('Alhamdulillah, presensi sudah berhasil. Syukron.');
+                    const voiceMsg = teacherName ? `Alhamdulillah, presensi ${teacherName} sudah berhasil. Syukron.` : 'Alhamdulillah, presensi sudah berhasil. Syukron.';
+                    this.playVoice(voiceMsg);
                 }
 
-                // Resume scanning automatically for next teacher after 3.5s without reloading page
+                // Resume scanning automatically for next teacher after 4s without reloading page
                 setTimeout(() => {
                     this.scanStatus = 'scanning';
-                    this.scanMessage = 'Sistem AI Biometrik Siap. Silakan berdiri di depan kamera...';
+                    this.scanMessage = 'Menunggu wajah di depan kamera... Posisikan wajah pada bingkai';
                     this.scannedUser = null;
                     this.scanConfidence = 0;
+                    this.hasFaceInView = false;
                     this.isProcessing = false;
-                }, 3500);
+                }, 4000);
             } else {
                 this.scanStatus = 'failed';
                 this.scanMessage = data.message || 'Wajah tidak terverifikasi.';
@@ -254,9 +331,10 @@
 
                 setTimeout(() => {
                     this.scanStatus = 'scanning';
-                    this.scanMessage = 'Sistem AI Biometrik Siap. Silakan posisikan wajah di tengah kamera...';
+                    this.scanMessage = 'Menunggu wajah di depan kamera... Posisikan wajah pada bingkai';
+                    this.hasFaceInView = false;
                     this.isProcessing = false;
-                }, 2800);
+                }, 3000);
             }
         } catch (err) {
             this.scanStatus = 'failed';
@@ -264,6 +342,7 @@
             this.playTone('failed');
             setTimeout(() => {
                 this.scanStatus = 'scanning';
+                this.hasFaceInView = false;
                 this.isProcessing = false;
             }, 3000);
         }
@@ -368,12 +447,22 @@
 
                 <!-- Biometric Target Reticle Frame -->
                 <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
-                    <div :class="scanStatus === 'success' ? 'border-emerald-400 shadow-[0_0_35px_rgba(52,211,153,0.6)]' : (scanStatus === 'failed' ? 'border-rose-500 shadow-[0_0_35px_rgba(244,63,94,0.6)]' : 'border-cyan-400 shadow-[0_0_30px_rgba(34,211,238,0.5)]')" class="w-56 h-72 border-2 rounded-3xl relative transition-all duration-300">
+                    <div :class="scanStatus === 'success' ? 'border-emerald-400 shadow-[0_0_35px_rgba(52,211,153,0.8)]' : (scanStatus === 'already' ? 'border-amber-400 shadow-[0_0_35px_rgba(251,191,36,0.8)]' : (hasFaceInView ? 'border-emerald-400 shadow-[0_0_30px_rgba(52,211,153,0.7)] animate-pulse' : (scanStatus === 'failed' ? 'border-rose-500 shadow-[0_0_35px_rgba(244,63,94,0.6)]' : 'border-cyan-400/60 shadow-[0_0_20px_rgba(34,211,238,0.25)]')))" class="w-56 h-72 border-2 rounded-3xl relative transition-all duration-300">
                         <!-- Corner Reticles -->
-                        <div class="absolute -top-2.5 -left-2.5 w-6 h-6 border-t-4 border-l-4 border-cyan-400"></div>
-                        <div class="absolute -top-2.5 -right-2.5 w-6 h-6 border-t-4 border-r-4 border-cyan-400"></div>
-                        <div class="absolute -bottom-2.5 -left-2.5 w-6 h-6 border-b-4 border-l-4 border-cyan-400"></div>
-                        <div class="absolute -bottom-2.5 -right-2.5 w-6 h-6 border-b-4 border-r-4 border-cyan-400"></div>
+                        <div class="absolute -top-2.5 -left-2.5 w-6 h-6 border-t-4 border-l-4" :class="hasFaceInView || scanStatus === 'success' ? 'border-emerald-400' : (scanStatus === 'already' ? 'border-amber-400' : 'border-cyan-400')"></div>
+                        <div class="absolute -top-2.5 -right-2.5 w-6 h-6 border-t-4 border-r-4" :class="hasFaceInView || scanStatus === 'success' ? 'border-emerald-400' : (scanStatus === 'already' ? 'border-amber-400' : 'border-cyan-400')"></div>
+                        <div class="absolute -bottom-2.5 -left-2.5 w-6 h-6 border-b-4 border-l-4" :class="hasFaceInView || scanStatus === 'success' ? 'border-emerald-400' : (scanStatus === 'already' ? 'border-amber-400' : 'border-cyan-400')"></div>
+                        <div class="absolute -bottom-2.5 -right-2.5 w-6 h-6 border-b-4 border-r-4" :class="hasFaceInView || scanStatus === 'success' ? 'border-emerald-400' : (scanStatus === 'already' ? 'border-amber-400' : 'border-cyan-400')"></div>
+
+                        <!-- Face Presence Status Pill inside Frame -->
+                        <div class="absolute inset-x-0 -top-3 text-center">
+                            <span x-show="hasFaceInView && scanStatus === 'scanning'" class="px-3 py-0.5 bg-emerald-500 text-slate-950 text-[10px] font-mono font-black rounded-full shadow-lg">
+                                🟢 WAJAH TERDETEKSI
+                            </span>
+                            <span x-show="!hasFaceInView && scanStatus === 'scanning'" class="px-3 py-0.5 bg-slate-900/90 text-cyan-400 border border-cyan-500/40 text-[10px] font-mono font-semibold rounded-full shadow-lg">
+                                POSISIKAN WAJAH DI SINI
+                            </span>
+                        </div>
 
                         <div class="absolute inset-x-0 bottom-3 text-center">
                             <span x-show="scanConfidence > 0" class="px-3 py-1 bg-emerald-500 text-slate-950 text-xs font-mono font-black rounded-full shadow-lg" x-text="scanConfidence + '% BIOMETRIC MATCH'"></span>
@@ -383,38 +472,48 @@
 
                 <!-- Trigger Action Button Overlay -->
                 <div class="absolute bottom-4 inset-x-0 flex flex-col items-center space-y-2">
-                    <div class="flex items-center space-x-2 bg-slate-900/90 backdrop-blur-md px-3.5 py-1 rounded-full border border-cyan-500/30 text-[11px] font-mono text-cyan-300 shadow-lg">
-                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span>Auto-Scan Wajah Hands-Free: <strong class="text-white">AKTIF</strong></span>
+                    <div class="flex items-center space-x-2 bg-slate-900/90 backdrop-blur-md px-3.5 py-1 rounded-full border border-cyan-500/30 text-[11px] font-mono shadow-lg"
+                         :class="hasFaceInView ? 'text-emerald-300 border-emerald-500/40' : 'text-cyan-300'">
+                        <span class="w-2 h-2 rounded-full" :class="hasFaceInView ? 'bg-emerald-400 animate-ping' : 'bg-cyan-400 animate-pulse'"></span>
+                        <span x-text="hasFaceInView ? 'Wajah Terdeteksi • Memverifikasi Otomatis' : 'Mode Hands-Free: Hanya Memindai Saat Ada Wajah'"></span>
                     </div>
 
                     <button type="button" @click="verifyFace()" :disabled="scanStatus === 'verifying'"
-                            class="px-8 py-2.5 bg-gradient-to-r from-cyan-500 via-indigo-600 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white font-mono font-extrabold text-xs rounded-full shadow-[0_0_25px_rgba(34,211,238,0.5)] transition transform active:scale-95 flex items-center space-x-2.5">
+                            class="px-8 py-2 bg-gradient-to-r from-cyan-500 via-indigo-600 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white font-mono font-extrabold text-xs rounded-full shadow-[0_0_25px_rgba(34,211,238,0.5)] transition transform active:scale-95 flex items-center space-x-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                        <span x-text="scanStatus === 'verifying' ? 'MEMPROSES BIOMETRIK...' : 'VERIFIKASI MANUAL SEKARANG'"></span>
+                        <span x-text="scanStatus === 'verifying' ? 'MEMPROSES BIOMETRIK...' : 'VERIFIKASI MANUAL'"></span>
                     </button>
                 </div>
             </div>
 
-            <!-- Status Banner -->
-            <div :class="scanStatus === 'success' ? 'bg-emerald-950/70 border-emerald-500 text-emerald-200' : (scanStatus === 'failed' ? 'bg-rose-950/70 border-rose-500 text-rose-200' : 'bg-slate-900/90 border-indigo-500/30 text-indigo-200')" class="p-4 rounded-2xl border text-xs font-mono transition-all">
+            <!-- Status Banner with Full Teacher Identity Card -->
+            <div :class="scanStatus === 'success' ? 'bg-emerald-950/70 border-emerald-500 text-emerald-200' : (scanStatus === 'already' ? 'bg-amber-950/70 border-amber-500 text-amber-200' : (scanStatus === 'failed' ? 'bg-rose-950/70 border-rose-500 text-rose-200' : 'bg-slate-900/90 border-indigo-500/30 text-indigo-200'))" class="p-4 rounded-2xl border text-xs font-mono transition-all">
                 <div class="flex items-center space-x-2">
-                    <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping shrink-0"></span>
+                    <span class="w-2.5 h-2.5 rounded-full shrink-0"
+                          :class="scanStatus === 'success' ? 'bg-emerald-400' : (scanStatus === 'already' ? 'bg-amber-400 animate-pulse' : (scanStatus === 'failed' ? 'bg-rose-400' : 'bg-cyan-400 animate-ping'))"></span>
                     <p class="font-bold text-sm" x-text="scanMessage"></p>
                 </div>
 
                 <template x-if="scannedUser">
-                    <div class="mt-3 pt-3 border-t border-emerald-500/30 flex items-center justify-between">
+                    <div class="mt-3 pt-3 border-t flex items-center justify-between"
+                         :class="scanStatus === 'already' ? 'border-amber-500/30' : 'border-emerald-500/30'">
                         <div class="flex items-center space-x-3">
-                            <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center border border-emerald-500/40">
-                                <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            <div class="w-12 h-12 rounded-xl font-bold flex items-center justify-center border text-base shrink-0"
+                                 :class="scanStatus === 'already' ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'">
+                                <span x-text="scannedUser.name ? scannedUser.name.substring(0, 2).toUpperCase() : 'ID'"></span>
                             </div>
                             <div>
-                                <p class="font-bold text-white text-base" x-text="scannedUser.name"></p>
-                                <p class="text-xs text-emerald-300" x-text="scannedUser.email"></p>
+                                <p class="font-black text-white text-base" x-text="scannedUser.name"></p>
+                                <div class="flex items-center space-x-2 text-xs font-mono mt-0.5">
+                                    <span class="text-slate-300">ID / NIP: <strong class="text-white" x-text="scannedUser.nip || '-'"></strong></span>
+                                    <span>•</span>
+                                    <span :class="scanStatus === 'already' ? 'text-amber-400 font-bold' : 'text-emerald-400'" x-text="scannedUser.email || 'Guru / Pegawai'"></span>
+                                </div>
                             </div>
                         </div>
-                        <span class="px-3 py-1 bg-emerald-500/20 text-emerald-300 font-bold rounded-lg border border-emerald-500/30 text-xs">PRESENSI TERCATAT</span>
+                        <span class="px-3 py-1.5 font-black rounded-xl border text-xs font-mono shadow-sm"
+                              :class="scanStatus === 'already' ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'"
+                              x-text="scanStatus === 'already' ? '⚠️ SUDAH TERCATAT HARI INI' : '✓ PRESENSI TERCATAT'"></span>
                     </div>
                 </template>
             </div>

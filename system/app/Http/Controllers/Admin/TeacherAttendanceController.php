@@ -637,10 +637,25 @@ class TeacherAttendanceController extends Controller
             'work_location' => $request->work_location ?? 'school',
         ]));
 
-        $statusCode = $result['success'] ? 200 : ($result['status_code'] ?? 422);
+        $statusCode = ($result['success'] || !empty($result['already_complete'])) ? 200 : ($result['status_code'] ?? 422);
         if ($result['success']) {
             $result['confidence'] = $bestMatchConfidence;
             $result['message'] = "Terverifikasi BIOMETRIK Face ID ({$bestMatchConfidence}%)! {$result['message']} untuk {$matchedUser->name}";
+            $result['user'] = [
+                'id' => $matchedUser->id,
+                'name' => $matchedUser->name,
+                'nip' => $matchedUser->nip ?? '-',
+                'email' => $matchedUser->email,
+            ];
+        } elseif (!empty($result['already_complete']) || !empty($result['locked'])) {
+            $result['confidence'] = $bestMatchConfidence;
+            $result['user'] = [
+                'id' => $matchedUser->id,
+                'name' => $matchedUser->name,
+                'nip' => $matchedUser->nip ?? '-',
+                'email' => $matchedUser->email,
+            ];
+            $result['message'] = "Presensi untuk {$matchedUser->name} (NIP: " . ($matchedUser->nip ?? '-') . ") sudah tercatat sebelumnya.";
         }
 
         return response()->json($result, $statusCode);

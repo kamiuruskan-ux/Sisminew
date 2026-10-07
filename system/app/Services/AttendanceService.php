@@ -215,12 +215,24 @@ class AttendanceService
             ]);
 
             return [
-                'success' => $duplicateCheck['already_complete'] ?? false,
+                'success' => false,
                 'locked' => true,
-                'already_complete' => $duplicateCheck['already_complete'] ?? false,
+                'already_complete' => true,
                 'message' => $duplicateCheck['message'],
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'nip' => $user->nip ?? '-',
+                    'avatar' => $user->avatar ? get_public_file_url($user->avatar, 'img/avatars') : null,
+                ],
+                'teacher' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'nip' => $user->nip ?? '-',
+                    'avatar' => $user->avatar ? get_public_file_url($user->avatar, 'img/avatars') : null,
+                ],
                 'attendance' => $attendance,
-                'status_code' => 422,
+                'status_code' => 200,
             ];
         }
 
