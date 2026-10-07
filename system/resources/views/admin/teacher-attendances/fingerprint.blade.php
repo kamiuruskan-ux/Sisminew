@@ -324,6 +324,23 @@
                     this.currentDate = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
                 },
 
+                playVoice(text) {
+                    if (!('speechSynthesis' in window)) return;
+                    try {
+                        window.speechSynthesis.cancel();
+                        const utterance = new SpeechSynthesisUtterance(text);
+                        utterance.lang = 'id-ID';
+                        utterance.rate = 1.0;
+                        utterance.pitch = 1.0;
+                        const voices = window.speechSynthesis.getVoices();
+                        const idVoice = voices.find(v => v.lang === 'id-ID' || v.lang.startsWith('id'));
+                        if (idVoice) utterance.voice = idVoice;
+                        window.speechSynthesis.speak(utterance);
+                    } catch(e) {
+                        console.error('Speech synthesis error:', e);
+                    }
+                },
+
                 playAudio(type = 'success') {
                     try {
                         const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -413,12 +430,14 @@
                                 this.deviceStatus = 'Ready';
                                 this.scanMessage = data.message;
                                 this.playAudio('already');
+                                this.playVoice('Sudah terabsen sebelumnya.');
                             } else {
                                 this.scanStage = 'success';
                                 this.deviceStatus = 'Ready';
                                 this.scannedAction = data.session_name || (data.action_type === 'check_in' ? 'MASUK' : 'PULANG');
                                 this.scanMessage = 'Fingerprint Captured Successfully! ' + data.message;
                                 this.playAudio('success');
+                                this.playVoice('Berhasil, syukron');
 
                                 this.prependLiveAttendance({
                                     name: data.teacher.name,
@@ -439,6 +458,12 @@
                             this.scanMessage = data.message || 'Sidik jari tidak dikenali.';
                             this.playAudio('error');
 
+                            if (data.message && data.message.includes('terabsen')) {
+                                this.playVoice('Sudah terabsen sebelumnya.');
+                            } else {
+                                this.playVoice('Afwan, ulangi lagi.');
+                            }
+
                             setTimeout(() => {
                                 this.scanStage = 'idle';
                                 this.rearmSensor();
@@ -449,6 +474,7 @@
                         this.deviceStatus = 'Error';
                         this.scanMessage = 'Terjadi kesalahan komunikasi dengan server.';
                         this.playAudio('error');
+                        this.playVoice('Afwan, ulangi lagi.');
 
                         setTimeout(() => {
                             this.scanStage = 'idle';

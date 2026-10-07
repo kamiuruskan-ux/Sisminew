@@ -35,27 +35,118 @@
 </head>
 <body class="min-h-screen flex flex-col justify-between antialiased selection:bg-cyan-500 selection:text-white"
       x-data="{
-    scanType: 'check_in',
+    scanType: 'auto', // 'auto', 'check_in', 'midday', 'check_out'
     scanLocation: 'school',
-    scanStatus: 'scanning', // 'scanning', 'verifying', 'success', 'failed'
+    scanStatus: 'scanning', // 'scanning', 'verifying', 'success', 'already', 'failed'
+    autoScan: true,
+    isProcessing: false,
+    lastScanTime: 0,
     scanConfidence: 0,
-    scanMessage: 'Sistem AI Biometrik Aktif. Posisikan wajah di tengah kamera...',
+    scanMessage: 'Sistem AI Biometrik Aktif. Berdirilah di depan kamera...',
     scannedUser: null,
     latitude: '',
     longitude: '',
     isLocating: false,
     currentTime: '',
+    activeSessionLabel: 'Otomatis Sesuai Waktu',
 
     init() {
         this.updateClock();
         setInterval(() => this.updateClock(), 1000);
         this.getLocation();
         this.startCamera();
+
+        // Hands-Free Auto Scan Loop: Continuously detects face every 2.2 seconds
+        setInterval(() => {
+            if (this.autoScan && this.scanStatus === 'scanning' && !this.isProcessing) {
+                const now = Date.now();
+                if (now - this.lastScanTime > 2500) {
+                    this.verifyFace(true);
+                }
+            }
+        }, 1200);
+
+        // Pre-unlock speech synthesis & audio on user click
+        const unlockAudio = () => {
+            try {
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.getVoices();
+                }
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                if (ctx.state === 'suspended') ctx.resume();
+            } catch(e) {}
+            document.removeEventListener('click', unlockAudio);
+            document.removeEventListener('touchstart', unlockAudio);
+        };
+        document.addEventListener('click', unlockAudio);
+        document.addEventListener('touchstart', unlockAudio);
     },
 
     updateClock() {
         const now = new Date();
         this.currentTime = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const hour = now.getHours();
+        const minute = now.getMinutes();
+        const totalMinutes = hour * 60 + minute;
+
+        if (totalMinutes < 11 * 60 + 30) {
+            this.activeSessionLabel = 'Sesi Pagi (Masuk)';
+        } else if (totalMinutes < 15 * 60) {
+            this.activeSessionLabel = 'Sesi Siang (Dzuhur)';
+        } else {
+            this.activeSessionLabel = 'Sesi Pulang (Check-Out)';
+        }
+    },
+
+    playVoice(text) {
+        if (!('speechSynthesis' in window)) return;
+        try {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'id-ID';
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            const voices = window.speechSynthesis.getVoices();
+            const idVoice = voices.find(v => v.lang === 'id-ID' || v.lang.startsWith('id'));
+            if (idVoice) utterance.voice = idVoice;
+            window.speechSynthesis.speak(utterance);
+        } catch(e) {
+            console.error('Speech synthesis error:', e);
+        }
+    },
+
+    playTone(type = 'success') {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            if (type === 'success') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+                osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.25, ctx.currentTime);
+                gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.35);
+            } else if (type === 'already') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, ctx.currentTime);
+                gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.25);
+            } else {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, ctx.currentTime);
+                gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.35);
+            }
+        } catch(e) {}
     },
 
     getLocation() {
@@ -69,8 +160,8 @@
                 },
                 (err) => {
                     this.isLocating = false;
-                    this.latitude = '-6.208800';
-                    this.longitude = '106.845600';
+                    this.latitude = '-0.891700';
+                    this.longitude = '119.870700';
                 }
             );
         }
@@ -90,13 +181,14 @@
         });
     },
 
-    async verifyFace() {
+    async verifyFace(isAuto = false) {
         const video = document.getElementById('scanVideo');
         const canvas = document.getElementById('scanCanvas');
-        if (!video || !canvas) return;
+        if (!video || !canvas || video.readyState < 2) return;
 
+        this.isProcessing = true;
         this.scanStatus = 'verifying';
-        this.scanMessage = 'Menganalisis matriks biometrik 3D wajah & verifikasi lokasi GPS...';
+        this.scanMessage = 'Menganalisis matriks biometrik 3D wajah...';
 
         const ctx = canvas.getContext('2d');
         canvas.width = video.videoWidth || 640;
@@ -124,29 +216,56 @@
                 })
             });
             const data = await res.json();
+            this.lastScanTime = Date.now();
 
             if (data.success) {
-                this.scanStatus = 'success';
-                this.scanConfidence = data.confidence;
+                this.scanConfidence = data.confidence || 98;
                 this.scanMessage = data.message;
                 this.scannedUser = data.user;
 
-                // Play Audio Chime
-                try {
-                    const audio = new Audio('https://actions.google.com/sounds/v1/tones/beep_short.ogg');
-                    audio.play();
-                } catch(e) {}
+                if (data.already_complete || data.locked) {
+                    this.scanStatus = 'already';
+                    this.playTone('already');
+                    this.playVoice('Sudah terabsen sebelumnya.');
+                } else {
+                    this.scanStatus = 'success';
+                    this.playTone('success');
+                    this.playVoice('Berhasil, syukron');
+                }
 
+                // Resume scanning automatically for next teacher after 3.5s without reloading page
                 setTimeout(() => {
-                    window.location.reload();
-                }, 3000);
+                    this.scanStatus = 'scanning';
+                    this.scanMessage = 'Sistem AI Biometrik Siap. Silakan berdiri di depan kamera...';
+                    this.scannedUser = null;
+                    this.scanConfidence = 0;
+                    this.isProcessing = false;
+                }, 3500);
             } else {
                 this.scanStatus = 'failed';
                 this.scanMessage = data.message || 'Wajah tidak terverifikasi.';
+                this.playTone('failed');
+
+                if (data.message && data.message.includes('terabsen')) {
+                    this.playVoice('Sudah terabsen sebelumnya.');
+                } else {
+                    this.playVoice('Afwan, ulangi lagi.');
+                }
+
+                setTimeout(() => {
+                    this.scanStatus = 'scanning';
+                    this.scanMessage = 'Sistem AI Biometrik Siap. Silakan posisikan wajah di tengah kamera...';
+                    this.isProcessing = false;
+                }, 2800);
             }
         } catch (err) {
             this.scanStatus = 'failed';
             this.scanMessage = 'Terjadi kesalahan jaringan: ' + err.message;
+            this.playTone('failed');
+            setTimeout(() => {
+                this.scanStatus = 'scanning';
+                this.isProcessing = false;
+            }, 3000);
         }
     }
 }">
@@ -194,21 +313,34 @@
         <!-- Left Column: Camera Scanner HUD (8 Cols) -->
         <div class="lg:col-span-7 space-y-4 flex flex-col">
             <!-- Controls Selector Bar -->
-            <div class="grid grid-cols-2 gap-3 p-4 bg-[#0F172A] border border-indigo-500/20 rounded-2xl">
-                <div>
-                    <label class="block text-[10px] font-mono text-indigo-300 uppercase tracking-widest mb-1 font-bold">MODE SCANNER</label>
-                    <div class="grid grid-cols-2 gap-1.5 p-1 bg-slate-900 rounded-xl">
-                        <button type="button" @click="scanType = 'check_in'" :class="scanType === 'check_in' ? 'bg-indigo-600 text-white font-bold shadow-xs' : 'text-slate-400 font-semibold'" class="py-1.5 text-xs rounded-lg transition">
-                            MASUK
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3 p-4 bg-[#0F172A] border border-indigo-500/20 rounded-2xl">
+                <div class="md:col-span-8">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-[10px] font-mono text-indigo-300 uppercase tracking-widest font-bold">SESI PRESENSI</label>
+                        <span class="text-[11px] font-mono font-bold text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/50" x-text="'🕒 ' + activeSessionLabel"></span>
+                    </div>
+                    <div class="grid grid-cols-4 gap-1 p-1 bg-slate-900 rounded-xl">
+                        <button type="button" @click="scanType = 'auto'" :class="scanType === 'auto' ? 'bg-gradient-to-r from-cyan-600 to-indigo-600 text-white font-bold shadow-xs' : 'text-slate-400 font-semibold hover:text-slate-200'" class="py-1.5 text-[11px] rounded-lg transition flex items-center justify-center space-x-1">
+                            <span>⚡</span>
+                            <span>OTOMATIS</span>
                         </button>
-                        <button type="button" @click="scanType = 'check_out'" :class="scanType === 'check_out' ? 'bg-emerald-600 text-white font-bold shadow-xs' : 'text-slate-400 font-semibold'" class="py-1.5 text-xs rounded-lg transition">
-                            PULANG
+                        <button type="button" @click="scanType = 'check_in'" :class="scanType === 'check_in' ? 'bg-indigo-600 text-white font-bold shadow-xs' : 'text-slate-400 font-semibold hover:text-slate-200'" class="py-1.5 text-[11px] rounded-lg transition flex items-center justify-center space-x-1">
+                            <span>🌅</span>
+                            <span>MASUK</span>
+                        </button>
+                        <button type="button" @click="scanType = 'midday'" :class="scanType === 'midday' ? 'bg-amber-600 text-white font-bold shadow-xs' : 'text-slate-400 font-semibold hover:text-slate-200'" class="py-1.5 text-[11px] rounded-lg transition flex items-center justify-center space-x-1">
+                            <span>☀️</span>
+                            <span>SIANG</span>
+                        </button>
+                        <button type="button" @click="scanType = 'check_out'" :class="scanType === 'check_out' ? 'bg-emerald-600 text-white font-bold shadow-xs' : 'text-slate-400 font-semibold hover:text-slate-200'" class="py-1.5 text-[11px] rounded-lg transition flex items-center justify-center space-x-1">
+                            <span>🌆</span>
+                            <span>PULANG</span>
                         </button>
                     </div>
                 </div>
 
-                <div>
-                    <label class="block text-[10px] font-mono text-indigo-300 uppercase tracking-widest mb-1 font-bold">LOKASI KERJA</label>
+                <div class="md:col-span-4">
+                    <label class="block text-[10px] font-mono text-indigo-300 uppercase tracking-widest mb-1.5 font-bold">LOKASI KERJA</label>
                     <select x-model="scanLocation" class="w-full bg-slate-900 border border-indigo-500/30 text-xs rounded-xl p-2 text-white font-semibold">
                         <option value="school">WFO (Di Sekolah)</option>
                         <option value="home">WFH (Rumah / Daring)</option>
@@ -250,11 +382,16 @@
                 </div>
 
                 <!-- Trigger Action Button Overlay -->
-                <div class="absolute bottom-4 inset-x-0 flex justify-center">
+                <div class="absolute bottom-4 inset-x-0 flex flex-col items-center space-y-2">
+                    <div class="flex items-center space-x-2 bg-slate-900/90 backdrop-blur-md px-3.5 py-1 rounded-full border border-cyan-500/30 text-[11px] font-mono text-cyan-300 shadow-lg">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span>Auto-Scan Wajah Hands-Free: <strong class="text-white">AKTIF</strong></span>
+                    </div>
+
                     <button type="button" @click="verifyFace()" :disabled="scanStatus === 'verifying'"
-                            class="px-8 py-3 bg-gradient-to-r from-cyan-500 via-indigo-600 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white font-mono font-extrabold text-xs rounded-full shadow-[0_0_25px_rgba(34,211,238,0.5)] transition transform active:scale-95 flex items-center space-x-2.5">
+                            class="px-8 py-2.5 bg-gradient-to-r from-cyan-500 via-indigo-600 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white font-mono font-extrabold text-xs rounded-full shadow-[0_0_25px_rgba(34,211,238,0.5)] transition transform active:scale-95 flex items-center space-x-2.5">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                        <span x-text="scanStatus === 'verifying' ? 'MEMPROSES BIOMETRIK...' : 'VERIFIKASI WAJAH SEKARANG'"></span>
+                        <span x-text="scanStatus === 'verifying' ? 'MEMPROSES BIOMETRIK...' : 'VERIFIKASI MANUAL SEKARANG'"></span>
                     </button>
                 </div>
             </div>

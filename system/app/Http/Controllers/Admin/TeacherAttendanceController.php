@@ -572,7 +572,7 @@ class TeacherAttendanceController extends Controller
         $request->validate([
             'live_descriptor' => 'nullable|string',
             'live_photo' => 'required|string',
-            'type' => 'required|in:check_in,check_out',
+            'type' => 'nullable|string',
             'work_location' => 'nullable|in:school,home,outstation',
         ]);
 
@@ -627,8 +627,10 @@ class TeacherAttendanceController extends Controller
             ], 422);
         }
 
+        $resolvedType = ($request->filled('type') && $request->type !== 'auto') ? $request->type : null;
+
         $result = $this->attendanceService->processFaceIdAttendance($matchedUser, array_merge($request->all(), [
-            'type' => $request->type ?? 'check_in',
+            'type' => $resolvedType,
             'latitude' => $request->latitude,
             'longitude' => $request->longitude,
             'live_photo' => $request->live_photo,

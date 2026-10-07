@@ -53,27 +53,30 @@ class AttendanceSessionService
         }
 
         // 4. If explicit requested type is provided (e.g. from API/form)
-        if (!empty($requestedType)) {
+        if (!empty($requestedType) && $requestedType !== 'auto') {
             return $this->buildSessionPayload($requestedType, $now, $schedule, $attendance, $holidayCheck);
         }
 
         // 5. Automatic Session Determination based on server time and today's attendance state
+        // Continuous, gap-free time windows:
+        // A. Pagi (Masuk): 05:00 s/d 11:30
+        // B. Siang (Dzuhur): 11:30 s/d jam pulang (misal 15:00 / afternoon_open)
+        // C. Pulang: jam pulang s/d malam (23:59)
+
+        $morningOpen = $schedule['morning_open'] ?? '06:00';
+        $morningClose = $schedule['morning_close'] ?? '11:30';
+        $dzuhurOpen = min($schedule['dzuhur_open'] ?? '11:30', '11:30');
+        $afternoonOpen = $schedule['afternoon_open'] ?? '15:00';
+        $afternoonClose = $schedule['afternoon_close'] ?? '20:00';
+
+        // Check if teacher already has check_in / check_out today
+        $hasCheckedIn = $attendance && !empty($attendance->check_in);
+        $hasDzuhur = $attendance && (!empty($attendance->midday_at) || (!empty($attendance->notes) && str_contains($attendance->notes, 'Hadir Sesi Siang')));
+        $hasCheckedOut = $attendance && !empty($attendance->check_out);
 
         // A. MORNING SESSION WINDOW (Masuk)
-        // Usually 06:00 - 11:59
-        $inMorningWindow = ($currentTime >= $schedule['morning_open'] && $currentTime <= $schedule['morning_close']);
-
-        // B. DZUHUR SESSION WINDOW (Siang)
-        // Usually 12:00 - 13:30
-        $inDzuhurWindow = ($currentTime >= $schedule['dzuhur_open'] && $currentTime <= $schedule['dzuhur_close']);
-
-        // C. AFTERNOON SESSION WINDOW (Pulang)
-        // Usually 14:00 - 18:00 (or up to close)
-        $inAfternoonWindow = ($currentTime >= $schedule['afternoon_open'] && $currentTime <= $schedule['afternoon_close']);
-
-        // Rule: If teacher has NOT checked in at all today, and server time is within morning window:
-        if ($inMorningWindow) {
-            $hasCheckedIn = $attendance && !empty($attendance->check_in);
+        // Active if time is before dzuhur OR (teacher hasn't checked in yet and before 12:00)
+        if ($currentTime < $dzuhurOpen || (!$hasCheckedIn && $currentTime < '12:00')) {
             $statusData = $this->calculateLateDetails($now, $schedule);
 
             return [
@@ -84,7 +87,7 @@ class AttendanceSessionService
                 'is_already_done' => $hasCheckedIn,
                 'status_preview' => $statusData['status'],
                 'delay_minutes' => $statusData['delay_minutes'],
-                'time_range' => "{$schedule['morning_open']} - {$schedule['morning_close']} WITA",
+                'time_range' => "{$morningOpen} - {$morningClose} WITA",
                 'late_threshold' => $schedule['morning_late'],
                 'message' => $hasCheckedIn
                     ? "Presensi Masuk telah tercatat pada {$attendance->check_in}."
@@ -95,72 +98,55 @@ class AttendanceSessionService
             ];
         }
 
-        // Rule: DZUHUR SESSION
-        if ($inDzuhurWindow) {
-            $dzuhurRecorded = $attendance && (!empty($attendance->midday_at) || (!empty($attendance->notes) && str_contains($attendance->notes, 'Hadir Sesi Siang')));
-
+        // B. DZUHUR / SIANG SESSION WINDOW
+        // Active from dzuhur open (11:30) up to afternoon open (jam pulang)
+        if ($currentTime >= $dzuhurOpen && $currentTime < $afternoonOpen) {
             return [
                 'type' => 'midday',
                 'name' => 'Sesi Siang (Dzuhur)',
-                'action_label' => $dzuhurRecorded ? 'Sudah Hadir Sesi Dzuhur' : 'Konfirmasi Presensi Dzuhur',
-                'is_active' => !$dzuhurRecorded || $override,
-                'is_already_done' => $dzuhurRecorded,
+                'action_label' => $hasDzuhur ? 'Sudah Hadir Sesi Dzuhur' : 'Konfirmasi Presensi Dzuhur',
+                'is_active' => !$hasDzuhur || $override,
+                'is_already_done' => $hasDzuhur,
                 'status_preview' => 'present',
                 'delay_minutes' => 0,
-                'time_range' => "{$schedule['dzuhur_open']} - {$schedule['dzuhur_close']} WITA",
-                'message' => $dzuhurRecorded
-                    ? "Presensi Dzuhur telah terverifikasi hari ini."
-                    : "Waktu pelaksanaan sholat Dzuhur & presensi siang ({$schedule['dzuhur_open']} - {$schedule['dzuhur_close']}).",
+                'time_range' => "{$dzuhurOpen} - {$afternoonOpen} WITA",
+                'message' => $hasDzuhur
+                    ? "Presensi Sesi Siang (Dzuhur) telah terverifikasi hari ini."
+                    : "Waktu presensi sesi siang / sholat Dzuhur aktif.",
                 'holiday' => $holidayCheck,
             ];
         }
 
-        // Rule: AFTERNOON SESSION (Pulang)
-        if ($inAfternoonWindow) {
-            $hasCheckedOut = $attendance && !empty($attendance->check_out);
-            $hasCheckedIn = $attendance && !empty($attendance->check_in);
-
+        // C. AFTERNOON / PULANG SESSION WINDOW
+        // Active from afternoon open (jam pulang) onwards
+        if ($currentTime >= $afternoonOpen) {
             return [
                 'type' => 'check_out',
-                'name' => 'Sesi Sore (Pulang)',
+                'name' => 'Sesi Pulang (Check-Out)',
                 'action_label' => $hasCheckedOut ? 'Sudah Presensi Pulang' : 'Presensi Pulang (Check-Out)',
-                'is_active' => (!$hasCheckedOut && $hasCheckedIn) || $override,
+                'is_active' => !$hasCheckedOut || $override,
                 'is_already_done' => $hasCheckedOut,
                 'status_preview' => 'present',
                 'delay_minutes' => 0,
-                'time_range' => "{$schedule['afternoon_open']} - {$schedule['afternoon_close']} WITA",
+                'time_range' => "{$afternoonOpen} - {$afternoonClose} WITA",
                 'message' => $hasCheckedOut
                     ? "Presensi Pulang telah tercatat pada {$attendance->check_out}."
-                    : (!$hasCheckedIn
-                        ? "Anda belum melakukan presensi Masuk hari ini."
-                        : "KBM Selesai. Silakan lakukan presensi kepulangan."),
+                    : "KBM Selesai. Silakan lakukan presensi kepulangan.",
                 'holiday' => $holidayCheck,
             ];
         }
 
-        // D. OUTSIDE ATTENDANCE WINDOW (Di Luar Jam Presensi)
-        $nextWindow = '';
-        if ($currentTime < $schedule['morning_open']) {
-            $nextWindow = "Sesi Masuk dibuka pukul {$schedule['morning_open']} WITA";
-        } elseif ($currentTime > $schedule['morning_close'] && $currentTime < $schedule['dzuhur_open']) {
-            $nextWindow = "Sesi Dzuhur dibuka pukul {$schedule['dzuhur_open']} WITA";
-        } elseif ($currentTime > $schedule['dzuhur_close'] && $currentTime < $schedule['afternoon_open']) {
-            $nextWindow = "Sesi Pulang dibuka pukul {$schedule['afternoon_open']} WITA";
-        } else {
-            $nextWindow = "Seluruh sesi presensi hari ini telah ditutup.";
-        }
-
+        // D. Fallback default
         return [
-            'type' => 'outside_window',
-            'name' => 'Di Luar Jam Presensi',
-            'action_label' => 'Di Luar Jam Presensi',
-            'is_active' => false,
+            'type' => 'check_in',
+            'name' => 'Sesi Presensi',
+            'action_label' => 'Presensi Kehadiran',
+            'is_active' => true,
             'is_already_done' => false,
-            'status_preview' => 'outside_window',
+            'status_preview' => 'present',
             'delay_minutes' => 0,
-            'time_range' => 'Tidak Ada Sesi Aktif',
-            'message' => "Saat ini di luar jendela waktu presensi. {$nextWindow}",
-            'next_window' => $nextWindow,
+            'time_range' => 'Aktif',
+            'message' => 'Sesi presensi aktif.',
             'holiday' => $holidayCheck,
         ];
     }
@@ -199,36 +185,40 @@ class AttendanceSessionService
         }
 
         if ($sessionType === 'check_in') {
-            if ($currentTime < $schedule['morning_open']) {
+            if ($currentTime < ($schedule['morning_open'] ?? '06:00')) {
                 return [
                     'valid' => false,
-                    'message' => "Presensi Masuk belum dibuka. Sesi dibuka mulai pukul {$schedule['morning_open']}.",
+                    'message' => "Presensi Masuk belum dibuka. Sesi dibuka mulai pukul " . ($schedule['morning_open'] ?? '06:00') . ".",
                 ];
             }
-            if ($currentTime > $schedule['morning_close']) {
+            // Allow check-in up to midday threshold as late check-in
+            if ($currentTime > ($schedule['morning_close'] ?? '11:59') && $currentTime >= '12:00') {
                 return [
                     'valid' => false,
-                    'message' => "Sesi Presensi Masuk telah ditutup pada pukul {$schedule['morning_close']}.",
+                    'message' => "Sesi Presensi Masuk telah ditutup pada pukul " . ($schedule['morning_close'] ?? '11:59') . ".",
                 ];
             }
         } elseif ($sessionType === 'midday' || $sessionType === 'afternoon') {
-            if ($currentTime < $schedule['dzuhur_open'] || $currentTime > $schedule['dzuhur_close']) {
+            $dzOpen = min($schedule['dzuhur_open'] ?? '11:30', '11:30');
+            $dzClose = max($schedule['dzuhur_close'] ?? '14:30', $schedule['afternoon_open'] ?? '15:00');
+            if ($currentTime < $dzOpen) {
                 return [
                     'valid' => false,
-                    'message' => "Sesi Dzuhur hanya dapat diisi antara pukul {$schedule['dzuhur_open']} s/d {$schedule['dzuhur_close']}.",
+                    'message' => "Sesi Dzuhur / Siang dibuka mulai pukul {$dzOpen}.",
+                ];
+            }
+            if ($currentTime > $dzClose) {
+                return [
+                    'valid' => false,
+                    'message' => "Sesi Dzuhur / Siang telah berakhir pada pukul {$dzClose}.",
                 ];
             }
         } elseif ($sessionType === 'check_out' || $sessionType === 'evening') {
-            if ($currentTime < $schedule['afternoon_open']) {
+            $pmOpen = $schedule['afternoon_open'] ?? '14:00';
+            if ($currentTime < $pmOpen) {
                 return [
                     'valid' => false,
-                    'message' => "Presensi Pulang baru dapat dicatat mulai pukul {$schedule['afternoon_open']}.",
-                ];
-            }
-            if ($currentTime > $schedule['afternoon_close']) {
-                return [
-                    'valid' => false,
-                    'message' => "Sesi Presensi Pulang telah berakhir pada pukul {$schedule['afternoon_close']}.",
+                    'message' => "Presensi Pulang baru dapat dicatat mulai pukul {$pmOpen}.",
                 ];
             }
         }
