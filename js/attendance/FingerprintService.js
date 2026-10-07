@@ -31,8 +31,8 @@
             this.isAcquiring = false;
             this.isStartingCapture = false;
             this.isProcessingSample = false;
-            // Default to PngImage (5) for guaranteed U.are.U 4500 WebSDK compatibility; can switch to 2 or 1
-            this.workingFormat = 5;
+            // Native format for U.are.U 4500 is Intermediate (2 - Minutiae) or Raw (1 - Optical)
+            this.workingFormat = 2;
             this.lastSampleImage = null;
 
             this.listeners = {
@@ -155,6 +155,22 @@
                 // 3. Singleton FingerprintReader instance (Reuse existing to prevent multiple WebSocket connections)
                 if (!this.reader) {
                     this.reader = new global.dp.devices.FingerprintReader();
+
+                    // Hook into low-level notification handler to ensure no exceptions are silently swallowed
+                    if (this.reader.channel) {
+                        const origOnNotification = this.reader.channel.onNotification;
+                        this.reader.channel.onNotification = (notif) => {
+                            global.AttendanceLogger?.fingerprint('RAW DP Notification received:', notif);
+                            if (origOnNotification) {
+                                try {
+                                    origOnNotification(notif);
+                                } catch (err) {
+                                    console.error('[DP onNotification exception caught]:', err, notif);
+                                }
+                            }
+                        };
+                    }
+
                     this._attachSdkEventListeners();
                 }
 
@@ -370,16 +386,16 @@
                     this.isAcquiring = false;
                 }
 
-                // Format candidate order:
-                // Primary: PngImage (5) - standard optical capture supported by all U.are.U 4500 WebSDK installations
-                // Secondary: Intermediate (2) - minutiae features
-                // Fallback: Raw (1) - uncompressed raw optical
+                // Native format for HID DigitalPersona U.are.U 4500:
+                // Primary: Intermediate (2) - standard minutiae extraction
+                // Secondary: Raw (1) - uncompressed raw optical
+                // Fallback: PngImage (5) - optical image (if licensed)
                 const SF = global.dp?.devices?.SampleFormat || {};
-                const pngFormat = SF.PngImage ?? 5;
                 const intermediateFormat = SF.Intermediate ?? 2;
                 const rawFormat = SF.Raw ?? 1;
+                const pngFormat = SF.PngImage ?? 5;
 
-                const allFormats = [pngFormat, intermediateFormat, rawFormat];
+                const allFormats = [intermediateFormat, rawFormat, pngFormat];
                 const candidates = [];
                 if (this.workingFormat !== null && allFormats.includes(this.workingFormat)) {
                     candidates.push(this.workingFormat);

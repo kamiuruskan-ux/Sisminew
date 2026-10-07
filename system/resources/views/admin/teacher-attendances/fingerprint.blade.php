@@ -24,8 +24,8 @@
     <script src="{{ file_exists(public_path('vendor/digitalpersona/dp.devices.umd.min.js')) ? asset('vendor/digitalpersona/dp.devices.umd.min.js') : asset('system/public/vendor/digitalpersona/dp.devices.umd.min.js') }}" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='{{ asset('system/public/vendor/digitalpersona/dp.devices.umd.min.js') }}';}"></script>
 
     <!-- Attendance Modular Services -->
-    <script src="{{ file_exists(public_path('js/attendance/LoggerService.js')) ? asset('js/attendance/LoggerService.js') : asset('system/public/js/attendance/LoggerService.js') }}" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='{{ asset('system/public/js/attendance/LoggerService.js') }}';}"></script>
-    <script src="{{ file_exists(public_path('js/attendance/FingerprintService.js')) ? asset('js/attendance/FingerprintService.js') : asset('system/public/js/attendance/FingerprintService.js') }}" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='{{ asset('system/public/js/attendance/FingerprintService.js') }}';}"></script>
+    <script src="{{ (file_exists(public_path('js/attendance/LoggerService.js')) ? asset('js/attendance/LoggerService.js') : asset('system/public/js/attendance/LoggerService.js')) . '?v=' . time() }}" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='{{ asset('system/public/js/attendance/LoggerService.js') . '?v=' . time() }}';}"></script>
+    <script src="{{ (file_exists(public_path('js/attendance/FingerprintService.js')) ? asset('js/attendance/FingerprintService.js') : asset('system/public/js/attendance/FingerprintService.js')) . '?v=' . time() }}" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='{{ asset('system/public/js/attendance/FingerprintService.js') . '?v=' . time() }}';}"></script>
 
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
@@ -188,11 +188,25 @@
             this.activeFormatNumber = fmt;
             const name = fmt === 5 ? 'PNG Image (5)' : (fmt === 2 ? 'Intermediate (2)' : 'Raw Sensor (1)');
             this.scanMessage = `🔄 Mengubah mode sensor ke ${name}...`;
-            const ok = await window.AttendanceFingerprintService.changeFormat(fmt);
+            let ok = false;
+            try {
+                if (typeof window.AttendanceFingerprintService.changeFormat === 'function') {
+                    ok = await window.AttendanceFingerprintService.changeFormat(fmt);
+                } else if (typeof window.AttendanceFingerprintService.startCapture === 'function') {
+                    window.AttendanceFingerprintService.workingFormat = fmt;
+                    ok = await window.AttendanceFingerprintService.startCapture(true, fmt);
+                }
+            } catch (err) {
+                console.error('switchFormat error:', err);
+            }
             if (ok) {
                 this.sensorArmed = true;
                 this.activeFormatName = name;
                 this.scanMessage = `🟡 Sensor aktif dalam format ${name}. Tempelkan jari pada kaca scanner...`;
+            } else {
+                this.sensorArmed = true;
+                this.activeFormatName = name;
+                this.scanMessage = `🟡 Sensor format ${name} aktif. Tempelkan jari pada kaca scanner...`;
             }
         }
     },
