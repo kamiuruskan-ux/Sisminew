@@ -587,6 +587,7 @@ class TeacherAttendanceController extends Controller
 
         $liveDescriptor = $request->filled('live_descriptor') ? json_decode($request->live_descriptor, true) : null;
         
+        $bestDistance = 1.0;
         $matchedUser = null;
         $bestMatchConfidence = 0;
 
@@ -601,23 +602,16 @@ class TeacherAttendanceController extends Controller
                             $distance += $diff * $diff;
                         }
                         $distance = sqrt($distance);
-                        $confidence = max(0, min(100, round((1 - ($distance / 0.8)) * 100, 1)));
 
-                        if ($distance <= 0.6 && $confidence > $bestMatchConfidence) {
-                            $bestMatchConfidence = $confidence;
+                        // Strict Euclidean distance threshold (<= 0.50) to prevent false identification
+                        if ($distance <= 0.50 && $distance < $bestDistance) {
+                            $bestDistance = $distance;
                             $matchedUser = $teacher;
+                            $bestMatchConfidence = max(80.0, min(99.6, round((1.0 - ($distance / 0.7)) * 100, 1)));
                         }
                     }
                 }
             }
-        }
-
-        if (!$matchedUser && auth()->check() && auth()->user()->face_photo) {
-            $matchedUser = auth()->user();
-            $bestMatchConfidence = 98.4;
-        } elseif (!$matchedUser && $teachers->count() > 0) {
-            $matchedUser = $teachers->first();
-            $bestMatchConfidence = 96.2;
         }
 
         if (!$matchedUser) {
@@ -719,7 +713,7 @@ class TeacherAttendanceController extends Controller
 
         $result = $this->attendanceService->processFingerprintAttendance($request->all());
 
-        $statusCode = $result['success'] ? 200 : ($result['status_code'] ?? 422);
+        $statusCode = ($result['success'] || !empty($result['already_complete'])) ? 200 : ($result['status_code'] ?? 422);
         return response()->json($result, $statusCode);
     }
 
