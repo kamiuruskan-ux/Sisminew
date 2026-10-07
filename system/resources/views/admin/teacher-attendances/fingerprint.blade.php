@@ -99,7 +99,7 @@
     scannedSession: '',
 
     // Directory & Enrollment State
-    teachersList: {{ Js::from($teachersListJson) }},
+    teachersList: @json($teachersListJson),
     teacherSearchQuery: '',
     directorySearchQuery: '',
     enrollTeacherId: '{{ $selectedTeacherId ?? '' }}',
