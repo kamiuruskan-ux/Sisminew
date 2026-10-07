@@ -185,9 +185,9 @@
                             this.sensorArmed = window.AttendanceFingerprintService.isAcquiring || 
                                               (state.status === 'waiting_finger' || state.status === 'reading' || state.status === 'sample_acquired');
                             
-                            const fmt = window.AttendanceFingerprintService.workingFormat || state.format || 5;
-                            this.activeFormatNumber = fmt;
-                            this.activeFormatName = fmt === 5 ? 'PNG Image (5)' : (fmt === 2 ? 'Intermediate (2)' : (fmt === 1 ? 'Raw Sensor (1)' : 'PNG Image (5)'));
+                            const fmt = 1;
+                            this.activeFormatNumber = 1;
+                            this.activeFormatName = 'Raw Sensor (1)';
 
                             if (state.status === 'device_connected') {
                                 this.scanStage = 'idle';
@@ -1023,27 +1023,10 @@
                     <div class="flex flex-wrap items-center gap-2.5 text-slate-400 font-mono text-[11px]">
                         <span>Status: <strong :class="sensorArmed ? 'text-emerald-400' : 'text-amber-400'" x-text="deviceStatus"></strong></span>
                         
-                        <!-- Interactive Format Switcher -->
-                        <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
-                            <span class="text-[10px] text-slate-500 px-1 font-sans">Format:</span>
-                            <button type="button" @click="switchFormat(5)"
-                                    class="px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer"
-                                    :class="activeFormatNumber === 5 ? 'bg-emerald-600 text-white shadow shadow-emerald-500/30' : 'text-slate-400 hover:text-white'"
-                                    title="Format PNG Image (5) - Rekomendasi Utama U.are.U 4500 WebSDK">
-                                PNG (5) ⭐
-                            </button>
-                            <button type="button" @click="switchFormat(2)"
-                                    class="px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer"
-                                    :class="activeFormatNumber === 2 ? 'bg-indigo-600 text-white shadow shadow-indigo-500/30' : 'text-slate-400 hover:text-white'"
-                                    title="Format Intermediate Minutiae (2)">
-                                Intermediate (2)
-                            </button>
-                            <button type="button" @click="switchFormat(1)"
-                                    class="px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer"
-                                    :class="activeFormatNumber === 1 ? 'bg-indigo-600 text-white shadow shadow-indigo-500/30' : 'text-slate-400 hover:text-white'"
-                                    title="Format Raw Optical Sensor (1)">
-                                Raw (1)
-                            </button>
+                        <!-- Dedicated Raw Optical Sensor Badge (PNG & Intermediate Hidden) -->
+                        <div class="flex items-center gap-1.5 bg-slate-950 px-3 py-1 rounded-xl border border-emerald-500/30 text-emerald-400">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span class="text-[10px] font-mono font-bold tracking-wide">Sensor: Raw Optical (1)</span>
                         </div>
 
                         <div class="flex items-center gap-1.5">

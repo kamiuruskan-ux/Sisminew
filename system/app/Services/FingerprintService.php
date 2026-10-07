@@ -292,15 +292,21 @@ class FingerprintService
             if ($pngScore > 0) {
                 return $pngScore;
             }
+        // 2. Primary for Raw Optical Sensor (Format 1 - DigitalPersona U.are.U 4500 raw optical frames)
+        if ($bin1 !== false && $bin2 !== false && strlen($bin1) >= 512 && strlen($bin2) >= 512) {
+            $rawScore = $this->computeRawOpticalFingerprintSimilarity($bin1, $bin2);
+            if ($rawScore > 0) {
+                return $rawScore;
+            }
         }
 
-        // Fallback: robust binary feature matching (stripping fixed metadata headers)
+        // 3. Fallback: robust binary feature matching (stripping fixed metadata headers)
         $binScore = 0.0;
         if ($bin1 !== false && $bin2 !== false && strlen($bin1) >= 32 && strlen($bin2) >= 32) {
             $binScore = $this->computeRobustBinarySimilarity($bin1, $bin2);
         }
 
-        // String n-gram similarity with large n-gram size to avoid trivial base64 collisions
+        // 4. String n-gram similarity with large n-gram size to avoid trivial base64 collisions
         $strScore = $this->computeStringNgramSimilarity($c1, $c2);
 
         return round(max($binScore, $strScore), 1);
@@ -363,6 +369,82 @@ class FingerprintService
             Log::warning('Fingerprint PNG biometric matching error: ' . $e->getMessage());
             return 0.0;
         }
+    }
+
+    /**
+     * High-accuracy biometric fingerprint matching for Raw Optical Frames (Format 1)
+     * Extracts normalized spatial ridge grid from raw optical sensor buffers,
+     * calculates multi-shift dHash gradients and intensity profiles without needing external decoders.
+     */
+    protected function computeRawOpticalFingerprintSimilarity(string $b1, string $b2): float
+    {
+        $gridSize = 32;
+        $grid1 = $this->extractGridFromRawBuffer($b1, $gridSize);
+        $grid2 = $this->extractGridFromRawBuffer($b2, $gridSize);
+
+        if (empty($grid1) || empty($grid2)) {
+            return 0.0;
+        }
+
+        // 1. Calculate multi-shift dHash gradient match
+        $maxDhashScore = 0.0;
+        $shifts = [-2, -1, 0, 1, 2];
+
+        foreach ($shifts as $dy) {
+            foreach ($shifts as $dx) {
+                $dhashScore = $this->compareGrayscaleGridGradients($grid1, $grid2, $gridSize, $dx, $dy);
+                if ($dhashScore > $maxDhashScore) {
+                    $maxDhashScore = $dhashScore;
+                }
+            }
+        }
+
+        // 2. Calculate active ridge pixel correlation
+        $correlationScore = $this->computeGridIntensityCorrelation($grid1, $grid2, $gridSize);
+
+        // Blended score for Raw Sensor
+        $finalScore = ($maxDhashScore * 0.70) + ($correlationScore * 0.30);
+        return round(min(99.8, max(0.0, $finalScore)), 1);
+    }
+
+    /**
+     * Extract normalized 32x32 spatial grayscale grid directly from raw optical sensor buffer
+     */
+    protected function extractGridFromRawBuffer(string $buffer, int $gridSize = 32): array
+    {
+        $len = strlen($buffer);
+        $totalCells = $gridSize * $gridSize;
+        if ($len < $totalCells) {
+            return [];
+        }
+
+        // Isolate active optical sensor area (strip outer 8% frame)
+        $start = (int) ($len * 0.08);
+        $end = (int) ($len * 0.92);
+        $usableLen = max($totalCells, $end - $start);
+        $blockSize = (int) floor($usableLen / $totalCells);
+
+        $grid = [];
+        for ($gy = 0; $gy < $gridSize; $gy++) {
+            $grid[$gy] = [];
+            for ($gx = 0; $gx < $gridSize; $gx++) {
+                $cellIdx = ($gy * $gridSize) + $gx;
+                $offset = $start + ($cellIdx * $blockSize);
+
+                $sum = 0;
+                $samples = min(8, $blockSize);
+                $step = max(1, (int) floor($blockSize / $samples));
+
+                for ($s = 0; $s < $samples; $s++) {
+                    $pos = min($len - 1, $offset + ($s * $step));
+                    $sum += ord($buffer[$pos]);
+                }
+
+                $grid[$gy][$gx] = (int) round($sum / $samples);
+            }
+        }
+
+        return $grid;
     }
 
     /**

@@ -31,8 +31,8 @@
             this.isAcquiring = false;
             this.isStartingCapture = false;
             this.isProcessingSample = false;
-            // Native format for U.are.U 4500 is Intermediate (2 - Minutiae) or Raw (1 - Optical)
-            this.workingFormat = 2;
+            // Locked to Raw format (1 - Optical Raw Sensor) as requested
+            this.workingFormat = 1;
             this.lastSampleImage = null;
 
             this.listeners = {
@@ -386,23 +386,10 @@
                     this.isAcquiring = false;
                 }
 
-                // Native format for HID DigitalPersona U.are.U 4500:
-                // Primary: Intermediate (2) - standard minutiae extraction
-                // Secondary: Raw (1) - uncompressed raw optical
-                // Fallback: PngImage (5) - optical image (if licensed)
+                // Dedicated to Raw format (1) for DigitalPersona U.are.U 4500
                 const SF = global.dp?.devices?.SampleFormat || {};
-                const intermediateFormat = SF.Intermediate ?? 2;
                 const rawFormat = SF.Raw ?? 1;
-                const pngFormat = SF.PngImage ?? 5;
-
-                const allFormats = [intermediateFormat, rawFormat, pngFormat];
-                const candidates = [];
-                if (this.workingFormat !== null && allFormats.includes(this.workingFormat)) {
-                    candidates.push(this.workingFormat);
-                }
-                allFormats.forEach((fmt) => {
-                    if (!candidates.includes(fmt)) candidates.push(fmt);
-                });
+                const candidates = [rawFormat];
 
                 let lastError = null;
 
