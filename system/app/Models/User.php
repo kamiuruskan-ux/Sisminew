@@ -243,7 +243,7 @@ class User extends Authenticatable implements CanResetPassword
 
     public function isStudent(): bool
     {
-        return $this->hasRole('student');
+        return $this->hasRole(['student', 'calon-siswa']);
     }
 
     public function isTeacher(): bool
@@ -262,8 +262,37 @@ class User extends Authenticatable implements CanResetPassword
             'wakasek-kesiswaan', 'wakasek-kurikulum', 'wakasek-kehumasan', 'wakasek',
             'admin', 'super-admin', 'operator',
             'tata-usaha', 'tu', 'staff', 'staf', 'bendahara',
-            'guru-bk', 'bk'
-        ]);
+            'guru-bk', 'bk', 'kantin', 'security', 'kebersihan'
+        ]) || (!empty($this->jabatan));
+    }
+
+    /**
+     * Scope for querying all school employees, teachers, staff, and non-students
+     */
+    public function scopeEmployees($query)
+    {
+        $employeeRoles = [
+            'guru', 'teacher', 'guru-quran', 'guru_quran', 'guru-qur-an',
+            'kepala-sekolah', 'kepala_sekolah', 'kepsek',
+            'wakasek-kesiswaan', 'wakasek-kurikulum', 'wakasek-kehumasan', 'wakasek',
+            'admin', 'super-admin', 'operator',
+            'tata-usaha', 'tu', 'staff', 'staf', 'bendahara',
+            'guru-bk', 'bk', 'kantin', 'security', 'kebersihan'
+        ];
+
+        return $query->where(function ($q) use ($employeeRoles) {
+            $q->whereHas('roles', function ($rq) use ($employeeRoles) {
+                $rq->whereIn('slug', $employeeRoles);
+            })
+            ->orWhere(function ($jq) {
+                $jq->whereNotNull('jabatan')->where('jabatan', '!=', '');
+            })
+            ->orWhere(function ($sq) {
+                $sq->whereDoesntHave('roles', function ($rq) {
+                    $rq->whereIn('slug', ['student', 'calon-siswa']);
+                });
+            });
+        });
     }
 
     public function scopeRole($query, string $role)

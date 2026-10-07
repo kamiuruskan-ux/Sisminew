@@ -648,10 +648,10 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::post('student-permits/{permit}/reject', [\App\Http\Controllers\Admin\StudentPermitController::class, 'reject'])->name('student-permits.reject');
         Route::delete('student-permits/{permit}', [\App\Http\Controllers\Admin\StudentPermitController::class, 'destroy'])->name('student-permits.destroy');
 
-        // Teacher Attendance - Admin Management (Presensi Guru & Staff)
         Route::get('teacher-attendances/fingerprint', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'fingerprintPage'])->name('teacher-attendances.fingerprint');
         Route::post('teacher-attendances/fingerprint/register', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'registerFingerprint'])->name('teacher-attendances.fingerprint.register');
         Route::post('teacher-attendances/fingerprint/verify', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'verifyFingerprint'])->name('teacher-attendances.fingerprint.verify');
+        Route::delete('teacher-attendances/fingerprint/{id}', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'deleteFingerprint'])->name('teacher-attendances.fingerprint.destroy');
 
         Route::get('teacher-attendances/mobile', function () {
             return redirect()->route('admin.teacher-attendances.my-attendance');

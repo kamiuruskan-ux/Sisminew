@@ -56,6 +56,21 @@
         }
     </style>
 </head>
+@php
+    $teachersListJson = $teachers->map(function($t) {
+        $rolesList = $t->roles->pluck('name')->implode(', ');
+        $roleLabel = $rolesList ?: ($t->jabatan ?: 'Guru / Pegawai');
+        return [
+            'id' => (string) $t->id,
+            'name' => $t->name,
+            'nip' => $t->nip ?? '-',
+            'role_label' => $roleLabel,
+            'has_fingerprint' => !empty($t->fingerprint_template),
+            'registered_at' => $t->fingerprint_registered_at ? $t->fingerprint_registered_at->format('d/m/Y H:i') : null,
+        ];
+    })->values();
+@endphp
+
 <body class="min-h-screen flex flex-col justify-between antialiased selection:bg-emerald-500 selection:text-white"
       x-data="{
     activeTab: 'standby', // 'standby' or 'enroll'
@@ -66,8 +81,8 @@
     deviceName: 'HID DigitalPersona U.are.U 4500',
     deviceStatus: 'Disconnected', // 'Ready', 'Busy', 'Capturing Fingerprint', 'Disconnected', 'Error', 'Timeout'
     sensorArmed: false,
-    activeFormatNumber: 5,
-    activeFormatName: 'PNG Image (Format 5)',
+    activeFormatNumber: 2,
+    activeFormatName: 'Intermediate (Format 2)',
     lastSamplePreview: null,
     dpDeviceUid: null,
     webSocket: null,
@@ -83,12 +98,51 @@
     scannedAction: '',
     scannedSession: '',
 
-    // Production Enrollment State (3 Scans Required)
+    // Directory & Enrollment State
+    teachersList: {{ Js::from($teachersListJson) }},
+    teacherSearchQuery: '',
+    directorySearchQuery: '',
     enrollTeacherId: '{{ $selectedTeacherId ?? '' }}',
     enrollStep: 0, // 0, 1, 2, 3
     enrollSamples: [],
-    enrollStatus: 'idle',
-    enrollMessage: 'Pilih guru dan tempelkan jari 3 kali pada scanner untuk merekam template.',
+    enrollStatus: 'idle', // 'idle', 'scanning', 'saving', 'done', 'error'
+    enrollMessage: 'Pilih guru dan tempelkan jari pada scanner untuk merekam template.',
+
+    get filteredTeachers() {
+        if (!this.teacherSearchQuery.trim()) {
+            return this.teachersList;
+        }
+        const q = this.teacherSearchQuery.toLowerCase();
+        return this.teachersList.filter(t => 
+            (t.name && t.name.toLowerCase().includes(q)) || 
+            (t.nip && t.nip.toLowerCase().includes(q)) || 
+            (t.role_label && t.role_label.toLowerCase().includes(q))
+        );
+    },
+
+    get directoryTeachers() {
+        if (!this.directorySearchQuery.trim()) {
+            return this.teachersList;
+        }
+        const q = this.directorySearchQuery.toLowerCase();
+        return this.teachersList.filter(t => 
+            (t.name && t.name.toLowerCase().includes(q)) || 
+            (t.nip && t.nip.toLowerCase().includes(q)) || 
+            (t.role_label && t.role_label.toLowerCase().includes(q))
+        );
+    },
+
+    get selectedTeacherObj() {
+        return this.teachersList.find(t => String(t.id) === String(this.enrollTeacherId)) || null;
+    },
+
+    get enrolledCount() {
+        return this.teachersList.filter(t => t.has_fingerprint).length;
+    },
+
+    get unEnrolledCount() {
+        return this.teachersList.filter(t => !t.has_fingerprint).length;
+    },
 
     // Live Clock
     currentTime: '',
@@ -416,16 +470,61 @@
             this.enrollStep = 0;
             this.enrollSamples = [];
             this.enrollStatus = 'idle';
-            this.enrollMessage = 'Guru dipilih! Silakan tempelkan jari pada scanner untuk Scan 1/3.';
+            const teacher = this.selectedTeacherObj;
+            if (teacher && teacher.has_fingerprint) {
+                this.enrollMessage = `Guru dipilih: ${teacher.name} [Sudah Terdaftar]. Tempelkan jari pada scanner untuk MEMPERBAIKI / REKAM ULANG sidik jari.`;
+            } else {
+                this.enrollMessage = `Guru dipilih: ${teacher ? teacher.name : ''}. Silakan tempelkan jari pada scanner untuk Scan 1/3.`;
+            }
             setTimeout(() => {
                 this.rearmSensor();
             }, 250);
         } else {
-            this.enrollMessage = 'Pilih guru dan tempelkan jari 3 kali pada scanner untuk merekam template.';
+            this.enrollMessage = 'Pilih guru dan tempelkan jari pada scanner untuk merekam template.';
         }
     },
 
-    // 4. Production Enrollment: 3 Real Physical Scans
+    selectTeacherForEnroll(id) {
+        this.enrollTeacherId = String(id);
+        this.activeTab = 'enroll';
+        this.onTeacherSelected();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+
+    async resetTeacherFingerprint(id, name) {
+        if (!confirm(`Hapus template sidik jari untuk "${name}"?\n\nSetelah dihapus, akun guru ini siap direkam ulang dari awal.`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`{{ url('admin/teacher-attendances/fingerprint') }}/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                }
+            });
+            const data = await res.json();
+            if (data.success) {
+                const t = this.teachersList.find(item => String(item.id) === String(id));
+                if (t) {
+                    t.has_fingerprint = false;
+                    t.registered_at = null;
+                }
+                if (String(this.enrollTeacherId) === String(id)) {
+                    this.onTeacherSelected();
+                }
+                alert(data.message || 'Data sidik jari berhasil di-reset.');
+            } else {
+                alert(data.message || 'Gagal menghapus sidik jari.');
+            }
+        } catch (err) {
+            console.error('Reset fingerprint error:', err);
+            alert('Terjadi kesalahan saat menghapus sidik jari.');
+        }
+    },
+
+    // 4. Production Enrollment: Real Physical Scans
     recordEnrollmentSample(sampleData) {
         if (!this.enrollTeacherId) {
             this.enrollStatus = 'error';
@@ -437,17 +536,34 @@
 
         this.enrollSamples.push(sampleData);
         this.enrollStep = this.enrollSamples.length;
-        this.playAudio('success');
+        this.playAudio('touch');
 
         if (this.enrollStep < 3) {
             this.enrollStatus = 'scanning';
             this.enrollMessage = `Scan ${this.enrollStep}/3 berhasil! Angkat dan tempelkan jari yang sama sekali lagi...`;
-            setTimeout(() => this.rearmSensor(), 1200);
+            setTimeout(() => this.rearmSensor(), 1000);
         } else {
             this.enrollStatus = 'saving';
-            this.enrollMessage = '3 Scan selesai! Mengekstrak & memverifikasi konsistensi template...';
+            this.enrollMessage = '3 Scan selesai! Menyimpan & memverifikasi template biometrik...';
             this.submitEnrollmentToServer();
         }
+    },
+
+    forceSaveEnrollment() {
+        if (!this.enrollSamples || this.enrollSamples.length === 0) {
+            alert('Belum ada sampel sidik jari yang terbaca pada scanner.');
+            return;
+        }
+        this.enrollStatus = 'saving';
+        this.enrollMessage = `Menyimpan ${this.enrollSamples.length} sampel sidik jari ke server...`;
+        this.submitEnrollmentToServer();
+    },
+
+    retryEnrollment() {
+        this.enrollSamples = [];
+        this.enrollStep = 0;
+        this.enrollStatus = 'idle';
+        this.onTeacherSelected();
     },
 
     async submitEnrollmentToServer() {
@@ -471,30 +587,25 @@
                 this.enrollStatus = 'done';
                 this.enrollMessage = data.message;
                 this.playAudio('success');
-                this.enrollSamples = [];
 
-                setTimeout(() => {
-                    this.enrollStep = 0;
-                    this.enrollStatus = 'idle';
-                    this.activeTab = 'standby';
-                    this.rearmSensor();
-                }, 3000);
+                // Update teacher in local list
+                const t = this.teachersList.find(item => String(item.id) === String(this.enrollTeacherId));
+                if (t) {
+                    t.has_fingerprint = true;
+                    t.registered_at = (data.user && data.user.registered_at) ? data.user.registered_at : 'Baru saja';
+                }
+
+                this.enrollSamples = [];
             } else {
                 this.enrollStatus = 'error';
-                this.enrollMessage = data.message || 'Perekaman gagal.';
+                this.enrollMessage = data.message || 'Perekaman gagal. Silakan coba tempelkan jari kembali.';
                 this.playAudio('error');
-                // Allow retry if mismatch
-                this.enrollSamples = [];
-                this.enrollStep = 0;
-                setTimeout(() => this.rearmSensor(), 2500);
             }
         } catch(err) {
+            console.error('Enrollment submit error:', err);
             this.enrollStatus = 'error';
-            this.enrollMessage = 'Gagal menyimpan template biometrik ke server.';
+            this.enrollMessage = 'Gagal menyimpan template biometrik ke server. Periksa koneksi internet.';
             this.playAudio('error');
-            this.enrollSamples = [];
-            this.enrollStep = 0;
-            setTimeout(() => this.rearmSensor(), 2500);
         }
     },
 
@@ -864,91 +975,288 @@
                                 <span>⏹️</span>
                                 <span>Stop</span>
                             </button>
+             <!-- TAB 2: MODE PEREKAMAN & PERBAIKAN SIDIK JARI -->
+            <div x-show="activeTab === 'enroll'" class="space-y-6">
+                <div class="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 backdrop-blur-md shadow-2xl">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-800 gap-3">
+                        <div>
+                            <h3 class="text-base font-extrabold text-white flex items-center gap-2">
+                                <span>Perekaman & Perbaikan Biometrik Sidik Jari</span>
+                            </h3>
+                            <p class="text-xs text-slate-400">Pindai sidik jari guru / tenaga kependidikan untuk absensi biometrik scanner U.are.U 4500</p>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TAB 2: MODE PEREKAMAN SIDIK JARI (ENROLLMENT 3 SCANS) -->
-            <div x-show="activeTab === 'enroll'" class="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 backdrop-blur-md shadow-2xl">
-                <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-                    <div>
-                        <h3 class="text-base font-extrabold text-white">Perekaman Biometrik Guru Baru</h3>
-                        <p class="text-xs text-slate-400">Pindai sidik jari sebanyak 3 kali berturut-turut pada scanner fisik</p>
-                    </div>
-                    <span class="px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">3-Scan Enrollment</span>
-                </div>
-
-                <div class="mt-6 space-y-5">
-                    <!-- Warning Notice If Teacher Not Selected -->
-                    <div x-show="!enrollTeacherId" class="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs flex items-center gap-3">
-                        <span class="text-lg flex-shrink-0">⚠️</span>
-                        <div class="leading-relaxed">
-                            <strong class="font-black">Langkah 1:</strong> Silakan pilih <strong>Nama Guru</strong> di dropdown bawah ini terlebih dahulu sebelum menempelkan jari ke scanner agar template dapat tersimpan.
-                        </div>
-                    </div>
-
-                    <!-- Guru Selector -->
-                    <div>
-                        <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Pilih Guru / Tenaga Kependidikan</label>
-                        <select x-model="enrollTeacherId" @change="onTeacherSelected()" class="w-full bg-slate-800 text-white text-sm rounded-2xl px-4 py-3 border border-slate-700 focus:outline-none focus:border-indigo-500">
-                            <option value="">-- Pilih Nama Guru --</option>
-                            @foreach($teachers as $t)
-                                <option value="{{ $t->id }}">
-                                    {{ $t->name }} (NIP: {{ $t->nip ?? '-' }}) {{ $t->fingerprint_registered_at ? '✓ [Terdaftar]' : '✕ [Belum]' }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <!-- 3 Steps Progress Bar Indicator -->
-                    <div>
-                        <div class="flex justify-between text-xs font-bold text-slate-300 mb-2">
-                            <span>Progres Perekaman Jari Fisik:</span>
-                            <span class="font-mono text-indigo-400" x-text="'Scan ' + enrollStep + '/3'"></span>
-                        </div>
-                        <div class="grid grid-cols-3 gap-2">
-                            <template x-for="i in 3" :key="i">
-                                <div class="h-3 rounded-full transition-all duration-300"
-                                     :class="enrollStep >= i ? 'bg-indigo-500 shadow-md shadow-indigo-500/40' : 'bg-slate-800 border border-slate-700'"></div>
-                            </template>
-                        </div>
-                    </div>
-
-                    <!-- Sensor Instructions for Enrollment (Clickable to Re-arm) -->
-                    <div @click="rearmSensor()"
-                         title="Klik untuk mengaktifkan / memicu ulang sensor scanner"
-                         class="p-6 rounded-2xl bg-slate-950 border text-center flex flex-col items-center justify-center transition cursor-pointer select-none group"
-                         :class="deviceConnected ? (sensorArmed ? 'border-indigo-500/50 ring-2 ring-indigo-500/20' : 'border-amber-500/40') : (sslUnauthorized ? 'border-amber-500/40' : 'border-rose-500/40')">
-                        
-                        <!-- Status Pill in Enrollment -->
-                        <div class="mb-3">
-                            <span class="text-[9px] font-mono font-black uppercase px-2.5 py-0.5 rounded-full border transition-all inline-flex items-center gap-1 shadow-sm"
-                                  :class="sensorArmed ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40 animate-pulse' : 'bg-amber-500/20 text-amber-300 border-amber-500/40'">
-                                <span class="w-1.5 h-1.5 rounded-full" :class="sensorArmed ? 'bg-indigo-400' : 'bg-amber-400'"></span>
-                                <span x-text="sensorArmed ? 'SENSOR OPTIK AKTIF' : 'KLIK UNTUK AKTIFKAN'"></span>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                Total: <strong x-text="teachersList.length"></strong>
+                            </span>
+                            <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                ✓ <strong x-text="enrolledCount"></strong> Terdaftar
+                            </span>
+                            <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                ✕ <strong x-text="unEnrolledCount"></strong> Belum
                             </span>
                         </div>
+                    </div>
 
-                        <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-3 group-hover:scale-105 transition transform"
-                             :class="deviceConnected ? 'bg-indigo-500/10 text-indigo-400' : (sslUnauthorized ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400')">
-                            <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11a8.136 8.136 0 00.99 3.845"/></svg>
+                    <div class="mt-6 space-y-5">
+                        <!-- Warning Notice If Teacher Not Selected -->
+                        <div x-show="!enrollTeacherId" class="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs flex items-center gap-3">
+                            <span class="text-xl flex-shrink-0">👆</span>
+                            <div class="leading-relaxed">
+                                <strong class="font-black text-amber-200">Langkah 1:</strong> Pilih <strong>Nama Guru / Staf</strong> pada daftar dropdown di bawah ini. Anda juga dapat menggunakan kolom pencarian untuk menemukan guru Qur'an, guru BK, atau staf TU secara instan.
+                            </div>
                         </div>
-                        <div class="font-bold text-white text-sm" x-text="deviceConnected ? (enrollStep === 0 ? 'Tempelkan Jari Guru ke Kaca Scanner USB' : 'Angkat & Tempelkan Jari Sekali Lagi') : (sslUnauthorized ? '⚠️ Perlu Izin Browser Chrome' : 'Scanner Belum Terhubung')"></div>
-                        <p class="text-xs text-slate-400 mt-1 max-w-sm" x-text="deviceConnected ? enrollMessage : (sslUnauthorized ? 'Aktifkan flag localhost di Chrome untuk mengizinkan komunikasi scanner.' : 'Pastikan kabel USB terpasang ke komputer.')"></p>
 
-                        <div x-show="!deviceConnected" class="mt-4 flex flex-wrap gap-2 justify-center">
-                            <button type="button" @click.stop="switchTab('standby')"
-                                    class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-1.5 cursor-pointer">
-                                <span>⚙️</span>
-                                <span>Lihat Petunjuk Aktivasi Scanner</span>
-                            </button>
-                            <button type="button" @click.stop="pairUsbScanner()"
-                                    class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
-                                <span>🔄</span>
-                                <span>Deteksi Ulang</span>
+                        <!-- Pencarian & Dropdown Pemilihan Guru -->
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider">Pilih Guru / Staf Pegawai</label>
+                                <span class="text-[11px] text-slate-400" x-text="filteredTeachers.length + ' pegawai ditemukan'"></span>
+                            </div>
+                            
+                            <!-- Filter Pencarian Cepat -->
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-xs">🔍</span>
+                                <input type="text" x-model="teacherSearchQuery" placeholder="Ketik nama guru, NIP, atau peran (contoh: Qur'an, BK, TU, Operator)..."
+                                       class="w-full bg-slate-950 text-white text-xs rounded-xl pl-9 pr-4 py-2.5 border border-slate-700/80 focus:outline-none focus:border-indigo-500 placeholder-slate-500 transition">
+                            </div>
+
+                            <select x-model="enrollTeacherId" @change="onTeacherSelected()"
+                                    class="w-full bg-slate-800 text-white text-sm rounded-2xl px-4 py-3 border border-slate-700 focus:outline-none focus:border-indigo-500 transition">
+                                <option value="">-- Pilih Guru / Tenaga Kependidikan --</option>
+                                <template x-for="t in filteredTeachers" :key="t.id">
+                                    <option :value="t.id" x-text="`${t.name} (NIP: ${t.nip}) • [${t.role_label}] ${t.has_fingerprint ? '✓ [Terdaftar - Klik untuk Rekam Ulang]' : '✕ [Belum Terdaftar]'}`"></option>
+                                </template>
+                            </select>
+                        </div>
+
+                        <!-- Selected Teacher Info Card & Repair Notice -->
+                        <template x-if="selectedTeacherObj">
+                            <div class="p-4 rounded-2xl border transition-all"
+                                 :class="selectedTeacherObj.has_fingerprint ? 'bg-indigo-950/30 border-indigo-500/40' : 'bg-slate-800/40 border-slate-700'">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-11 h-11 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-sm border border-indigo-400/30 shadow-md">
+                                            <span x-text="selectedTeacherObj.name.charAt(0)"></span>
+                                        </div>
+                                        <div>
+                                            <div class="font-extrabold text-white text-sm leading-snug flex items-center gap-2">
+                                                <span x-text="selectedTeacherObj.name"></span>
+                                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-indigo-300 border border-slate-600" x-text="selectedTeacherObj.role_label"></span>
+                                            </div>
+                                            <div class="text-[11px] text-slate-400 font-mono mt-0.5">
+                                                NIP: <span x-text="selectedTeacherObj.nip"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Status Pill & Reset Action -->
+                                    <div class="flex items-center gap-2 self-start sm:self-auto">
+                                        <template x-if="selectedTeacherObj.has_fingerprint">
+                                            <div class="flex items-center gap-2">
+                                                <span class="px-3 py-1 rounded-xl text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 inline-flex items-center gap-1.5 shadow-sm">
+                                                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                                                    <span>Terdaftar</span>
+                                                    <span class="text-slate-400 text-[10px]" x-text="'(' + selectedTeacherObj.registered_at + ')'"></span>
+                                                </span>
+                                                <button type="button" @click="resetTeacherFingerprint(selectedTeacherObj.id, selectedTeacherObj.name)"
+                                                        class="px-2.5 py-1 bg-rose-950/50 hover:bg-rose-900/70 text-rose-300 border border-rose-500/30 rounded-xl text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                                                        title="Hapus sidik jari guru ini agar bisa direkam ulang dari awal">
+                                                    <span>🗑️</span>
+                                                    <span>Hapus / Reset</span>
+                                                </button>
+                                            </div>
+                                        </template>
+                                        <template x-if="!selectedTeacherObj.has_fingerprint">
+                                            <span class="px-3 py-1 rounded-xl text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 inline-flex items-center gap-1.5">
+                                                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                                                <span>Belum Memiliki Sidik Jari</span>
+                                            </span>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <div x-show="selectedTeacherObj.has_fingerprint" class="mt-3 pt-3 border-t border-indigo-500/20 text-[11px] text-indigo-200/90 flex items-center gap-2">
+                                    <span>⚙️</span>
+                                    <span><strong>Mode Perbaikan Aktif:</strong> Menempelkan jari sekarang akan langsung memperbarui & memperbaiki template sidik jari guru ini.</span>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- 3 Steps Progress Bar Indicator & Force Save Button -->
+                        <div>
+                            <div class="flex justify-between items-center text-xs font-bold text-slate-300 mb-2">
+                                <div class="flex items-center gap-2">
+                                    <span>Progres Perekaman Jari:</span>
+                                    <span class="font-mono text-indigo-400" x-text="'Scan ' + enrollStep + '/3'"></span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button type="button" x-show="enrollSamples.length > 0 && enrollStatus !== 'saving' && enrollStatus !== 'done'"
+                                            @click="forceSaveEnrollment()"
+                                            class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] rounded-lg shadow transition flex items-center gap-1 cursor-pointer">
+                                        <span>💾</span>
+                                        <span>Simpan Hasil Sekarang</span>
+                                    </button>
+                                    <button type="button" x-show="enrollStep > 0 && enrollStatus !== 'saving'"
+                                            @click="retryEnrollment()"
+                                            class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-bold rounded-lg border border-slate-700 transition cursor-pointer">
+                                        <span>🔄 Reset</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2">
+                                <template x-for="i in 3" :key="i">
+                                    <div class="h-3 rounded-full transition-all duration-300"
+                                         :class="enrollStep >= i ? 'bg-indigo-500 shadow-md shadow-indigo-500/40' : 'bg-slate-800 border border-slate-700'"></div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Success Done Card Banner -->
+                        <div x-show="enrollStatus === 'done'" class="p-5 bg-emerald-950/40 border border-emerald-500/40 rounded-2xl space-y-3 shadow-xl text-center">
+                            <div class="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto text-2xl font-bold border border-emerald-500/40">
+                                ✓
+                            </div>
+                            <div class="text-sm font-black text-white">Perekaman Berhasil Disimpan!</div>
+                            <p class="text-xs text-emerald-200" x-text="enrollMessage"></p>
+                            <div class="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+                                <button type="button" @click="switchTab('standby')"
+                                        class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-1.5 cursor-pointer">
+                                    <span>⚡</span>
+                                    <span>Uji di Mode Absensi Sekarang</span>
+                                </button>
+                                <button type="button" @click="retryEnrollment()"
+                                        class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+                                    <span>➕</span>
+                                    <span>Rekam Guru Lainnya</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Error Banner with Retry Action -->
+                        <div x-show="enrollStatus === 'error'" class="p-4 bg-rose-950/40 border border-rose-500/40 rounded-2xl text-rose-300 text-xs flex items-center justify-between gap-3 shadow-lg">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xl flex-shrink-0">⚠️</span>
+                                <div>
+                                    <div class="font-bold text-white text-xs">Kendala Perekaman</div>
+                                    <div class="mt-0.5 text-rose-300" x-text="enrollMessage"></div>
+                                </div>
+                            </div>
+                            <button type="button" @click="retryEnrollment()"
+                                    class="px-3 py-1.5 bg-rose-800 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow transition cursor-pointer flex-shrink-0">
+                                🔄 Coba Lagi
                             </button>
                         </div>
+
+                        <!-- Sensor Instructions for Enrollment (Clickable to Re-arm) -->
+                        <div x-show="enrollStatus !== 'done'" @click="rearmSensor()"
+                             title="Klik untuk mengaktifkan / memicu ulang sensor scanner"
+                             class="p-6 rounded-2xl bg-slate-950 border text-center flex flex-col items-center justify-center transition cursor-pointer select-none group"
+                             :class="deviceConnected ? (sensorArmed ? 'border-indigo-500/50 ring-2 ring-indigo-500/20' : 'border-amber-500/40') : (sslUnauthorized ? 'border-amber-500/40' : 'border-rose-500/40')">
+                            
+                            <!-- Status Pill in Enrollment -->
+                            <div class="mb-3">
+                                <span class="text-[9px] font-mono font-black uppercase px-2.5 py-0.5 rounded-full border transition-all inline-flex items-center gap-1 shadow-sm"
+                                      :class="sensorArmed ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40 animate-pulse' : 'bg-amber-500/20 text-amber-300 border-amber-500/40'">
+                                    <span class="w-1.5 h-1.5 rounded-full" :class="sensorArmed ? 'bg-indigo-400' : 'bg-amber-400'"></span>
+                                    <span x-text="sensorArmed ? 'SENSOR OPTIK AKTIF' : 'KLIK UNTUK AKTIFKAN'"></span>
+                                </span>
+                            </div>
+
+                            <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-3 group-hover:scale-105 transition transform"
+                                 :class="deviceConnected ? 'bg-indigo-500/10 text-indigo-400' : (sslUnauthorized ? 'bg-amber-500/10 text-amber-400' : 'bg-rose-500/10 text-rose-400')">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004 11a8.136 8.136 0 00.99 3.845"/></svg>
+                            </div>
+                            <div class="font-bold text-white text-sm" x-text="deviceConnected ? (enrollStep === 0 ? 'Tempelkan Jari Guru ke Kaca Scanner USB' : 'Angkat & Tempelkan Jari Sekali Lagi') : (sslUnauthorized ? '⚠️ Perlu Izin Browser Chrome' : 'Scanner Belum Terhubung')"></div>
+                            <p class="text-xs text-slate-400 mt-1 max-w-sm" x-text="deviceConnected ? enrollMessage : (sslUnauthorized ? 'Aktifkan flag localhost di Chrome untuk mengizinkan komunikasi scanner.' : 'Pastikan kabel USB terpasang ke komputer.')"></p>
+
+                            <div x-show="!deviceConnected" class="mt-4 flex flex-wrap gap-2 justify-center">
+                                <button type="button" @click.stop="switchTab('standby')"
+                                        class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-1.5 cursor-pointer">
+                                    <span>⚙️</span>
+                                    <span>Lihat Petunjuk Aktivasi Scanner</span>
+                                </button>
+                                <button type="button" @click.stop="pairUsbScanner()"
+                                        class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+                                    <span>🔄</span>
+                                    <span>Deteksi Ulang</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Direktori Manajemen & Status Biometrik Seluruh Guru & Staf -->
+                <div class="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 backdrop-blur-md shadow-2xl space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-800 gap-3">
+                        <div>
+                            <h4 class="text-sm font-extrabold text-white flex items-center gap-2">
+                                <span>📋 Direktori Status Sidik Jari Guru & Tenaga Kependidikan</span>
+                            </h4>
+                            <p class="text-[11px] text-slate-400">Daftar lengkap seluruh guru (termasuk Guru Qur'an & BK) beserta status biometrik.</p>
+                        </div>
+                        <div class="relative w-full sm:w-64">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-xs">🔍</span>
+                            <input type="text" x-model="directorySearchQuery" placeholder="Cari di direktori..."
+                                   class="w-full bg-slate-950 text-white text-xs rounded-xl pl-8 pr-3 py-2 border border-slate-700 focus:outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-300">
+                            <thead class="text-[10px] uppercase font-bold text-slate-400 bg-slate-950/60 border-b border-slate-800">
+                                <tr>
+                                    <th class="py-3 px-3">Nama Pegawai / Guru</th>
+                                    <th class="py-3 px-3">Peran / Jabatan</th>
+                                    <th class="py-3 px-3 text-center">Status Biometrik</th>
+                                    <th class="py-3 px-3 text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800/60">
+                                <template x-for="t in directoryTeachers" :key="t.id">
+                                    <tr class="hover:bg-slate-800/40 transition">
+                                        <td class="py-3 px-3">
+                                            <div class="font-bold text-white leading-tight" x-text="t.name"></div>
+                                            <div class="text-[10px] text-slate-400 font-mono" x-text="'NIP: ' + t.nip"></div>
+                                        </td>
+                                        <td class="py-3 px-3">
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700" x-text="t.role_label"></span>
+                                        </td>
+                                        <td class="py-3 px-3 text-center">
+                                            <template x-if="t.has_fingerprint">
+                                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                                    <span>✓ Terdaftar</span>
+                                                    <span class="text-slate-400 text-[9px]" x-show="t.registered_at" x-text="'(' + t.registered_at + ')'"></span>
+                                                </span>
+                                            </template>
+                                            <template x-if="!t.has_fingerprint">
+                                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
+                                                    <span>✕ Belum Terdaftar</span>
+                                                </span>
+                                            </template>
+                                        </td>
+                                        <td class="py-3 px-3 text-right space-x-1.5 whitespace-nowrap">
+                                            <button type="button" @click="selectTeacherForEnroll(t.id)"
+                                                    class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] rounded-lg shadow transition cursor-pointer inline-flex items-center gap-1">
+                                                <span>⚡</span>
+                                                <span x-text="t.has_fingerprint ? 'Perbaiki Jari' : 'Rekam Jari'"></span>
+                                            </button>
+                                            <button type="button" x-show="t.has_fingerprint"
+                                                    @click="resetTeacherFingerprint(t.id, t.name)"
+                                                    class="px-2 py-1 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 font-bold text-[11px] rounded-lg border border-rose-500/30 transition cursor-pointer"
+                                                    title="Hapus sidik jari guru ini">
+                                                <span>🗑️</span>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <tr x-show="directoryTeachers.length === 0">
+                                    <td colspan="4" class="py-8 text-center text-slate-500">
+                                        Tidak ditemukan guru / pegawai dengan kata kunci tersebut.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>

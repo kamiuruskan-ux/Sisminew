@@ -17,9 +17,7 @@ class AttendanceReportService
      */
     public function getMonthlyRecap(int $month, int $year): array
     {
-        $teachers = User::whereHas('roles', function ($q) {
-            $q->whereIn('slug', ['guru', 'teacher', 'admin', 'operator', 'tata-usaha', 'staff', 'kepala-sekolah']);
-        })->orderBy('name')->get();
+        $teachers = User::employees()->orderBy('name')->get();
 
         $monthlyAttendances = TeacherAttendance::whereYear('date', $year)
             ->whereMonth('date', $month)

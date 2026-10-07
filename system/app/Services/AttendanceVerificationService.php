@@ -38,7 +38,8 @@ class AttendanceVerificationService
             'guru-bk', 'bk'
         ];
 
-        $hasRole = $user->hasRole($validRoles)
+        $hasRole = $user->isEmployee()
+            || $user->hasRole($validRoles)
             || in_array($user->role ?? '', $validRoles)
             || (method_exists($user, 'roles') && $user->roles()->whereIn('slug', $validRoles)->exists());
 

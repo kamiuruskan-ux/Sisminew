@@ -38,15 +38,7 @@ class TeacherAttendanceController extends Controller
      */
     public function registerFacePage(Request $request)
     {
-        $employeeRoles = ['guru', 'teacher', 'guru-quran', 'admin', 'operator', 'tata-usaha', 'staff', 'kepala-sekolah', 'wakasek-kesiswaan', 'wakasek-kurikulum', 'wakasek-kehumasan', 'bendahara', 'guru-bk'];
-        $teachers = User::with('homeroomClasses')->where(function ($query) use ($employeeRoles) {
-            $query->whereHas('roles', function ($q) use ($employeeRoles) {
-                $q->whereIn('slug', $employeeRoles);
-            })->orWhere(function ($q) {
-                $q->whereNotNull('jabatan')->where('jabatan', '!=', '');
-            });
-        })->orderBy('name')->get();
-
+        $teachers = User::employees()->with('homeroomClasses')->orderBy('name')->get();
         $selectedTeacherId = $request->input('user_id');
 
         return view('admin.teacher-attendances.register-face', compact('teachers', 'selectedTeacherId'));
@@ -78,15 +70,8 @@ class TeacherAttendanceController extends Controller
         $status = $request->input('status');
         $location = $request->input('work_location');
 
-        // Query teachers / staff users
-        $employeeRoles = ['guru', 'teacher', 'guru-quran', 'admin', 'operator', 'tata-usaha', 'staff', 'kepala-sekolah', 'wakasek-kesiswaan', 'wakasek-kurikulum', 'wakasek-kehumasan', 'bendahara', 'guru-bk'];
-        $teachersQuery = User::with('homeroomClasses')->where(function ($query) use ($employeeRoles) {
-            $query->whereHas('roles', function ($q) use ($employeeRoles) {
-                $q->whereIn('slug', $employeeRoles);
-            })->orWhere(function ($q) {
-                $q->whereNotNull('jabatan')->where('jabatan', '!=', '');
-            });
-        });
+        // Query teachers / staff users (including Quran teachers & all school personnel)
+        $teachersQuery = User::employees()->with('homeroomClasses');
 
         if ($search) {
             $teachersQuery->where(function ($q) use ($search) {
@@ -496,9 +481,7 @@ class TeacherAttendanceController extends Controller
             'work_location' => 'nullable|in:school,home,outstation',
         ]);
 
-        $teachers = User::whereHas('roles', function ($q) {
-            $q->whereIn('slug', ['guru', 'teacher', 'admin', 'operator', 'tata-usaha', 'staff', 'kepala-sekolah']);
-        })->whereNotNull('face_photo')->get();
+        $teachers = User::employees()->whereNotNull('face_photo')->get();
 
         if ($teachers->isEmpty()) {
             return response()->json([
@@ -572,9 +555,10 @@ class TeacherAttendanceController extends Controller
      */
     public function fingerprintPage(Request $request)
     {
-        $teachers = User::with('homeroomClasses')->whereHas('roles', function ($q) {
-            $q->whereIn('slug', ['guru', 'teacher', 'admin', 'operator', 'tata-usaha', 'staff', 'kepala-sekolah']);
-        })->orderBy('name')->get();
+        $teachers = User::employees()
+            ->with(['roles', 'homeroomClasses'])
+            ->orderBy('name')
+            ->get();
 
         $today = date('Y-m-d');
         $todayAttendances = $this->attendanceRepository->getTodayAttendances($today);
@@ -625,6 +609,27 @@ class TeacherAttendanceController extends Controller
 
         $statusCode = $result['success'] ? 200 : ($result['status_code'] ?? 422);
         return response()->json($result, $statusCode);
+    }
+
+    /**
+     * Reset / Delete Teacher Fingerprint Template (Memperbaiki / Rekam Ulang Sidik Jari)
+     */
+    public function deleteFingerprint(int $id)
+    {
+        $user = User::findOrFail($id);
+        $user->fingerprint_template = null;
+        $user->fingerprint_registered_at = null;
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => "Data sidik jari untuk {$user->name} berhasil di-reset. Akun siap direkam ulang.",
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'has_fingerprint' => false,
+            ]
+        ]);
     }
 
     /**
