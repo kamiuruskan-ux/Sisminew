@@ -276,6 +276,13 @@
 
             // Event: Samples Acquired (Fingerprint successfully read)
             this.reader.on('SamplesAcquired', async (event) => {
+                const now = Date.now();
+                if (this.lastSampleCapturedAt && (now - this.lastSampleCapturedAt < 1200)) {
+                    global.AttendanceLogger?.fingerprint('Debounce: SamplesAcquired ignored within 1200ms cooldown.');
+                    return;
+                }
+                this.lastSampleCapturedAt = now;
+
                 global.AttendanceLogger?.fingerprint('Event: SamplesAcquired - Fingerprint scan success!', event);
                 this.isAcquiring = false;
                 this.isProcessingSample = true;

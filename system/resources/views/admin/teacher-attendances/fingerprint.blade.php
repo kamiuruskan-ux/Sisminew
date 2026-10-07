@@ -99,6 +99,8 @@
                 scannedTime: '',
                 scannedAction: '',
                 scannedSession: '',
+                isVerifying: false,
+                resetTimer: null,
 
                 // Directory & Enrollment State
                 teachersList: @json($teachersListJson),
@@ -385,15 +387,33 @@
                 // 2. Real Fingerprint Capture Processing Pipeline
                 onHardwareSampleCaptured(sampleData) {
                     if (this.activeTab === 'standby') {
+                        // Prevent overlapping verification requests from double touches
+                        if (this.isVerifying) {
+                            return;
+                        }
+
+                        // Cancel previous countdown timer immediately
+                        if (this.resetTimer) {
+                            clearTimeout(this.resetTimer);
+                            this.resetTimer = null;
+                        }
+
+                        // IMMEDIATELY WIPE previous teacher identity from screen
+                        this.scannedTeacher = null;
+                        this.scannedTime = '';
+                        this.scannedSession = '';
+                        this.scannedAction = '';
+                        this.isVerifying = true;
+
                         this.scanStage = 'capturing';
                         this.deviceStatus = 'Capturing Fingerprint';
-                        this.scanMessage = 'Capturing...';
+                        this.scanMessage = 'Membaca sidik jari baru...';
 
                         setTimeout(() => {
                             this.scanStage = 'extracting';
-                            this.scanMessage = 'Extracting Template & Mencocokkan...';
+                            this.scanMessage = 'Mencocokkan biometrik sidik jari...';
                             this.verifyFingerprintWithServer(sampleData);
-                        }, 250);
+                        }, 120);
                     } else if (this.activeTab === 'enroll') {
                         this.recordEnrollmentSample(sampleData);
                     }
@@ -438,25 +458,27 @@
                                 this.scanStage = 'success';
                                 this.deviceStatus = 'Ready';
                                 this.scannedAction = data.session_name || (data.action_type === 'check_in' ? 'MASUK' : 'PULANG');
-                                this.scanMessage = 'Fingerprint Captured Successfully! ' + data.message;
+                                this.scanMessage = 'Fingerprint Berhasil Terverifikasi! ' + data.message;
                                 this.playAudio('success');
                                 const voiceMsg = teacherName ? `Alhamdulillah, presensi ${teacherName} sudah berhasil. Syukron.` : 'Alhamdulillah, presensi sudah berhasil. Syukron.';
                                 this.playVoice(voiceMsg);
 
                                 this.prependLiveAttendance({
-                                    name: (this.scannedTeacher && this.scannedTeacher.name) ? this.scannedTeacher.name : 'Guru',
+                                    name: teacherName || 'Guru',
                                     time: this.scannedTime,
                                     action: this.scannedAction,
                                     method: 'Sidik Jari (HID 4500)'
                                 });
                             }
 
-                            setTimeout(() => {
+                            if (this.resetTimer) clearTimeout(this.resetTimer);
+                            this.resetTimer = setTimeout(() => {
                                 this.scanStage = 'idle';
                                 this.deviceStatus = 'Ready';
                                 this.scannedTeacher = null;
+                                this.isVerifying = false;
                                 this.rearmSensor();
-                            }, 4500);
+                            }, 3800);
                         } else {
                             this.scanStage = 'error';
                             this.deviceStatus = 'Ready';
@@ -469,10 +491,13 @@
                                 this.playVoice('Afwan, presensi belum berhasil. Silakan ulangi lagi.');
                             }
 
-                            setTimeout(() => {
+                            if (this.resetTimer) clearTimeout(this.resetTimer);
+                            this.resetTimer = setTimeout(() => {
                                 this.scanStage = 'idle';
+                                this.scannedTeacher = null;
+                                this.isVerifying = false;
                                 this.rearmSensor();
-                            }, 3500);
+                            }, 3000);
                         }
                     } catch(err) {
                         this.scanStage = 'error';
@@ -481,11 +506,14 @@
                         this.playAudio('error');
                         this.playVoice('Afwan, ulangi lagi.');
 
-                        setTimeout(() => {
+                        if (this.resetTimer) clearTimeout(this.resetTimer);
+                        this.resetTimer = setTimeout(() => {
                             this.scanStage = 'idle';
                             this.deviceStatus = 'Ready';
+                            this.scannedTeacher = null;
+                            this.isVerifying = false;
                             this.rearmSensor();
-                        }, 3500);
+                        }, 3000);
                     }
                 },
 
@@ -986,32 +1014,6 @@
                         </div>
                     </div>
 
-                    <!-- Result Notification Banner (When Success / Already) -->
-                    <template x-if="scannedTeacher">
-                        <div class="mt-6 w-full max-w-md p-4 rounded-2xl border transition-all duration-300 flex items-center space-x-4 text-left"
-                             :class="{
-                                 'bg-emerald-950/50 border-emerald-500/40 text-emerald-200': scanStage === 'success',
-                                 'bg-amber-950/50 border-amber-500/40 text-amber-200': scanStage === 'already',
-                                 'bg-slate-800/60 border-slate-700 text-slate-300': scanStage === 'idle'
-                             }">
-                            <div class="w-14 h-14 rounded-2xl overflow-hidden bg-slate-800 flex-shrink-0 border border-white/10 flex items-center justify-center">
-                                <template x-if="scannedTeacher.avatar">
-                                    <img :src="scannedTeacher.avatar" class="w-full h-full object-cover">
-                                </template>
-                                <template x-if="!scannedTeacher.avatar">
-                                    <span class="text-xl font-bold text-slate-400 font-mono" x-text="scannedTeacher.name.charAt(0)"></span>
-                                </template>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center space-x-2">
-                                    <span class="text-sm font-extrabold text-white truncate" x-text="scannedTeacher.name"></span>
-                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" x-text="scannedAction"></span>
-                                </div>
-                                <div class="text-xs text-slate-400 font-mono mt-0.5">NIP: <span x-text="scannedTeacher.nip || '-'"></span></div>
-                                <div class="text-[11px] text-slate-400 mt-1">Waktu: <span class="font-mono font-bold text-white" x-text="scannedTime"></span> • <span class="text-emerald-400 font-semibold" x-text="scannedSession"></span></div>
-                            </div>
-                        </div>
-                    </template>
                 </div>
 
                 <!-- Hardware Device Diagnostics Bar (No Fake Simulation) -->
