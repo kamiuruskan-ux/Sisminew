@@ -51,6 +51,8 @@ class User extends Authenticatable implements CanResetPassword
             'locked_until' => 'datetime',
             'last_login_at' => 'datetime',
             'password' => 'hashed',
+            'face_registered_at' => 'datetime',
+            'fingerprint_registered_at' => 'datetime',
         ];
     }
 

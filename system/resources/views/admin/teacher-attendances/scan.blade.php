@@ -226,11 +226,11 @@
                 if (data.already_complete || data.locked) {
                     this.scanStatus = 'already';
                     this.playTone('already');
-                    this.playVoice('Sudah terabsen sebelumnya.');
+                    this.playVoice('Afwan, presensi sudah tercatat sebelumnya.');
                 } else {
                     this.scanStatus = 'success';
                     this.playTone('success');
-                    this.playVoice('Berhasil, syukron');
+                    this.playVoice('Alhamdulillah, presensi sudah berhasil. Syukron.');
                 }
 
                 // Resume scanning automatically for next teacher after 3.5s without reloading page
@@ -246,10 +246,10 @@
                 this.scanMessage = data.message || 'Wajah tidak terverifikasi.';
                 this.playTone('failed');
 
-                if (data.message && data.message.includes('terabsen')) {
-                    this.playVoice('Sudah terabsen sebelumnya.');
+                if (data.message && (data.message.includes('terabsen') || data.message.includes('tercatat') || data.message.includes('Sudah Hadir') || data.message.includes('Sudah Check-In'))) {
+                    this.playVoice('Afwan, presensi sudah tercatat sebelumnya.');
                 } else {
-                    this.playVoice('Afwan, ulangi lagi.');
+                    this.playVoice('Afwan, presensi belum berhasil. Silakan ulangi lagi.');
                 }
 
                 setTimeout(() => {

@@ -66,7 +66,7 @@
             'nip' => $t->nip ?? '-',
             'role_label' => $roleLabel,
             'has_fingerprint' => !empty($t->fingerprint_template),
-            'registered_at' => $t->fingerprint_registered_at ? $t->fingerprint_registered_at->format('d/m/Y H:i') : null,
+            'registered_at' => $t->fingerprint_registered_at ? \Carbon\Carbon::parse($t->fingerprint_registered_at)->format('d/m/Y H:i') : null,
         ];
     })->values();
 @endphp
@@ -425,19 +425,19 @@
                             this.scannedSession = data.session_name || data.action_type || 'Presensi';
                             this.qualityScore = data.confidence || 96;
 
-                            if (data.already_complete) {
+                            if (data.already_complete || data.locked) {
                                 this.scanStage = 'already';
                                 this.deviceStatus = 'Ready';
                                 this.scanMessage = data.message;
                                 this.playAudio('already');
-                                this.playVoice('Sudah terabsen sebelumnya.');
+                                this.playVoice('Afwan, presensi sudah tercatat sebelumnya.');
                             } else {
                                 this.scanStage = 'success';
                                 this.deviceStatus = 'Ready';
                                 this.scannedAction = data.session_name || (data.action_type === 'check_in' ? 'MASUK' : 'PULANG');
                                 this.scanMessage = 'Fingerprint Captured Successfully! ' + data.message;
                                 this.playAudio('success');
-                                this.playVoice('Berhasil, syukron');
+                                this.playVoice('Alhamdulillah, presensi sudah berhasil. Syukron.');
 
                                 this.prependLiveAttendance({
                                     name: data.teacher.name,
@@ -458,10 +458,10 @@
                             this.scanMessage = data.message || 'Sidik jari tidak dikenali.';
                             this.playAudio('error');
 
-                            if (data.message && data.message.includes('terabsen')) {
-                                this.playVoice('Sudah terabsen sebelumnya.');
+                            if (data.message && (data.message.includes('terabsen') || data.message.includes('tercatat') || data.message.includes('Sudah Hadir') || data.message.includes('Sudah Check-In'))) {
+                                this.playVoice('Afwan, presensi sudah tercatat sebelumnya.');
                             } else {
-                                this.playVoice('Afwan, ulangi lagi.');
+                                this.playVoice('Afwan, presensi belum berhasil. Silakan ulangi lagi.');
                             }
 
                             setTimeout(() => {
