@@ -71,609 +71,621 @@
     })->values();
 @endphp
 
-<body class="min-h-screen flex flex-col justify-between antialiased selection:bg-emerald-500 selection:text-white"
-      x-data="{
-    activeTab: 'standby', // 'standby' or 'enroll'
-    
-    // Hardware State Indicator (HID DigitalPersona 4500)
-    deviceConnected: false,
-    sslUnauthorized: false,
-    deviceName: 'HID DigitalPersona U.are.U 4500',
-    deviceStatus: 'Disconnected', // 'Ready', 'Busy', 'Capturing Fingerprint', 'Disconnected', 'Error', 'Timeout'
-    sensorArmed: false,
-    activeFormatNumber: 2,
-    activeFormatName: 'Intermediate (Format 2)',
-    lastSamplePreview: null,
-    dpDeviceUid: null,
-    webSocket: null,
-    reconnectTimer: null,
-
-    // Real Fingerprint Capture Progression
-    // 'idle' -> 'finger_detected' -> 'capturing' -> 'extracting' -> 'success' -> 'error'
-    scanStage: 'idle',
-    scanMessage: 'Menunggu jari ditempelkan pada scanner USB...',
-    qualityScore: null,
-    scannedTeacher: null,
-    scannedTime: '',
-    scannedAction: '',
-    scannedSession: '',
-
-    // Directory & Enrollment State
-    teachersList: @json($teachersListJson),
-    teacherSearchQuery: '',
-    directorySearchQuery: '',
-    enrollTeacherId: '{{ $selectedTeacherId ?? '' }}',
-    enrollStep: 0, // 0, 1, 2, 3
-    enrollSamples: [],
-    enrollStatus: 'idle', // 'idle', 'scanning', 'saving', 'done', 'error'
-    enrollMessage: 'Pilih guru dan tempelkan jari pada scanner untuk merekam template.',
-
-    get filteredTeachers() {
-        if (!this.teacherSearchQuery.trim()) {
-            return this.teachersList;
-        }
-        const q = this.teacherSearchQuery.toLowerCase();
-        return this.teachersList.filter(t => 
-            (t.name && t.name.toLowerCase().includes(q)) || 
-            (t.nip && t.nip.toLowerCase().includes(q)) || 
-            (t.role_label && t.role_label.toLowerCase().includes(q))
-        );
-    },
-
-    get directoryTeachers() {
-        if (!this.directorySearchQuery.trim()) {
-            return this.teachersList;
-        }
-        const q = this.directorySearchQuery.toLowerCase();
-        return this.teachersList.filter(t => 
-            (t.name && t.name.toLowerCase().includes(q)) || 
-            (t.nip && t.nip.toLowerCase().includes(q)) || 
-            (t.role_label && t.role_label.toLowerCase().includes(q))
-        );
-    },
-
-    get selectedTeacherObj() {
-        return this.teachersList.find(t => String(t.id) === String(this.enrollTeacherId)) || null;
-    },
-
-    get enrolledCount() {
-        return this.teachersList.filter(t => t.has_fingerprint).length;
-    },
-
-    get unEnrolledCount() {
-        return this.teachersList.filter(t => !t.has_fingerprint).length;
-    },
-
-    // Live Clock
-    currentTime: '',
-    currentDate: '',
-
-    // Live SSE Event Stream
-    sseSource: null,
-
-    init() {
-        this.updateClock();
-        setInterval(() => this.updateClock(), 1000);
-
-        // Pre-unlock AudioContext on first user interaction anywhere to ensure beep sound plays
-        const unlockAudio = () => {
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                if (ctx.state === 'suspended') {
-                    ctx.resume();
-                }
-            } catch(e) {}
-            document.removeEventListener('click', unlockAudio);
-            document.removeEventListener('touchstart', unlockAudio);
-        };
-        document.addEventListener('click', unlockAudio);
-        document.addEventListener('touchstart', unlockAudio);
-
-        this.initDigitalPersonaSdk();
-        this.initLiveAttendanceStream();
-    },
-
-    async initDigitalPersonaSdk() {
-        if (window.AttendanceFingerprintService) {
-            window.AttendanceFingerprintService.on('statusChange', (state) => {
-                this.deviceConnected = (state.status !== 'device_disconnected' && state.status !== 'service_unavailable' && state.status !== 'ssl_unauthorized' && state.status !== 'error');
-                this.deviceStatus = state.badge;
-                this.sslUnauthorized = (state.status === 'ssl_unauthorized');
-                this.deviceName = window.AttendanceFingerprintService.deviceName || 'HID DigitalPersona U.are.U 4500';
-                this.sensorArmed = window.AttendanceFingerprintService.isAcquiring || 
-                                  (state.status === 'waiting_finger' || state.status === 'reading' || state.status === 'sample_acquired');
+<script>
+    function registerFingerprintTerminal() {
+        if (typeof Alpine !== 'undefined') {
+            Alpine.data('fingerprintTerminal', () => ({
+                activeTab: 'standby', // 'standby' or 'enroll'
                 
-                const fmt = window.AttendanceFingerprintService.workingFormat || state.format || 5;
-                this.activeFormatNumber = fmt;
-                this.activeFormatName = fmt === 5 ? 'PNG Image (5)' : (fmt === 2 ? 'Intermediate (2)' : (fmt === 1 ? 'Raw Sensor (1)' : 'PNG Image (5)'));
+                // Hardware State Indicator (HID DigitalPersona 4500)
+                deviceConnected: false,
+                sslUnauthorized: false,
+                deviceName: 'HID DigitalPersona U.are.U 4500',
+                deviceStatus: 'Disconnected', // 'Ready', 'Busy', 'Capturing Fingerprint', 'Disconnected', 'Error', 'Timeout'
+                sensorArmed: false,
+                activeFormatNumber: 2,
+                activeFormatName: 'Intermediate (Format 2)',
+                lastSamplePreview: null,
+                dpDeviceUid: null,
+                webSocket: null,
+                reconnectTimer: null,
 
-                if (state.status === 'device_connected') {
-                    this.scanStage = 'idle';
-                    this.sslUnauthorized = false;
-                    if (this.activeTab === 'standby') {
-                        this.scanMessage = '🟢 Scanner terhubung. Klik sensor atau Tes Sensor untuk mengaktifkan.';
+                // Real Fingerprint Capture Progression
+                // 'idle' -> 'finger_detected' -> 'capturing' -> 'extracting' -> 'success' -> 'error'
+                scanStage: 'idle',
+                scanMessage: 'Menunggu jari ditempelkan pada scanner USB...',
+                qualityScore: null,
+                scannedTeacher: null,
+                scannedTime: '',
+                scannedAction: '',
+                scannedSession: '',
+
+                // Directory & Enrollment State
+                teachersList: @json($teachersListJson),
+                teacherSearchQuery: '',
+                directorySearchQuery: '',
+                enrollTeacherId: '{{ $selectedTeacherId ?? '' }}',
+                enrollStep: 0, // 0, 1, 2, 3
+                enrollSamples: [],
+                enrollStatus: 'idle', // 'idle', 'scanning', 'saving', 'done', 'error'
+                enrollMessage: 'Pilih guru dan tempelkan jari pada scanner untuk merekam template.',
+
+                get filteredTeachers() {
+                    if (!this.teacherSearchQuery.trim()) {
+                        return this.teachersList;
                     }
-                } else if (state.status === 'waiting_finger') {
-                    this.scanStage = 'idle';
-                    this.sslUnauthorized = false;
-                    if (this.activeTab === 'standby') {
-                        this.scanMessage = '🟡 Sensor optik aktif. Tempelkan jari pada kaca scanner...';
+                    const q = this.teacherSearchQuery.toLowerCase();
+                    return this.teachersList.filter(t => 
+                        (t.name && t.name.toLowerCase().includes(q)) || 
+                        (t.nip && t.nip.toLowerCase().includes(q)) || 
+                        (t.role_label && t.role_label.toLowerCase().includes(q))
+                    );
+                },
+
+                get directoryTeachers() {
+                    if (!this.directorySearchQuery.trim()) {
+                        return this.teachersList;
                     }
-                } else if (state.status === 'reading') {
-                    this.scanStage = 'finger_detected';
-                    this.scanMessage = '🔵 Jari terdeteksi! Sedang membaca sidik jari...';
-                    this.playAudio('touch');
-                } else if (state.status === 'sample_acquired') {
-                    this.scanStage = 'capturing';
-                    this.scanMessage = '✅ Fingerprint berhasil dibaca! Memverifikasi...';
-                    this.playAudio('touch');
-                } else if (state.status === 'ssl_unauthorized') {
-                    this.scanStage = 'error';
-                    this.sslUnauthorized = true;
-                    this.scanMessage = '⚠️ Izin browser diperlukan: Buka port 127.0.0.1 di tab baru (1 kali saja).';
-                } else if (state.status === 'service_unavailable') {
-                    this.scanStage = 'error';
-                    this.sslUnauthorized = true;
-                    this.scanMessage = '🔴 Service DigitalPersona belum diizinkan atau tidak aktif pada https://127.0.0.1:52181.';
-                } else if (state.status === 'device_disconnected') {
-                    this.scanStage = 'idle';
-                    this.sslUnauthorized = false;
-                    this.scanMessage = '🔴 Scanner tidak ditemukan. Silakan sambungkan kabel USB scanner ke PC.';
-                } else if (state.status === 'error') {
-                    this.scanStage = 'error';
-                    this.scanMessage = state.text;
-                }
-            });
-
-            window.AttendanceFingerprintService.on('sampleCaptured', (sampleData) => {
-                if (window.AttendanceFingerprintService.lastSampleImage && typeof window.AttendanceFingerprintService.lastSampleImage === 'string' && window.AttendanceFingerprintService.lastSampleImage.startsWith('data:image/')) {
-                    this.lastSamplePreview = window.AttendanceFingerprintService.lastSampleImage;
-                }
-                this.playAudio('touch');
-                this.onHardwareSampleCaptured(sampleData);
-            });
-
-            await window.AttendanceFingerprintService.init();
-        }
-    },
-
-    async switchFormat(fmt) {
-        if (window.AttendanceFingerprintService) {
-            this.activeFormatNumber = fmt;
-            const name = fmt === 5 ? 'PNG Image (5)' : (fmt === 2 ? 'Intermediate (2)' : 'Raw Sensor (1)');
-            this.scanMessage = `🔄 Mengubah mode sensor ke ${name}...`;
-            let ok = false;
-            try {
-                if (typeof window.AttendanceFingerprintService.changeFormat === 'function') {
-                    ok = await window.AttendanceFingerprintService.changeFormat(fmt);
-                } else if (typeof window.AttendanceFingerprintService.startCapture === 'function') {
-                    window.AttendanceFingerprintService.workingFormat = fmt;
-                    ok = await window.AttendanceFingerprintService.startCapture(true, fmt);
-                }
-            } catch (err) {
-                console.error('switchFormat error:', err);
-            }
-            if (ok) {
-                this.sensorArmed = true;
-                this.activeFormatName = name;
-                this.scanMessage = `🟡 Sensor aktif dalam format ${name}. Tempelkan jari pada kaca scanner...`;
-            } else {
-                this.sensorArmed = true;
-                this.activeFormatName = name;
-                this.scanMessage = `🟡 Sensor format ${name} aktif. Tempelkan jari pada kaca scanner...`;
-            }
-        }
-    },
-
-    async rearmSensor() {
-        if (window.AttendanceFingerprintService) {
-            this.scanMessage = '🔄 Mengaktifkan sensor optik scanner...';
-            const ok = await window.AttendanceFingerprintService.startCapture(true, this.activeFormatNumber);
-            if (ok) {
-                this.sensorArmed = true;
-                if (this.activeTab === 'standby') {
-                    this.scanMessage = '🟡 Sensor optik aktif. Tempelkan jari pada kaca scanner...';
-                } else {
-                    this.enrollMessage = this.enrollTeacherId 
-                        ? `Guru dipilih! Silakan tempelkan jari pada scanner untuk Scan ${this.enrollStep + 1}/3.`
-                        : 'Pilih guru di dropdown terlebih dahulu.';
-                }
-            } else {
-                this.sensorArmed = false;
-                this.scanMessage = 'Sensor scanner belum siap. Klik sensor pad atau Deteksi USB untuk mencoba lagi.';
-            }
-            return ok;
-        }
-        return false;
-    },
-
-    async stopSensor() {
-        if (window.AttendanceFingerprintService) {
-            await window.AttendanceFingerprintService.stopCapture();
-            this.sensorArmed = false;
-            this.scanMessage = 'Sensor optik dinonaktifkan sementara. Klik Tes Sensor untuk mengaktifkan kembali.';
-        }
-    },
-
-    openBrowserSslApproval() {
-        if (window.AttendanceFingerprintService) {
-            window.AttendanceFingerprintService.openSslAuthorization();
-        } else {
-            window.open('https://127.0.0.1:52181/get_connection', '_blank');
-        }
-    },
-
-    async pairUsbScanner() {
-        this.scanMessage = 'Memeriksa scanner DigitalPersona pada 127.0.0.1:52181...';
-        if (window.AttendanceFingerprintService) {
-            const ok = await window.AttendanceFingerprintService.refreshScanner();
-            if (ok) {
-                this.sslUnauthorized = false;
-                this.sensorArmed = true;
-                this.playAudio('success');
-                return;
-            }
-        }
-    },
-
-    updateClock() {
-        const now = new Date();
-        this.currentTime = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        this.currentDate = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    },
-
-    playAudio(type = 'success') {
-        try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-
-            if (type === 'touch') {
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(740, ctx.currentTime);
-                gain.gain.setValueAtTime(0.18, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
-                osc.start();
-                osc.stop(ctx.currentTime + 0.12);
-            } else if (type === 'success') {
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-                osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1);
-                gain.gain.setValueAtTime(0.3, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
-                osc.start();
-                osc.stop(ctx.currentTime + 0.35);
-            } else if (type === 'already') {
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(440, ctx.currentTime);
-                gain.gain.setValueAtTime(0.2, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
-                osc.start();
-                osc.stop(ctx.currentTime + 0.25);
-            } else {
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(220, ctx.currentTime);
-                gain.gain.setValueAtTime(0.3, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
-                osc.start();
-                osc.stop(ctx.currentTime + 0.4);
-            }
-        } catch(e) {}
-    },
-
-    // 1. DigitalPersona Scanner lifecycle managed via AttendanceFingerprintService (@digitalpersona/devices)
-
-    // 2. Real Fingerprint Capture Processing Pipeline
-    onHardwareSampleCaptured(sampleData) {
-        if (this.activeTab === 'standby') {
-            this.scanStage = 'capturing';
-            this.deviceStatus = 'Capturing Fingerprint';
-            this.scanMessage = 'Capturing...';
-
-            setTimeout(() => {
-                this.scanStage = 'extracting';
-                this.scanMessage = 'Extracting Template & Mencocokkan...';
-                this.verifyFingerprintWithServer(sampleData);
-            }, 250);
-        } else if (this.activeTab === 'enroll') {
-            this.recordEnrollmentSample(sampleData);
-        }
-    },
-
-    // 3. Attendance Verification via Backend Unified Pipeline
-    async verifyFingerprintWithServer(sampleData) {
-        this.deviceStatus = 'Busy';
-
-        try {
-            const res = await fetch('{{ route('admin.teacher-attendances.fingerprint.verify') }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/json'
+                    const q = this.directorySearchQuery.toLowerCase();
+                    return this.teachersList.filter(t => 
+                        (t.name && t.name.toLowerCase().includes(q)) || 
+                        (t.nip && t.nip.toLowerCase().includes(q)) || 
+                        (t.role_label && t.role_label.toLowerCase().includes(q))
+                    );
                 },
-                body: JSON.stringify({
-                    fingerprint_sample: sampleData,
-                    device_name: this.deviceName
-                })
-            });
 
-            const data = await res.json();
-
-            if (data.success) {
-                this.scannedTeacher = data.teacher;
-                this.scannedTime = new Date().toLocaleTimeString('id-ID');
-                this.scannedSession = data.session_name || data.action_type || 'Presensi';
-                this.qualityScore = data.confidence || 96;
-
-                if (data.already_complete) {
-                    this.scanStage = 'already';
-                    this.deviceStatus = 'Ready';
-                    this.scanMessage = data.message;
-                    this.playAudio('already');
-                } else {
-                    this.scanStage = 'success';
-                    this.deviceStatus = 'Ready';
-                    this.scannedAction = data.session_name || (data.action_type === 'check_in' ? 'MASUK' : 'PULANG');
-                    this.scanMessage = 'Fingerprint Captured Successfully! ' + data.message;
-                    this.playAudio('success');
-
-                    this.prependLiveAttendance({
-                        name: data.teacher.name,
-                        time: this.scannedTime,
-                        action: this.scannedAction,
-                        method: 'Sidik Jari (HID 4500)'
-                    });
-                }
-
-                setTimeout(() => {
-                    this.scanStage = 'idle';
-                    this.deviceStatus = 'Ready';
-                    this.rearmSensor();
-                }, 4000);
-            } else {
-                this.scanStage = 'error';
-                this.deviceStatus = 'Ready';
-                this.scanMessage = data.message || 'Sidik jari tidak dikenali.';
-                this.playAudio('error');
-
-                setTimeout(() => {
-                    this.scanStage = 'idle';
-                    this.rearmSensor();
-                }, 3500);
-            }
-        } catch(err) {
-            this.scanStage = 'error';
-            this.deviceStatus = 'Error';
-            this.scanMessage = 'Terjadi kesalahan komunikasi dengan server.';
-            this.playAudio('error');
-
-            setTimeout(() => {
-                this.scanStage = 'idle';
-                this.deviceStatus = 'Ready';
-                this.rearmSensor();
-            }, 3500);
-        }
-    },
-
-    switchTab(tab) {
-        this.activeTab = tab;
-        setTimeout(() => {
-            this.rearmSensor();
-        }, 200);
-    },
-
-    onTeacherSelected() {
-        if (this.enrollTeacherId) {
-            this.enrollStep = 0;
-            this.enrollSamples = [];
-            this.enrollStatus = 'idle';
-            const teacher = this.selectedTeacherObj;
-            if (teacher && teacher.has_fingerprint) {
-                this.enrollMessage = `Guru dipilih: ${teacher.name} [Sudah Terdaftar]. Tempelkan jari pada scanner untuk MEMPERBAIKI / REKAM ULANG sidik jari.`;
-            } else {
-                this.enrollMessage = `Guru dipilih: ${teacher ? teacher.name : ''}. Silakan tempelkan jari pada scanner untuk Scan 1/3.`;
-            }
-            setTimeout(() => {
-                this.rearmSensor();
-            }, 250);
-        } else {
-            this.enrollMessage = 'Pilih guru dan tempelkan jari pada scanner untuk merekam template.';
-        }
-    },
-
-    selectTeacherForEnroll(id) {
-        this.enrollTeacherId = String(id);
-        this.activeTab = 'enroll';
-        this.onTeacherSelected();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    },
-
-    async resetTeacherFingerprint(id, name) {
-        if (!confirm(`Hapus template sidik jari untuk "${name}"?\n\nSetelah dihapus, akun guru ini siap direkam ulang dari awal.`)) {
-            return;
-        }
-
-        try {
-            const res = await fetch(`{{ url('admin/teacher-attendances/fingerprint') }}/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/json'
-                }
-            });
-            const data = await res.json();
-            if (data.success) {
-                const t = this.teachersList.find(item => String(item.id) === String(id));
-                if (t) {
-                    t.has_fingerprint = false;
-                    t.registered_at = null;
-                }
-                if (String(this.enrollTeacherId) === String(id)) {
-                    this.onTeacherSelected();
-                }
-                alert(data.message || 'Data sidik jari berhasil di-reset.');
-            } else {
-                alert(data.message || 'Gagal menghapus sidik jari.');
-            }
-        } catch (err) {
-            console.error('Reset fingerprint error:', err);
-            alert('Terjadi kesalahan saat menghapus sidik jari.');
-        }
-    },
-
-    // 4. Production Enrollment: Real Physical Scans
-    recordEnrollmentSample(sampleData) {
-        if (!this.enrollTeacherId) {
-            this.enrollStatus = 'error';
-            this.enrollMessage = '⚠️ Pilih nama guru terlebih dahulu di dropdown sebelum menempelkan jari!';
-            this.playAudio('error');
-            setTimeout(() => this.rearmSensor(), 1500);
-            return;
-        }
-
-        this.enrollSamples.push(sampleData);
-        this.enrollStep = this.enrollSamples.length;
-        this.playAudio('touch');
-
-        if (this.enrollStep < 3) {
-            this.enrollStatus = 'scanning';
-            this.enrollMessage = `Scan ${this.enrollStep}/3 berhasil! Angkat dan tempelkan jari yang sama sekali lagi...`;
-            setTimeout(() => this.rearmSensor(), 1000);
-        } else {
-            this.enrollStatus = 'saving';
-            this.enrollMessage = '3 Scan selesai! Menyimpan & memverifikasi template biometrik...';
-            this.submitEnrollmentToServer();
-        }
-    },
-
-    forceSaveEnrollment() {
-        if (!this.enrollSamples || this.enrollSamples.length === 0) {
-            alert('Belum ada sampel sidik jari yang terbaca pada scanner.');
-            return;
-        }
-        this.enrollStatus = 'saving';
-        this.enrollMessage = `Menyimpan ${this.enrollSamples.length} sampel sidik jari ke server...`;
-        this.submitEnrollmentToServer();
-    },
-
-    retryEnrollment() {
-        this.enrollSamples = [];
-        this.enrollStep = 0;
-        this.enrollStatus = 'idle';
-        this.onTeacherSelected();
-    },
-
-    async submitEnrollmentToServer() {
-        try {
-            const res = await fetch('{{ route('admin.teacher-attendances.fingerprint.register') }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/json'
+                get selectedTeacherObj() {
+                    return this.teachersList.find(t => String(t.id) === String(this.enrollTeacherId)) || null;
                 },
-                body: JSON.stringify({
-                    user_id: this.enrollTeacherId,
-                    samples: this.enrollSamples
-                })
-            });
 
-            const data = await res.json();
+                get enrolledCount() {
+                    return this.teachersList.filter(t => t.has_fingerprint).length;
+                },
 
-            if (data.success) {
-                this.enrollStatus = 'done';
-                this.enrollMessage = data.message;
-                this.playAudio('success');
+                get unEnrolledCount() {
+                    return this.teachersList.filter(t => !t.has_fingerprint).length;
+                },
 
-                // Update teacher in local list
-                const t = this.teachersList.find(item => String(item.id) === String(this.enrollTeacherId));
-                if (t) {
-                    t.has_fingerprint = true;
-                    t.registered_at = (data.user && data.user.registered_at) ? data.user.registered_at : 'Baru saja';
-                }
+                // Live Clock
+                currentTime: '',
+                currentDate: '',
 
-                this.enrollSamples = [];
-            } else {
-                this.enrollStatus = 'error';
-                this.enrollMessage = data.message || 'Perekaman gagal. Silakan coba tempelkan jari kembali.';
-                this.playAudio('error');
-            }
-        } catch(err) {
-            console.error('Enrollment submit error:', err);
-            this.enrollStatus = 'error';
-            this.enrollMessage = 'Gagal menyimpan template biometrik ke server. Periksa koneksi internet.';
-            this.playAudio('error');
-        }
-    },
+                // Live SSE Event Stream
+                sseSource: null,
 
-    // 5. Server-Sent Events (SSE) Live Broadcast Stream
-    initLiveAttendanceStream() {
-        try {
-            if (window.EventSource) {
-                this.sseSource = new EventSource('{{ route('admin.teacher-attendances.stream') }}');
+                init() {
+                    this.updateClock();
+                    setInterval(() => this.updateClock(), 1000);
 
-                this.sseSource.addEventListener('attendance_recorded', (e) => {
-                    const eventData = JSON.parse(e.data);
-                    if (eventData) {
-                        this.prependLiveAttendance({
-                            name: eventData.teacher_name,
-                            time: eventData.time,
-                            action: eventData.session || eventData.status_label,
-                            method: eventData.method_label
+                    // Pre-unlock AudioContext on first user interaction anywhere to ensure beep sound plays
+                    const unlockAudio = () => {
+                        try {
+                            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                            if (ctx.state === 'suspended') {
+                                ctx.resume();
+                            }
+                        } catch(e) {}
+                        document.removeEventListener('click', unlockAudio);
+                        document.removeEventListener('touchstart', unlockAudio);
+                    };
+                    document.addEventListener('click', unlockAudio);
+                    document.addEventListener('touchstart', unlockAudio);
+
+                    this.initDigitalPersonaSdk();
+                    this.initLiveAttendanceStream();
+                },
+
+                async initDigitalPersonaSdk() {
+                    if (window.AttendanceFingerprintService) {
+                        window.AttendanceFingerprintService.on('statusChange', (state) => {
+                            this.deviceConnected = (state.status !== 'device_disconnected' && state.status !== 'service_unavailable' && state.status !== 'ssl_unauthorized' && state.status !== 'error');
+                            this.deviceStatus = state.badge;
+                            this.sslUnauthorized = (state.status === 'ssl_unauthorized');
+                            this.deviceName = window.AttendanceFingerprintService.deviceName || 'HID DigitalPersona U.are.U 4500';
+                            this.sensorArmed = window.AttendanceFingerprintService.isAcquiring || 
+                                              (state.status === 'waiting_finger' || state.status === 'reading' || state.status === 'sample_acquired');
+                            
+                            const fmt = window.AttendanceFingerprintService.workingFormat || state.format || 5;
+                            this.activeFormatNumber = fmt;
+                            this.activeFormatName = fmt === 5 ? 'PNG Image (5)' : (fmt === 2 ? 'Intermediate (2)' : (fmt === 1 ? 'Raw Sensor (1)' : 'PNG Image (5)'));
+
+                            if (state.status === 'device_connected') {
+                                this.scanStage = 'idle';
+                                this.sslUnauthorized = false;
+                                if (this.activeTab === 'standby') {
+                                    this.scanMessage = '🟢 Scanner terhubung. Klik sensor atau Tes Sensor untuk mengaktifkan.';
+                                }
+                            } else if (state.status === 'waiting_finger') {
+                                this.scanStage = 'idle';
+                                this.sslUnauthorized = false;
+                                if (this.activeTab === 'standby') {
+                                    this.scanMessage = '🟡 Sensor optik aktif. Tempelkan jari pada kaca scanner...';
+                                }
+                            } else if (state.status === 'reading') {
+                                this.scanStage = 'finger_detected';
+                                this.scanMessage = '🔵 Jari terdeteksi! Sedang membaca sidik jari...';
+                                this.playAudio('touch');
+                            } else if (state.status === 'sample_acquired') {
+                                this.scanStage = 'capturing';
+                                this.scanMessage = '✅ Fingerprint berhasil dibaca! Memverifikasi...';
+                                this.playAudio('touch');
+                            } else if (state.status === 'ssl_unauthorized') {
+                                this.scanStage = 'error';
+                                this.sslUnauthorized = true;
+                                this.scanMessage = '⚠️ Izin browser diperlukan: Buka port 127.0.0.1 di tab baru (1 kali saja).';
+                            } else if (state.status === 'service_unavailable') {
+                                this.scanStage = 'error';
+                                this.sslUnauthorized = true;
+                                this.scanMessage = '🔴 Service DigitalPersona belum diizinkan atau tidak aktif pada https://127.0.0.1:52181.';
+                            } else if (state.status === 'device_disconnected') {
+                                this.scanStage = 'idle';
+                                this.sslUnauthorized = false;
+                                this.scanMessage = '🔴 Scanner tidak ditemukan. Silakan sambungkan kabel USB scanner ke PC.';
+                            } else if (state.status === 'error') {
+                                this.scanStage = 'error';
+                                this.scanMessage = state.text;
+                            }
                         });
+
+                        window.AttendanceFingerprintService.on('sampleCaptured', (sampleData) => {
+                            if (window.AttendanceFingerprintService.lastSampleImage && typeof window.AttendanceFingerprintService.lastSampleImage === 'string' && window.AttendanceFingerprintService.lastSampleImage.startsWith('data:image/')) {
+                                this.lastSamplePreview = window.AttendanceFingerprintService.lastSampleImage;
+                            }
+                            this.playAudio('touch');
+                            this.onHardwareSampleCaptured(sampleData);
+                        });
+
+                        await window.AttendanceFingerprintService.init();
                     }
-                });
-
-                this.sseSource.onerror = () => {
-                    // Auto reconnects natively in browser EventSource
-                };
-            }
-        } catch(e) {}
-    },
-
-    // Log hardware telemetry event to server
-    async logHardwareEvent(event, details = {}) {
-        try {
-            await fetch('{{ route('admin.teacher-attendances.fingerprint.device-event') }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/json'
                 },
-                body: JSON.stringify({
-                    event: event,
-                    device_name: this.deviceName,
-                    details: details
-                })
-            });
-        } catch(e) {}
-    },
 
-    prependLiveAttendance(item) {
-        const container = document.getElementById('liveAttendanceList');
-        if (container) {
-            const div = document.createElement('div');
-            div.className = 'p-3 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 flex items-center justify-between text-xs transition-all animate-pulse';
-            div.innerHTML = `
-                <div class='flex items-center space-x-3'>
-                    <div class='w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs'>
-                        ✓
-                    </div>
-                    <div>
-                        <div class='font-bold text-white'>${item.name}</div>
-                        <div class='text-[10px] text-emerald-400 font-mono'>${item.method} • ${item.action}</div>
-                    </div>
-                </div>
-                <span class='font-mono font-bold text-white bg-slate-800 px-2 py-1 rounded-lg border border-slate-700'>${item.time}</span>
-            `;
-            container.prepend(div);
+                async switchFormat(fmt) {
+                    if (window.AttendanceFingerprintService) {
+                        this.activeFormatNumber = fmt;
+                        const name = fmt === 5 ? 'PNG Image (5)' : (fmt === 2 ? 'Intermediate (2)' : 'Raw Sensor (1)');
+                        this.scanMessage = `🔄 Mengubah mode sensor ke ${name}...`;
+                        let ok = false;
+                        try {
+                            if (typeof window.AttendanceFingerprintService.changeFormat === 'function') {
+                                ok = await window.AttendanceFingerprintService.changeFormat(fmt);
+                            } else if (typeof window.AttendanceFingerprintService.startCapture === 'function') {
+                                window.AttendanceFingerprintService.workingFormat = fmt;
+                                ok = await window.AttendanceFingerprintService.startCapture(true, fmt);
+                            }
+                        } catch (err) {
+                            console.error('switchFormat error:', err);
+                        }
+                        if (ok) {
+                            this.sensorArmed = true;
+                            this.activeFormatName = name;
+                            this.scanMessage = `🟡 Sensor aktif dalam format ${name}. Tempelkan jari pada kaca scanner...`;
+                        } else {
+                            this.sensorArmed = true;
+                            this.activeFormatName = name;
+                            this.scanMessage = `🟡 Sensor format ${name} aktif. Tempelkan jari pada kaca scanner...`;
+                        }
+                    }
+                },
+
+                async rearmSensor() {
+                    if (window.AttendanceFingerprintService) {
+                        this.scanMessage = '🔄 Mengaktifkan sensor optik scanner...';
+                        const ok = await window.AttendanceFingerprintService.startCapture(true, this.activeFormatNumber);
+                        if (ok) {
+                            this.sensorArmed = true;
+                            if (this.activeTab === 'standby') {
+                                this.scanMessage = '🟡 Sensor optik aktif. Tempelkan jari pada kaca scanner...';
+                            } else {
+                                this.enrollMessage = this.enrollTeacherId 
+                                    ? `Guru dipilih! Silakan tempelkan jari pada scanner untuk Scan ${this.enrollStep + 1}/3.`
+                                    : 'Pilih guru di dropdown terlebih dahulu.';
+                            }
+                        } else {
+                            this.sensorArmed = false;
+                            this.scanMessage = 'Sensor scanner belum siap. Klik sensor pad atau Deteksi USB untuk mencoba lagi.';
+                        }
+                        return ok;
+                    }
+                    return false;
+                },
+
+                async stopSensor() {
+                    if (window.AttendanceFingerprintService) {
+                        await window.AttendanceFingerprintService.stopCapture();
+                        this.sensorArmed = false;
+                        this.scanMessage = 'Sensor optik dinonaktifkan sementara. Klik Tes Sensor untuk mengaktifkan kembali.';
+                    }
+                },
+
+                openBrowserSslApproval() {
+                    if (window.AttendanceFingerprintService) {
+                        window.AttendanceFingerprintService.openSslAuthorization();
+                    } else {
+                        window.open('https://127.0.0.1:52181/get_connection', '_blank');
+                    }
+                },
+
+                async pairUsbScanner() {
+                    this.scanMessage = 'Memeriksa scanner DigitalPersona pada 127.0.0.1:52181...';
+                    if (window.AttendanceFingerprintService) {
+                        const ok = await window.AttendanceFingerprintService.refreshScanner();
+                        if (ok) {
+                            this.sslUnauthorized = false;
+                            this.sensorArmed = true;
+                            this.playAudio('success');
+                            return;
+                        }
+                    }
+                },
+
+                updateClock() {
+                    const now = new Date();
+                    this.currentTime = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    this.currentDate = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                },
+
+                playAudio(type = 'success') {
+                    try {
+                        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+
+                        if (type === 'touch') {
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(740, ctx.currentTime);
+                            gain.gain.setValueAtTime(0.18, ctx.currentTime);
+                            gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+                            osc.start();
+                            osc.stop(ctx.currentTime + 0.12);
+                        } else if (type === 'success') {
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+                            osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1);
+                            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                            gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+                            osc.start();
+                            osc.stop(ctx.currentTime + 0.35);
+                        } else if (type === 'already') {
+                            osc.type = 'triangle';
+                            osc.frequency.setValueAtTime(440, ctx.currentTime);
+                            gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                            gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+                            osc.start();
+                            osc.stop(ctx.currentTime + 0.25);
+                        } else {
+                            osc.type = 'sawtooth';
+                            osc.frequency.setValueAtTime(220, ctx.currentTime);
+                            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                            gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+                            osc.start();
+                            osc.stop(ctx.currentTime + 0.4);
+                        }
+                    } catch(e) {}
+                },
+
+                // 2. Real Fingerprint Capture Processing Pipeline
+                onHardwareSampleCaptured(sampleData) {
+                    if (this.activeTab === 'standby') {
+                        this.scanStage = 'capturing';
+                        this.deviceStatus = 'Capturing Fingerprint';
+                        this.scanMessage = 'Capturing...';
+
+                        setTimeout(() => {
+                            this.scanStage = 'extracting';
+                            this.scanMessage = 'Extracting Template & Mencocokkan...';
+                            this.verifyFingerprintWithServer(sampleData);
+                        }, 250);
+                    } else if (this.activeTab === 'enroll') {
+                        this.recordEnrollmentSample(sampleData);
+                    }
+                },
+
+                // 3. Attendance Verification via Backend Unified Pipeline
+                async verifyFingerprintWithServer(sampleData) {
+                    this.deviceStatus = 'Busy';
+
+                    try {
+                        const res = await fetch('{{ route('admin.teacher-attendances.fingerprint.verify') }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                fingerprint_sample: sampleData,
+                                device_name: this.deviceName
+                            })
+                        });
+
+                        const data = await res.json();
+
+                        if (data.success) {
+                            this.scannedTeacher = data.teacher;
+                            this.scannedTime = new Date().toLocaleTimeString('id-ID');
+                            this.scannedSession = data.session_name || data.action_type || 'Presensi';
+                            this.qualityScore = data.confidence || 96;
+
+                            if (data.already_complete) {
+                                this.scanStage = 'already';
+                                this.deviceStatus = 'Ready';
+                                this.scanMessage = data.message;
+                                this.playAudio('already');
+                            } else {
+                                this.scanStage = 'success';
+                                this.deviceStatus = 'Ready';
+                                this.scannedAction = data.session_name || (data.action_type === 'check_in' ? 'MASUK' : 'PULANG');
+                                this.scanMessage = 'Fingerprint Captured Successfully! ' + data.message;
+                                this.playAudio('success');
+
+                                this.prependLiveAttendance({
+                                    name: data.teacher.name,
+                                    time: this.scannedTime,
+                                    action: this.scannedAction,
+                                    method: 'Sidik Jari (HID 4500)'
+                                });
+                            }
+
+                            setTimeout(() => {
+                                this.scanStage = 'idle';
+                                this.deviceStatus = 'Ready';
+                                this.rearmSensor();
+                            }, 4000);
+                        } else {
+                            this.scanStage = 'error';
+                            this.deviceStatus = 'Ready';
+                            this.scanMessage = data.message || 'Sidik jari tidak dikenali.';
+                            this.playAudio('error');
+
+                            setTimeout(() => {
+                                this.scanStage = 'idle';
+                                this.rearmSensor();
+                            }, 3500);
+                        }
+                    } catch(err) {
+                        this.scanStage = 'error';
+                        this.deviceStatus = 'Error';
+                        this.scanMessage = 'Terjadi kesalahan komunikasi dengan server.';
+                        this.playAudio('error');
+
+                        setTimeout(() => {
+                            this.scanStage = 'idle';
+                            this.deviceStatus = 'Ready';
+                            this.rearmSensor();
+                        }, 3500);
+                    }
+                },
+
+                switchTab(tab) {
+                    this.activeTab = tab;
+                    setTimeout(() => {
+                        this.rearmSensor();
+                    }, 200);
+                },
+
+                onTeacherSelected() {
+                    if (this.enrollTeacherId) {
+                        this.enrollStep = 0;
+                        this.enrollSamples = [];
+                        this.enrollStatus = 'idle';
+                        const teacher = this.selectedTeacherObj;
+                        if (teacher && teacher.has_fingerprint) {
+                            this.enrollMessage = `Guru dipilih: ${teacher.name} [Sudah Terdaftar]. Tempelkan jari pada scanner untuk MEMPERBAIKI / REKAM ULANG sidik jari.`;
+                        } else {
+                            this.enrollMessage = `Guru dipilih: ${teacher ? teacher.name : ''}. Silakan tempelkan jari pada scanner untuk Scan 1/3.`;
+                        }
+                        setTimeout(() => {
+                            this.rearmSensor();
+                        }, 250);
+                    } else {
+                        this.enrollMessage = 'Pilih guru dan tempelkan jari pada scanner untuk merekam template.';
+                    }
+                },
+
+                selectTeacherForEnroll(id) {
+                    this.enrollTeacherId = String(id);
+                    this.activeTab = 'enroll';
+                    this.onTeacherSelected();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                },
+
+                async resetTeacherFingerprint(id, name) {
+                    if (!confirm(`Hapus template sidik jari untuk "${name}"?\n\nSetelah dihapus, akun guru ini siap direkam ulang dari awal.`)) {
+                        return;
+                    }
+
+                    try {
+                        const res = await fetch(`{{ url('admin/teacher-attendances/fingerprint') }}/${id}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Accept': 'application/json'
+                            }
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            const t = this.teachersList.find(item => String(item.id) === String(id));
+                            if (t) {
+                                t.has_fingerprint = false;
+                                t.registered_at = null;
+                            }
+                            if (String(this.enrollTeacherId) === String(id)) {
+                                this.onTeacherSelected();
+                            }
+                            alert(data.message || 'Data sidik jari berhasil di-reset.');
+                        } else {
+                            alert(data.message || 'Gagal menghapus sidik jari.');
+                        }
+                    } catch (err) {
+                        console.error('Reset fingerprint error:', err);
+                        alert('Terjadi kesalahan saat menghapus sidik jari.');
+                    }
+                },
+
+                // 4. Production Enrollment: Real Physical Scans
+                recordEnrollmentSample(sampleData) {
+                    if (!this.enrollTeacherId) {
+                        this.enrollStatus = 'error';
+                        this.enrollMessage = '⚠️ Pilih nama guru terlebih dahulu di dropdown sebelum menempelkan jari!';
+                        this.playAudio('error');
+                        setTimeout(() => this.rearmSensor(), 1500);
+                        return;
+                    }
+
+                    this.enrollSamples.push(sampleData);
+                    this.enrollStep = this.enrollSamples.length;
+                    this.playAudio('touch');
+
+                    if (this.enrollStep < 3) {
+                        this.enrollStatus = 'scanning';
+                        this.enrollMessage = `Scan ${this.enrollStep}/3 berhasil! Angkat dan tempelkan jari yang sama sekali lagi...`;
+                        setTimeout(() => this.rearmSensor(), 1000);
+                    } else {
+                        this.enrollStatus = 'saving';
+                        this.enrollMessage = '3 Scan selesai! Menyimpan & memverifikasi template biometrik...';
+                        this.submitEnrollmentToServer();
+                    }
+                },
+
+                forceSaveEnrollment() {
+                    if (!this.enrollSamples || this.enrollSamples.length === 0) {
+                        alert('Belum ada sampel sidik jari yang terbaca pada scanner.');
+                        return;
+                    }
+                    this.enrollStatus = 'saving';
+                    this.enrollMessage = `Menyimpan ${this.enrollSamples.length} sampel sidik jari ke server...`;
+                    this.submitEnrollmentToServer();
+                },
+
+                retryEnrollment() {
+                    this.enrollSamples = [];
+                    this.enrollStep = 0;
+                    this.enrollStatus = 'idle';
+                    this.onTeacherSelected();
+                },
+
+                async submitEnrollmentToServer() {
+                    try {
+                        const res = await fetch('{{ route('admin.teacher-attendances.fingerprint.register') }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                user_id: this.enrollTeacherId,
+                                samples: this.enrollSamples
+                            })
+                        });
+
+                        const data = await res.json();
+
+                        if (data.success) {
+                            this.enrollStatus = 'done';
+                            this.enrollMessage = data.message;
+                            this.playAudio('success');
+
+                            // Update teacher in local list
+                            const t = this.teachersList.find(item => String(item.id) === String(this.enrollTeacherId));
+                            if (t) {
+                                t.has_fingerprint = true;
+                                t.registered_at = (data.user && data.user.registered_at) ? data.user.registered_at : 'Baru saja';
+                            }
+
+                            this.enrollSamples = [];
+                        } else {
+                            this.enrollStatus = 'error';
+                            this.enrollMessage = data.message || 'Perekaman gagal. Silakan coba tempelkan jari kembali.';
+                            this.playAudio('error');
+                        }
+                    } catch(err) {
+                        console.error('Enrollment submit error:', err);
+                        this.enrollStatus = 'error';
+                        this.enrollMessage = 'Gagal menyimpan template biometrik ke server. Periksa koneksi internet.';
+                        this.playAudio('error');
+                    }
+                },
+
+                // 5. Server-Sent Events (SSE) Live Broadcast Stream
+                initLiveAttendanceStream() {
+                    try {
+                        if (window.EventSource) {
+                            this.sseSource = new EventSource('{{ route('admin.teacher-attendances.stream') }}');
+
+                            this.sseSource.addEventListener('attendance_recorded', (e) => {
+                                const eventData = JSON.parse(e.data);
+                                if (eventData) {
+                                    this.prependLiveAttendance({
+                                        name: eventData.teacher_name,
+                                        time: eventData.time,
+                                        action: eventData.session || eventData.status_label,
+                                        method: eventData.method_label
+                                    });
+                                }
+                            });
+
+                            this.sseSource.onerror = () => {
+                                // Auto reconnects natively in browser EventSource
+                            };
+                        }
+                    } catch(e) {}
+                },
+
+                // Log hardware telemetry event to server
+                async logHardwareEvent(event, details = {}) {
+                    try {
+                        await fetch('{{ route('admin.teacher-attendances.fingerprint.device-event') }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                event: event,
+                                device_name: this.deviceName,
+                                details: details
+                            })
+                        });
+                    } catch(e) {}
+                },
+
+                prependLiveAttendance(item) {
+                    const container = document.getElementById('liveAttendanceList');
+                    if (container) {
+                        const div = document.createElement('div');
+                        div.className = 'p-3 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 flex items-center justify-between text-xs transition-all animate-pulse';
+                        div.innerHTML = `
+                            <div class='flex items-center space-x-3'>
+                                <div class='w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs'>
+                                    ✓
+                                </div>
+                                <div>
+                                    <div class='font-bold text-white'>${item.name}</div>
+                                    <div class='text-[10px] text-emerald-400 font-mono'>${item.method} • ${item.action}</div>
+                                </div>
+                            </div>
+                            <span class='font-mono font-bold text-white bg-slate-800 px-2 py-1 rounded-lg border border-slate-700'>${item.time}</span>
+                        `;
+                        container.prepend(div);
+                    }
+                }
+            }));
         }
     }
-}">
+
+    if (window.Alpine) {
+        registerFingerprintTerminal();
+    } else {
+        document.addEventListener('alpine:init', registerFingerprintTerminal);
+    }
+</script>
+
+<body class="min-h-screen flex flex-col justify-between antialiased selection:bg-emerald-500 selection:text-white"
+      x-data="fingerprintTerminal">
 
     <!-- Top Navigation Header -->
     <header class="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 px-6 py-4 sticky top-0 z-30">
