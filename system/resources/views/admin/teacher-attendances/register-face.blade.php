@@ -77,12 +77,62 @@
         this.startCamera();
     },
 
+    extractFaceDescriptor(canvas) {
+        try {
+            const w = 128;
+            const h = 128;
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = w;
+            tempCanvas.height = h;
+            const tCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+            
+            const srcW = canvas.width;
+            const srcH = canvas.height;
+            const cropSize = Math.min(srcW, srcH) * 0.65;
+            const sx = (srcW - cropSize) / 2;
+            const sy = (srcH - cropSize) / 2;
+            
+            tCtx.drawImage(canvas, sx, sy, cropSize, cropSize, 0, 0, w, h);
+            const imgData = tCtx.getImageData(0, 0, w, h).data;
+            
+            const descriptor = [];
+            const blockSize = 16;
+            for (let by = 0; by < 8; by++) {
+                for (let bx = 0; bx < 8; bx++) {
+                    let lumSum = 0;
+                    let rgSum = 0;
+                    let count = 0;
+                    for (let y = by * blockSize; y < (by + 1) * blockSize; y += 2) {
+                        for (let x = bx * blockSize; x < (bx + 1) * blockSize; x += 2) {
+                            const idx = (y * w + x) * 4;
+                            const r = imgData[idx];
+                            const g = imgData[idx + 1];
+                            const b = imgData[idx + 2];
+                            const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+                            const rg = (r - g) / 255;
+                            lumSum += lum;
+                            rgSum += rg;
+                            count++;
+                        }
+                    }
+                    const avgLum = count > 0 ? (lumSum / count) * 2 - 1 : 0;
+                    const avgRg = count > 0 ? (rgSum / count) * 2 : 0;
+                    descriptor.push(Number(avgLum.toFixed(6)));
+                    descriptor.push(Number(avgRg.toFixed(6)));
+                }
+            }
+            return descriptor;
+        } catch (e) {
+            return Array.from({length: 128}, () => 0.0);
+        }
+    },
+
     async submitFaceId() {
         if (!this.selectedTeacherId || !this.capturedPhoto) return;
         this.regStatus = 'saving';
 
-        // 128-d biometrics vector for AI matcher compatibility
-        const dummyDescriptor = Array.from({length: 128}, () => (Math.random() * 2 - 1).toFixed(6));
+        const canvas = document.getElementById('teacherFaceCanvas');
+        const descriptor = canvas ? this.extractFaceDescriptor(canvas) : Array.from({length: 128}, () => 0.0);
 
         try {
             const response = await fetch('{{ route('admin.teacher-attendances.register-face') }}', {
@@ -95,7 +145,7 @@
                 body: JSON.stringify({
                     user_id: this.selectedTeacherId,
                     face_photo: this.capturedPhoto,
-                    face_descriptor: JSON.stringify(dummyDescriptor)
+                    face_descriptor: JSON.stringify(descriptor)
                 })
             });
 
