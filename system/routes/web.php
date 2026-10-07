@@ -666,6 +666,7 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
 
         Route::post('teacher-attendances', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'store'])->name('teacher-attendances.store');
         Route::post('teacher-attendances/register-face', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'registerFace'])->name('teacher-attendances.register-face');
+        Route::delete('teacher-attendances/face/{id}', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'deleteFace'])->name('teacher-attendances.destroy-face');
         Route::post('teacher-attendances/verify-face', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'verifyFace'])->name('teacher-attendances.verify-face');
 
         // Teacher Attendance Settings Module

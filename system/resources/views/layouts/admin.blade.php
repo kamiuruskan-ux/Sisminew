@@ -1101,6 +1101,9 @@
                                 @endif
                                 @if(auth()->user()->hasRole(['super-admin', 'admin', 'operator', 'kepala-sekolah']))
                                     <a href="{{ route('admin.teacher-attendances.fingerprint') }}" class="nav-link text-xs {{ request()->routeIs('admin.teacher-attendances.fingerprint') ? 'nav-link-active' : '' }}">Scanner Sidik Jari USB</a>
+                                    <a href="{{ route('admin.teacher-attendances.register-face-page') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.teacher-attendances.register-face-page') ? 'nav-link-active' : '' }}">
+                                        <span>Daftar Face ID Guru</span>
+                                    </a>
                                     <a href="{{ route('admin.teacher-attendances.scan') }}" target="_blank" rel="noopener" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.teacher-attendances.scan') ? 'nav-link-active' : '' }}">
                                         <span>Scanner Face ID Guru</span>
                                         <svg class="w-3 h-3 text-indigo-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>

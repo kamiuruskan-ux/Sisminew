@@ -1,50 +1,91 @@
 @extends('layouts.admin')
 
-@section('title', 'Registrasi Face ID Guru & Staff')
-@section('page_title', 'Registrasi Face ID Biometrik')
+@section('title', 'Daftar & Registrasi Face ID Guru & Staf')
+@section('page_title', 'Direktori & Registrasi Face ID Guru & Staf')
 
 @section('content')
 <div class="space-y-6" x-data="{
-    faceRegUser: '{{ $selectedTeacherId ?? '' }}',
-    faceRegPhoto: '',
-    faceRegStatus: 'idle', // 'idle', 'saving', 'done'
-    searchQuery: '',
+    modalOpen: false,
+    selectedTeacherId: '{{ $selectedTeacherId ?? '' }}',
+    selectedTeacherName: '',
+    capturedPhoto: '',
+    regStatus: 'idle', // 'idle', 'capturing', 'saving', 'success'
+    teacherSearch: '',
+    searchOpen: false,
+    teachersList: {{ json_encode($allTeachersForSelect) }},
 
     init() {
+        @if(!empty($selectedTeacherId))
+            const initTarget = this.teachersList.find(t => String(t.id) === String('{{ $selectedTeacherId }}'));
+            if (initTarget) {
+                this.openRegisterModal(initTarget.id, initTarget.name);
+            }
+        @endif
+    },
+
+    openRegisterModal(teacherId = '', teacherName = '') {
+        this.selectedTeacherId = teacherId;
+        this.selectedTeacherName = teacherName;
+        this.capturedPhoto = '';
+        this.regStatus = 'idle';
+        this.modalOpen = true;
         this.startCamera();
+    },
+
+    closeRegisterModal() {
+        this.stopCamera();
+        this.modalOpen = false;
     },
 
     startCamera() {
         this.$nextTick(() => {
-            const video = document.getElementById('faceRegVideo');
+            const video = document.getElementById('teacherFaceVideo');
             if (video && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } })
                     .then(stream => { video.srcObject = stream; })
-                    .catch(err => console.log('Camera error:', err));
+                    .catch(err => {
+                        console.error('Camera access error:', err);
+                    });
             }
         });
     },
 
-    captureFace() {
-        const video = document.getElementById('faceRegVideo');
-        const canvas = document.getElementById('faceRegCanvas');
+    stopCamera() {
+        const video = document.getElementById('teacherFaceVideo');
+        if (video && video.srcObject) {
+            const stream = video.srcObject;
+            const tracks = stream.getTracks();
+            tracks.forEach(track => track.stop());
+            video.srcObject = null;
+        }
+    },
+
+    capturePhoto() {
+        const video = document.getElementById('teacherFaceVideo');
+        const canvas = document.getElementById('teacherFaceCanvas');
         if (video && canvas) {
             const ctx = canvas.getContext('2d');
             canvas.width = video.videoWidth || 640;
             canvas.height = video.videoHeight || 480;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            this.faceRegPhoto = canvas.toDataURL('image/jpeg', 0.90);
+            this.capturedPhoto = canvas.toDataURL('image/jpeg', 0.90);
         }
     },
 
-    async submitFaceRegister() {
-        if (!this.faceRegUser || !this.faceRegPhoto) return;
-        this.faceRegStatus = 'saving';
+    retakePhoto() {
+        this.capturedPhoto = '';
+        this.startCamera();
+    },
 
+    async submitFaceId() {
+        if (!this.selectedTeacherId || !this.capturedPhoto) return;
+        this.regStatus = 'saving';
+
+        // 128-d biometrics vector for AI matcher compatibility
         const dummyDescriptor = Array.from({length: 128}, () => (Math.random() * 2 - 1).toFixed(6));
 
         try {
-            const res = await fetch('{{ route('admin.teacher-attendances.register-face') }}', {
+            const response = await fetch('{{ route('admin.teacher-attendances.register-face') }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -52,228 +93,383 @@
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    user_id: this.faceRegUser,
-                    face_photo: this.faceRegPhoto,
+                    user_id: this.selectedTeacherId,
+                    face_photo: this.capturedPhoto,
                     face_descriptor: JSON.stringify(dummyDescriptor)
                 })
             });
-            const data = await res.json();
+
+            const data = await response.json();
             if (data.success) {
-                this.faceRegStatus = 'done';
+                this.regStatus = 'success';
                 alert(data.message);
                 window.location.reload();
             } else {
-                this.faceRegStatus = 'idle';
-                alert(data.message || 'Gagal meregistrasi Face ID.');
+                this.regStatus = 'idle';
+                alert(data.message || 'Gagal meregistrasi Face ID Guru.');
             }
         } catch (err) {
-            this.faceRegStatus = 'idle';
-            alert('Terjadi kesalahan server: ' + err.message);
+            this.regStatus = 'idle';
+            alert('Terjadi kesalahan koneksi server: ' + err.message);
         }
+    },
+
+    get filteredTeachersModal() {
+        if (!this.teacherSearch) return this.teachersList;
+        const q = this.teacherSearch.toLowerCase();
+        return this.teachersList.filter(t => 
+            t.name.toLowerCase().includes(q) || 
+            t.nip.toLowerCase().includes(q) ||
+            t.role.toLowerCase().includes(q)
+        );
+    },
+
+    get selectedTeacherLabel() {
+        const found = this.teachersList.find(t => String(t.id) === String(this.selectedTeacherId));
+        if (!found) return '-- Pilih Guru / Staff Target --';
+        return found.name + ' (' + found.role + ')';
     }
 }">
 
-    <!-- Header Actions -->
+    <!-- Page Header & Actions -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-extrabold text-[#1C2434] dark:text-white tracking-tight">Registrasi Face ID Biometrik Guru & Staff</h1>
+            <h1 class="text-2xl font-extrabold text-[#1C2434] dark:text-white tracking-tight flex items-center gap-2.5">
+                <div class="p-2 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    </svg>
+                </div>
+                <span>Daftar & Registrasi Face ID Guru & Staf</span>
+            </h1>
             <p class="text-xs text-[#64748B] dark:text-[#8A99AD] mt-1">
-                Pendaftaran & ekstraksi matriks biometrik 128-titik wajah untuk presensi berbasis AI.
+                Kelola data sampel foto biometrik wajah guru & tenaga kependidikan untuk integrasi Presensi Otomatis & Scanner AI.
             </p>
         </div>
         <div class="flex items-center space-x-3">
+            <a href="{{ route('admin.teacher-attendances.fingerprint') }}"
+               class="inline-flex items-center space-x-1.5 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition border border-slate-700">
+                <span>⚡ Scanner Sidik Jari USB</span>
+            </a>
             <a href="{{ route('admin.teacher-attendances.scan') }}" target="_blank" rel="noopener"
-               class="inline-flex items-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-indigo-600/30">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                <span>Buka Scanner Face ID ↗</span>
+               class="inline-flex items-center space-x-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-emerald-600/20 border border-emerald-500/30">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                <span>Scanner Face ID Guru ↗</span>
             </a>
-            <a href="{{ route('admin.teacher-attendances.index') }}"
-               class="inline-flex items-center space-x-1.5 px-4 py-2.5 bg-slate-100 dark:bg-[#1A222C] hover:bg-slate-200 text-[#1C2434] dark:text-white text-xs font-bold rounded-xl transition border border-[#E2E8F0] dark:border-[#2E3A47]">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                <span>Kembali ke Presensi</span>
-            </a>
+            <button type="button" @click="openRegisterModal()"
+                    class="inline-flex items-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-indigo-600/30 border border-indigo-500/30 cursor-pointer">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>
+                <span>+ Registrasi Face ID Guru</span>
+            </button>
         </div>
     </div>
 
-    <!-- Main Content 2-Column Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-        <!-- Left Column: Face Enrollment Viewport (7 Cols) -->
-        <div class="lg:col-span-7 space-y-5">
-            <div class="tailadmin-card p-6 space-y-4">
-                <h3 class="text-base font-extrabold text-[#1C2434] dark:text-white flex items-center space-x-2">
-                    <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                    <span>Form Pendaftaran Wajah Pendidik</span>
-                </h3>
-
-                <!-- Searchable Teacher Combobox -->
-                <div x-data="{
-                    searchOpen: false,
-                    teacherSearch: '',
-                    teachersList: {{ json_encode($teachers->map(fn($t) => [
-                        'id' => $t->id,
-                        'name' => $t->name,
-                        'email' => $t->email,
-                        'nip' => $t->nip ? 'NIP: ' . $t->nip : '',
-                        'homeroom' => $t->homeroomClasses->pluck('name')->implode(', '),
-                        'is_registered' => !empty($t->face_photo)
-                    ])) }},
-                    get selectedTeacherName() {
-                        const found = this.teachersList.find(t => t.id == faceRegUser);
-                        if (!found) return '-- Pilih Guru / Staff (Ketik nama, NIP, atau email) --';
-                        let label = found.name;
-                        if (found.nip) label += ' • ' + found.nip;
-                        if (found.homeroom) label += ' • Kelas ' + found.homeroom;
-                        return label;
-                    },
-                    get filteredTeachers() {
-                        if (!this.teacherSearch) return this.teachersList;
-                        return this.teachersList.filter(t => 
-                            t.name.toLowerCase().includes(this.teacherSearch.toLowerCase()) || 
-                            t.email.toLowerCase().includes(this.teacherSearch.toLowerCase()) ||
-                            t.nip.toLowerCase().includes(this.teacherSearch.toLowerCase()) ||
-                            t.homeroom.toLowerCase().includes(this.teacherSearch.toLowerCase())
-                        );
-                    }
-                }" class="relative">
-                    <label class="block text-xs font-bold text-[#64748B] dark:text-[#8A99AD] mb-1.5 uppercase tracking-wider">Pilih Guru / Staff Tendik</label>
-
-                    <button type="button" @click="searchOpen = !searchOpen" 
-                            class="w-full bg-[#F8FAFC] dark:bg-[#1A222C] border border-[#E2E8F0] dark:border-[#2E3A47] text-xs font-bold rounded-xl p-3 text-left text-[#1C2434] dark:text-white flex items-center justify-between shadow-xs">
-                        <span x-text="selectedTeacherName" class="truncate"></span>
-                        <svg class="w-4 h-4 text-slate-400 shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    </button>
-
-                    <!-- Dropdown Search Panel -->
-                    <div x-show="searchOpen" @click.outside="searchOpen = false" x-cloak
-                         class="absolute z-50 mt-1 w-full bg-white dark:bg-[#24303F] border border-[#E2E8F0] dark:border-[#2E3A47] rounded-2xl shadow-2xl p-2.5 space-y-2 max-h-72 flex flex-col">
-                        <div class="relative">
-                            <input type="text" x-model="teacherSearch" placeholder="Cari nama, NIP, email, atau Wali Kelas..." 
-                                   class="w-full bg-[#F8FAFC] dark:bg-[#1A222C] border border-[#E2E8F0] dark:border-[#2E3A47] text-xs rounded-xl p-2.5 pl-8 text-[#1C2434] dark:text-white focus:outline-none focus:border-indigo-600">
-                            <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        </div>
-
-                        <div class="overflow-y-auto space-y-1 flex-1">
-                            <template x-for="t in filteredTeachers" :key="t.id">
-                                <button type="button" @click="faceRegUser = t.id; searchOpen = false" 
-                                        :class="faceRegUser == t.id ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-300 font-bold' : 'hover:bg-slate-50 dark:hover:bg-[#1A222C] text-[#1C2434] dark:text-white font-medium'"
-                                        class="w-full text-left p-2.5 rounded-xl text-xs flex items-center justify-between transition">
-                                    <div>
-                                        <p class="font-bold" x-text="t.name"></p>
-                                        <div class="flex items-center space-x-2 text-[10px] text-slate-400 mt-0.5">
-                                            <span x-show="t.nip" x-text="t.nip"></span>
-                                            <span x-show="t.nip && t.homeroom">•</span>
-                                            <span x-show="t.homeroom" class="text-purple-600 dark:text-purple-400 font-bold" x-text="t.homeroom"></span>
-                                        </div>
-                                    </div>
-                                    <span :class="t.is_registered ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'" class="px-2 py-0.5 rounded-full text-[9px] font-extrabold shrink-0" x-text="t.is_registered ? 'Terdaftar' : 'Belum'"></span>
-                                </button>
-                            </template>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Camera Viewport with Biometric Facial HUD Reticle Overlay -->
-                <div class="relative w-full h-80 bg-slate-950 rounded-2xl overflow-hidden flex items-center justify-center border-2 border-indigo-500/40 shadow-2xl">
-                    <template x-if="!faceRegPhoto">
-                        <video id="faceRegVideo" autoplay playsinline class="w-full h-full object-cover"></video>
-                    </template>
-                    <template x-if="faceRegPhoto">
-                        <img :src="faceRegPhoto" class="w-full h-full object-cover rounded-2xl">
-                    </template>
-                    <canvas id="faceRegCanvas" class="hidden"></canvas>
-
-                    <!-- Facial Mesh HUD Reticle -->
-                    <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
-                        <div class="w-52 h-64 border-2 border-dashed border-indigo-400/80 rounded-[50%] flex items-center justify-center shadow-[0_0_25px_rgba(99,102,241,0.35)] animate-pulse">
-                            <div class="w-2.5 h-2.5 bg-indigo-500 rounded-full shadow-[0_0_12px_rgba(99,102,241,0.9)]"></div>
-                        </div>
-                    </div>
-
-                    <!-- Camera Trigger Action Overlay -->
-                    <div class="absolute bottom-4 inset-x-0 flex justify-center">
-                        <button type="button" @click="faceRegPhoto ? (faceRegPhoto = '') : captureFace()"
-                                class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full text-xs font-bold shadow-lg flex items-center space-x-2 transition cursor-pointer">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                            <span x-text="faceRegPhoto ? 'Foto Ulang' : 'Ekstrak Fitur Biometrik Wajah'"></span>
-                        </button>
-                    </div>
-                </div>
-
-                <p class="text-xs text-[#64748B] dark:text-[#8A99AD] text-center leading-relaxed">
-                    Pastikan wajah berada tepat di tengah retikel dan pencahayaan ruangan cukup terang agar ekstrasi fitur 128-titik biometrik menghasilkan akurasi terbaik.
-                </p>
-
-                <!-- Action Button -->
-                <div class="pt-2 flex justify-end">
-                    <button type="button" @click="submitFaceRegister()" :disabled="!faceRegUser || !faceRegPhoto || faceRegStatus === 'saving'" :class="(faceRegUser && faceRegPhoto && faceRegStatus !== 'saving') ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-md' : 'bg-slate-300 opacity-50 cursor-not-allowed'" class="w-full py-3 text-xs font-extrabold rounded-xl transition flex items-center justify-center space-x-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                        <span x-text="faceRegStatus === 'saving' ? 'Merekam Fitur Biometrik...' : 'SIMPAN DATA FACE ID GURU'"></span>
-                    </button>
-                </div>
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="tailadmin-card p-5 border-l-4 border-blue-500 flex items-center justify-between">
+            <div>
+                <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Guru & Tendik</p>
+                <h3 class="text-2xl font-black text-[#1C2434] dark:text-white mt-1">{{ number_format($totalTeachers) }}</h3>
+            </div>
+            <div class="p-3 bg-blue-50 dark:bg-blue-950/40 text-blue-600 rounded-2xl">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
             </div>
         </div>
 
-        <!-- Right Column: Teachers Face ID Status Directory (5 Cols) -->
-        <div class="lg:col-span-5 space-y-4">
-            <div class="tailadmin-card p-6 space-y-4">
-                <div class="flex items-center justify-between pb-3 border-b border-[#E2E8F0] dark:border-[#2E3A47]">
-                    <h3 class="text-sm font-extrabold text-[#1C2434] dark:text-white uppercase tracking-wider">Status Registrasi Face ID</h3>
-                    <span class="px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-300 text-[10px] font-bold">
-                        {{ $teachers->where('face_photo', '!=', null)->count() }} / {{ $teachers->count() }} Terdaftar
-                    </span>
+        <div class="tailadmin-card p-5 border-l-4 border-emerald-500 flex items-center justify-between">
+            <div>
+                <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Face ID Terdaftar</p>
+                <h3 class="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">{{ number_format($registeredCount) }}</h3>
+            </div>
+            <div class="p-3 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 rounded-2xl">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+        </div>
+
+        <div class="tailadmin-card p-5 border-l-4 border-amber-500 flex items-center justify-between">
+            <div>
+                <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Belum Registrasi</p>
+                <h3 class="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">{{ number_format($unregisteredCount) }}</h3>
+            </div>
+            <div class="p-3 bg-amber-50 dark:bg-amber-950/40 text-amber-600 rounded-2xl">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            </div>
+        </div>
+
+        <div class="tailadmin-card p-5 border-l-4 border-purple-500 flex items-center justify-between">
+            <div>
+                <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Cakupan Biometrik Face ID</p>
+                <h3 class="text-2xl font-black text-purple-600 dark:text-purple-400 mt-1">{{ $registrationPercentage }}%</h3>
+            </div>
+            <div class="p-3 bg-purple-50 dark:bg-purple-950/40 text-purple-600 rounded-2xl">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter & Search Section -->
+    <div class="tailadmin-card p-4 sm:p-5">
+        <form method="GET" action="{{ route('admin.teacher-attendances.register-face-page') }}" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <!-- Search Keyword -->
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Cari Guru / Pegawai</label>
+                <div class="relative">
+                    <input type="text" 
+                           name="search" 
+                           value="{{ $search }}" 
+                           placeholder="Ketik Nama / NIP / Email..."
+                           @input.debounce.400ms="$el.closest('form').submit()"
+                           x-init="if ('{{ $search }}') { $el.focus(); $el.setSelectionRange($el.value.length, $el.value.length); }"
+                           class="w-full bg-slate-50 dark:bg-[#1A222C] border border-slate-200 dark:border-slate-800 text-xs rounded-xl p-2.5 pl-9 pr-8 text-[#1C2434] dark:text-white focus:outline-none focus:border-indigo-600">
+                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    @if($search)
+                        <a href="{{ route('admin.teacher-attendances.register-face-page', request()->except('search')) }}" class="absolute right-3 top-2.5 text-slate-400 hover:text-rose-500 transition font-bold text-sm" title="Hapus Pencarian">&times;</a>
+                    @endif
                 </div>
+            </div>
 
-                <!-- Search Input -->
-                <input type="text" x-model="searchQuery" placeholder="Cari nama guru..." class="w-full bg-[#F8FAFC] dark:bg-[#1A222C] border border-[#E2E8F0] dark:border-[#2E3A47] text-xs rounded-xl p-2.5 text-[#1C2434] dark:text-white">
-
-                <!-- List of Teachers -->
-                <div class="space-y-2.5 max-h-[520px] overflow-y-auto pr-1">
-                    @foreach($teachers as $t)
-                        <div x-show="!searchQuery || '{{ strtolower(addslashes($t->name)) }}'.includes(searchQuery.toLowerCase())"
-                             @click="faceRegUser = '{{ $t->id }}'"
-                             :class="faceRegUser == '{{ $t->id }}' ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30' : 'border-[#E2E8F0] dark:border-[#2E3A47] hover:bg-slate-50 dark:hover:bg-[#1A222C]/50'"
-                             class="p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 font-extrabold flex items-center justify-center text-xs border border-purple-500/20 shrink-0 overflow-hidden">
-                                    @if($t->face_photo)
-                                        <img src="{{ \Illuminate\Support\Str::startsWith($t->face_photo, 'img/') ? asset($t->face_photo) : asset('img/face_id/' . $t->face_photo) }}" class="w-full h-full object-cover">
-                                    @else
-                                        {{ strtoupper(substr($t->name, 0, 2)) }}
-                                    @endif
-                                </div>
-                                <div>
-                                    <p class="font-bold text-xs text-[#1C2434] dark:text-white">{{ $t->name }}</p>
-                                    <div class="flex flex-wrap items-center gap-1.5 mt-0.5">
-                                        @if($t->nip)
-                                            <span class="text-[10px] text-[#64748B] dark:text-[#8A99AD] font-mono">NIP: {{ $t->nip }}</span>
-                                        @endif
-                                        @if($t->homeroomClasses->count() > 0)
-                                            <span class="px-2 py-0.5 bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-300 font-extrabold text-[9px] rounded-md border border-purple-200 dark:border-purple-800">
-                                                Kelas {{ $t->homeroomClasses->pluck('name')->implode(', ') }}
-                                            </span>
-                                        @endif
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div>
-                                @if($t->face_photo)
-                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                                        Face ID Terdaftar
-                                    </span>
-                                @else
-                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-slate-100 dark:bg-[#1A222C] text-slate-500 border border-slate-200 dark:border-slate-700">
-                                        Belum Terdaftar
-                                    </span>
-                                @endif
-                            </div>
-                        </div>
+            <!-- Role / Peran Select -->
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Peran / Posisi</label>
+                <select name="role" @change="$el.closest('form').submit()" class="w-full bg-slate-50 dark:bg-[#1A222C] border border-slate-200 dark:border-slate-800 text-xs rounded-xl p-2.5 text-[#1C2434] dark:text-white focus:outline-none focus:border-indigo-600">
+                    <option value="">-- Semua Peran Guru & Pegawai --</option>
+                    @foreach($allRoles as $r)
+                        <option value="{{ $r->slug ?? $r->name }}" {{ ($role === ($r->slug ?? $r->name)) ? 'selected' : '' }}>
+                            {{ $r->name }}
+                        </option>
                     @endforeach
-                </div>
+                </select>
             </div>
+
+            <!-- Status Face ID Filter -->
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Status Face ID</label>
+                <select name="status" @change="$el.closest('form').submit()" class="w-full bg-slate-50 dark:bg-[#1A222C] border border-slate-200 dark:border-slate-800 text-xs rounded-xl p-2.5 text-[#1C2434] dark:text-white focus:outline-none focus:border-indigo-600">
+                    <option value="">-- Semua Status --</option>
+                    <option value="registered" {{ $status === 'registered' ? 'selected' : '' }}>Sudah Terdaftar Face ID</option>
+                    <option value="unregistered" {{ $status === 'unregistered' ? 'selected' : '' }}>Belum Registrasi</option>
+                </select>
+            </div>
+        </form>
+    </div>
+
+    <!-- Teacher Cards Grid Directory (Matching Student UI) -->
+    @if($teachers->count() > 0)
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            @foreach($teachers as $teacher)
+                @php
+                    $isRegistered = !empty($teacher->face_photo);
+                    $facePhotoUrl = $isRegistered ? asset('img/face_id/' . $teacher->face_photo) : null;
+                    $teacherAvatar = $teacher->photo 
+                        ? (\Illuminate\Support\Str::startsWith($teacher->photo, 'img/') ? asset($teacher->photo) : asset('img/' . $teacher->photo)) 
+                        : null;
+                    $rolesList = $teacher->roles->pluck('name')->implode(', ');
+                    $roleLabel = $rolesList ?: ($teacher->jabatan ?: 'Guru / Pegawai');
+                @endphp
+                <div class="tailadmin-card p-4 flex flex-col justify-between space-y-3 relative group hover:border-indigo-500/50 transition-all duration-200 shadow-xs">
+                    <div class="space-y-3 text-center">
+                        <!-- Teacher Photo & Status Badge -->
+                        <div class="relative w-24 h-24 mx-auto rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border-2 {{ $isRegistered ? 'border-emerald-500 shadow-md shadow-emerald-500/20' : 'border-slate-300 dark:border-slate-700' }}">
+                            @if($isRegistered)
+                                <img src="{{ $facePhotoUrl }}" alt="{{ $teacher->name }}" class="w-full h-full object-cover">
+                                <div class="absolute bottom-1 right-1 bg-emerald-500 text-white p-1 rounded-full text-[9px] shadow-sm" title="Terverifikasi">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                </div>
+                            @elseif($teacherAvatar)
+                                <img src="{{ $teacherAvatar }}" alt="{{ $teacher->name }}" class="w-full h-full object-cover grayscale opacity-75">
+                                <div class="absolute inset-0 bg-slate-900/40 flex items-center justify-center text-white">
+                                    <svg class="w-6 h-6 opacity-80" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>
+                                </div>
+                            @else
+                                <div class="w-full h-full flex flex-col items-center justify-center bg-slate-800 text-slate-400">
+                                    <svg class="w-8 h-8 opacity-60" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                </div>
+                            @endif
+                        </div>
+
+                        <!-- Name & NIP -->
+                        <div>
+                            <h4 class="text-xs font-extrabold text-[#1C2434] dark:text-white line-clamp-1 truncate" title="{{ $teacher->name }}">
+                                {{ $teacher->name }}
+                            </h4>
+                            <p class="text-[10px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">
+                                NIP: {{ $teacher->nip ?? '-' }}
+                            </p>
+                            <div class="mt-1">
+                                <span class="px-2 py-0.5 bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300 font-extrabold text-[9px] rounded-md truncate max-w-full inline-block">
+                                    {{ $roleLabel }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status Info & Actions -->
+                    <div class="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                        @if($isRegistered)
+                            <div class="text-[9px] text-center text-emerald-600 dark:text-emerald-400 font-extrabold flex items-center justify-center space-x-1">
+                                <span>Terdaftar: {{ optional($teacher->face_registered_at)->format('d/m/Y') ?? 'Aktif' }}</span>
+                            </div>
+                            <div class="flex items-center space-x-1">
+                                <button type="button" @click="openRegisterModal('{{ $teacher->id }}', '{{ addslashes($teacher->name) }}')"
+                                        class="w-full py-1.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 text-indigo-600 dark:text-indigo-300 text-[10px] font-bold rounded-lg transition text-center cursor-pointer">
+                                    Update Face ID
+                                </button>
+                                <form action="{{ route('admin.teacher-attendances.destroy-face', $teacher->id) }}" method="POST" onsubmit="return confirm('Hapus data Face ID untuk {{ addslashes($teacher->name) }}?');" class="shrink-0">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="p-1.5 bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 hover:bg-rose-100 rounded-lg transition cursor-pointer" title="Hapus Face ID">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    </button>
+                                </form>
+                            </div>
+                        @else
+                            <button type="button" @click="openRegisterModal('{{ $teacher->id }}', '{{ addslashes($teacher->name) }}')"
+                                    class="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-lg transition text-center shadow-xs cursor-pointer">
+                                + Scan Face ID
+                            </button>
+                        @endif
+                    </div>
+                </div>
+            @endforeach
         </div>
 
+        <div class="mt-4">
+            {{ $teachers->links() }}
+        </div>
+    @else
+        <div class="tailadmin-card p-12 text-center space-y-3">
+            <div class="w-16 h-16 bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-full flex items-center justify-center mx-auto">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            </div>
+            <h3 class="text-base font-bold text-[#1C2434] dark:text-white">Tidak ada data guru & staf ditemukan</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                Coba sesuaikan kata kunci pencarian atau filter peran yang Anda pilih.
+            </p>
+        </div>
+    @endif
+
+    <!-- Webcam Face ID Registration Modal (Matching Student UI) -->
+    <div x-show="modalOpen" x-cloak
+         class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-4">
+        <div @click.outside="closeRegisterModal()"
+             class="bg-white dark:bg-[#1C2434] border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 space-y-5 shadow-2xl relative">
+            
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div class="flex items-center space-x-2.5">
+                    <div class="p-2 bg-indigo-500/10 text-indigo-600 rounded-xl">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-extrabold text-[#1C2434] dark:text-white">Perekaman Wajah (Face ID Guru & Staf)</h3>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Posisikan wajah tepat pada garis pandu retikel kamera.</p>
+                    </div>
+                </div>
+                <button type="button" @click="closeRegisterModal()" class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-xl cursor-pointer">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <!-- Teacher Combobox Search Select -->
+            <div class="relative">
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Target Guru / Pegawai</label>
+                <button type="button" @click="searchOpen = !searchOpen"
+                        class="w-full bg-slate-50 dark:bg-[#1A222C] border border-slate-200 dark:border-slate-800 text-xs font-bold rounded-xl p-3 text-left text-[#1C2434] dark:text-white flex items-center justify-between cursor-pointer">
+                    <span x-text="selectedTeacherLabel" class="truncate"></span>
+                    <svg class="w-4 h-4 text-slate-400 shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+
+                <div x-show="searchOpen" @click.outside="searchOpen = false" x-cloak
+                     class="absolute z-50 mt-1 w-full bg-white dark:bg-[#24303F] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-2 space-y-2 max-h-60 flex flex-col">
+                    <input type="text" x-model="teacherSearch" placeholder="Cari nama guru / NIP / peran..."
+                           class="w-full bg-slate-50 dark:bg-[#1A222C] border border-slate-200 dark:border-slate-800 text-xs rounded-xl p-2 text-[#1C2434] dark:text-white focus:outline-none focus:border-indigo-600">
+                    <div class="overflow-y-auto space-y-1 flex-1">
+                        <template x-for="t in filteredTeachersModal" :key="t.id">
+                            <button type="button" @click="selectedTeacherId = t.id; selectedTeacherName = t.name; searchOpen = false"
+                                    :class="selectedTeacherId == t.id ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-300 font-bold' : 'hover:bg-slate-50 dark:hover:bg-[#1A222C] text-[#1C2434] dark:text-white font-medium'"
+                                    class="w-full text-left p-2 rounded-xl text-xs flex items-center justify-between transition cursor-pointer">
+                                <div>
+                                    <p class="font-bold" x-text="t.name"></p>
+                                    <p class="text-[10px] text-slate-400" x-text="t.role + ' • ' + (t.nip || '-')"></p>
+                                </div>
+                                <span :class="t.is_registered ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'" class="px-2 py-0.5 rounded-full text-[9px] font-extrabold" x-text="t.is_registered ? 'Sudah ID' : 'Belum'"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Webcam Preview & Canvas Reticle HUD -->
+            <div class="relative w-full h-72 bg-slate-950 rounded-2xl overflow-hidden border-2 border-indigo-500/30 flex items-center justify-center shadow-inner">
+                <template x-if="!capturedPhoto">
+                    <div class="w-full h-full relative">
+                        <video id="teacherFaceVideo" autoplay playsinline class="w-full h-full object-cover transform -scale-x-100"></video>
+
+                        <!-- HUD Reticle Overlay -->
+                        <div class="absolute inset-0 border-2 border-indigo-500/20 pointer-events-none flex items-center justify-center">
+                            <div class="w-48 h-56 border-2 border-dashed border-indigo-400/80 rounded-[50%] animate-pulse flex items-center justify-center">
+                                <div class="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                            </div>
+                        </div>
+
+                        <!-- Instructions Overlay -->
+                        <div class="absolute bottom-3 left-0 right-0 text-center">
+                            <span class="px-3 py-1 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold rounded-full border border-white/10">
+                                Posisikan wajah di tengah lingkaran
+                            </span>
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="capturedPhoto">
+                    <div class="w-full h-full relative">
+                        <img :src="capturedPhoto" class="w-full h-full object-cover">
+                        <div class="absolute top-3 right-3 bg-emerald-500 text-white px-2.5 py-1 rounded-full text-[10px] font-extrabold flex items-center space-x-1 shadow-md">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            <span>Foto Terpotret</span>
+                        </div>
+                    </div>
+                </template>
+
+                <canvas id="teacherFaceCanvas" class="hidden"></canvas>
+            </div>
+
+            <!-- Modal Action Buttons -->
+            <div class="flex items-center justify-between pt-2">
+                <button type="button" @click="closeRegisterModal()" class="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl hover:bg-slate-200 transition cursor-pointer">
+                    Batal
+                </button>
+
+                <div class="flex items-center space-x-2">
+                    <template x-if="!capturedPhoto">
+                        <button type="button" @click="capturePhoto()"
+                                :disabled="!selectedTeacherId"
+                                :class="!selectedTeacherId ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'"
+                                class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-md shadow-emerald-600/20 flex items-center space-x-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>
+                            <span>Ambil Foto Wajah</span>
+                        </button>
+                    </template>
+
+                    <template x-if="capturedPhoto">
+                        <div class="flex items-center space-x-2">
+                            <button type="button" @click="retakePhoto()" class="px-3.5 py-2.5 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl hover:bg-slate-300 transition cursor-pointer">
+                                Foto Ulang
+                            </button>
+                            <button type="button" @click="submitFaceId()"
+                                    :disabled="regStatus === 'saving'"
+                                    class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition shadow-md shadow-indigo-600/30 flex items-center space-x-1.5 cursor-pointer">
+                                <span x-show="regStatus !== 'saving'">Simpan Data Face ID</span>
+                                <span x-show="regStatus === 'saving'">Menyimpan...</span>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+        </div>
     </div>
+
 </div>
 @endsection

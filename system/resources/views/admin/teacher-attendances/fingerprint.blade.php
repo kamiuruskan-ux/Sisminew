@@ -732,6 +732,12 @@
                     <div class="text-[11px] text-slate-400 font-medium" x-text="currentDate"></div>
                 </div>
 
+                <!-- Face ID Quick Link -->
+                <a href="{{ route('admin.teacher-attendances.register-face-page') }}" class="px-3 py-2 rounded-2xl bg-indigo-950/60 hover:bg-indigo-900 text-indigo-300 hover:text-white transition border border-indigo-500/30 text-xs font-bold flex items-center gap-1.5" title="Buka Direktori & Registrasi Face ID Guru">
+                    <span>👤</span>
+                    <span class="hidden md:inline">Face ID Guru</span>
+                </a>
+
                 <!-- Fullscreen Toggle -->
                 <button type="button" @click="document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()"
                         class="p-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition border border-slate-700" title="Layar Penuh">
@@ -987,7 +993,12 @@
                                 <span>⏹️</span>
                                 <span>Stop</span>
                             </button>
-             <!-- TAB 2: MODE PEREKAMAN & PERBAIKAN SIDIK JARI -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: MODE PEREKAMAN & PERBAIKAN SIDIK JARI -->
             <div x-show="activeTab === 'enroll'" class="space-y-6">
                 <div class="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 backdrop-blur-md shadow-2xl">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-800 gap-3">

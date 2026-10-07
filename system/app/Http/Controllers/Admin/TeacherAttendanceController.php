@@ -3,19 +3,20 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Role;
+use App\Models\Setting;
 use App\Models\TeacherAttendance;
 use App\Models\User;
-use App\Models\Setting;
-use App\Services\AttendanceService;
-use App\Services\AttendanceReportService;
 use App\Repositories\Contracts\AttendanceRepositoryInterface;
+use App\Services\AttendanceReportService;
+use App\Services\AttendanceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class TeacherAttendanceController extends Controller
 {
@@ -34,14 +35,108 @@ class TeacherAttendanceController extends Controller
     }
 
     /**
-     * Dedicated Standalone Face ID Registration Page for Teachers & Staff
+     * Dedicated Directory & Registration Face ID Page for Teachers & Staff
      */
     public function registerFacePage(Request $request)
     {
-        $teachers = User::employees()->with('homeroomClasses')->orderBy('name')->get();
-        $selectedTeacherId = $request->input('user_id');
+        $baseQuery = User::employees()->with(['homeroomClasses', 'roles']);
 
-        return view('admin.teacher-attendances.register-face', compact('teachers', 'selectedTeacherId'));
+        $totalTeachers = (clone $baseQuery)->count();
+        $registeredCount = (clone $baseQuery)->whereNotNull('face_photo')->count();
+        $unregisteredCount = max(0, $totalTeachers - $registeredCount);
+        $registrationPercentage = $totalTeachers > 0 ? round(($registeredCount / $totalTeachers) * 100, 1) : 0;
+
+        $search = $request->input('search');
+        $query = clone $baseQuery;
+
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('nip', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        $status = $request->input('status');
+        if ($status === 'registered') {
+            $query->whereNotNull('face_photo');
+        } elseif ($status === 'unregistered') {
+            $query->whereNull('face_photo');
+        }
+
+        $role = $request->input('role');
+        if ($role) {
+            $query->whereHas('roles', function($q) use ($role) {
+                $q->where('name', $role)->orWhere('slug', $role);
+            });
+        }
+
+        $teachers = $query->orderBy('name')->paginate(24)->withQueryString();
+
+        // For the modal select list
+        $allTeachersForSelect = (clone $baseQuery)->orderBy('name')->get()->map(function($t) {
+            $rolesList = $t->roles->pluck('name')->implode(', ');
+            $roleLabel = $rolesList ?: ($t->jabatan ?: 'Guru / Pegawai');
+            return [
+                'id' => (string) $t->id,
+                'name' => $t->name,
+                'nip' => $t->nip ?? '-',
+                'role' => $roleLabel,
+                'is_registered' => !empty($t->face_photo),
+            ];
+        })->values();
+
+        // List of roles for filter
+        $allRoles = Role::whereNotIn('slug', ['student', 'siswa', 'calon-siswa', 'kantin', 'canteen'])
+            ->orderBy('name')
+            ->get();
+
+        $selectedTeacherId = $request->input('user_id', '');
+
+        return view('admin.teacher-attendances.register-face', compact(
+            'teachers',
+            'totalTeachers',
+            'registeredCount',
+            'unregisteredCount',
+            'registrationPercentage',
+            'allTeachersForSelect',
+            'allRoles',
+            'selectedTeacherId',
+            'search',
+            'status',
+            'role'
+        ));
+    }
+
+    /**
+     * Delete / Reset Face ID Biometric Data for a Teacher
+     */
+    public function deleteFace($id)
+    {
+        $user = User::findOrFail($id);
+
+        if ($user->face_photo) {
+            if (File::exists(public_path('img/face_id/' . $user->face_photo))) {
+                File::delete(public_path('img/face_id/' . $user->face_photo));
+            }
+            if (File::exists(public_path('uploads/face_id/' . $user->face_photo))) {
+                File::delete(public_path('uploads/face_id/' . $user->face_photo));
+            }
+            $user->face_photo = null;
+        }
+
+        $user->face_embedding = null;
+        $user->face_registered_at = null;
+        $user->save();
+
+        if (request()->wantsJson() || request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Data Face ID untuk {$user->name} berhasil dihapus."
+            ]);
+        }
+
+        return back()->with('success', "Data Face ID untuk {$user->name} berhasil dihapus.");
     }
 
     /**
