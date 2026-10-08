@@ -529,6 +529,7 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::get('halaqah/group-students', [\App\Http\Controllers\Admin\HalaqahController::class, 'getGroupStudents'])->name('halaqah.group-students');
         Route::post('halaqah/save-group', [\App\Http\Controllers\Admin\HalaqahController::class, 'saveGroup'])->name('halaqah.save-group');
         Route::get('halaqah/last-record/{studentId}', [\App\Http\Controllers\Admin\HalaqahController::class, 'getLastRecord'])->name('halaqah.last-record');
+        Route::get('halaqah/student-records/{studentId}', [\App\Http\Controllers\Admin\HalaqahController::class, 'getStudentRecords'])->name('halaqah.student-records');
         Route::get('halaqah/send-wa/{recordId}', [\App\Http\Controllers\Admin\HalaqahController::class, 'sendWa'])->name('halaqah.send-wa');
         Route::post('halaqah/target', [\App\Http\Controllers\Admin\HalaqahController::class, 'storeTarget'])->name('halaqah.target.store');
         Route::delete('halaqah/target/{id}', [\App\Http\Controllers\Admin\HalaqahController::class, 'destroyTarget'])->name('halaqah.target.destroy');

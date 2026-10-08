@@ -21,6 +21,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class HalaqahController extends Controller
 {
@@ -466,9 +469,93 @@ class HalaqahController extends Controller
             'Juz Lainnya (3-27)' => (clone $statsQuery)->whereIn('program_type', ['tahfidz', 'tilawah'])->whereNotIn('juz_number', [1, 2, 28, 29, 30])->count(),
         ];
 
+        // ── DATA MONITORING GURU & SANTRI UNTUK TAB LAPORAN ──
+        $teacherMonitoringList = collect();
+        $teachersTotalCount = 0;
+        $teachersWithInputCount = 0;
+        $teachersWithoutInputCount = 0;
+        $uninputtedStudents = collect();
+
         // Rekapitulasi Capaian Siswa di Tab Laporan
         $studentReportList = collect();
         if ($tab === 'reports') {
+            // 1. Rekapitulasi Progres & Keaktifan Input Guru
+            $monitoringTeachers = $isAdmin ? $quranTeachers : collect([$user]);
+
+            foreach ($monitoringTeachers as $t) {
+                // Santri binaan guru ini
+                $assignedQuery = QuranHalaqahMember::where('teacher_id', $t->id);
+                if ($filterGrade !== 'all' && is_numeric($filterGrade)) {
+                    $assignedQuery->where('grade', (int) $filterGrade);
+                }
+                $assignedStudentIds = $assignedQuery->pluck('student_id')->toArray();
+                $assignedCount = count($assignedStudentIds);
+
+                // Rekord yang diinput guru ini
+                $tRecordsQuery = HalaqahRecord::where('teacher_id', $t->id);
+
+                // Terapkan filter waktu
+                if ($timeFilter === 'daily' || ($request->filled('date') && !$request->filled('date_from') && !$request->filled('month') && $timeFilter !== 'all')) {
+                    if ($request->filled('date')) {
+                        $tRecordsQuery->whereDate('assessment_date', $request->date);
+                    }
+                } elseif ($timeFilter === 'monthly' || ($request->filled('month') && !$request->filled('date_from') && $timeFilter !== 'all')) {
+                    $month = (int) ($request->month ?? Carbon::now()->month);
+                    $year = (int) ($request->year ?? Carbon::now()->year);
+                    $tRecordsQuery->whereMonth('assessment_date', $month)->whereYear('assessment_date', $year);
+                } elseif ($timeFilter === 'range' || $request->filled('date_from') || $request->filled('date_to')) {
+                    if ($request->filled('date_from')) {
+                        $tRecordsQuery->whereDate('assessment_date', '>=', $request->date_from);
+                    }
+                    if ($request->filled('date_to')) {
+                        $tRecordsQuery->whereDate('assessment_date', '<=', $request->date_to);
+                    }
+                }
+
+                // Terapkan filter grade jika ada
+                if ($filterGrade !== 'all' && is_numeric($filterGrade)) {
+                    $g = (int) $filterGrade;
+                    $gClassIds = $this->getClassIdsByGrade($g);
+                    $tRecordsQuery->where(function ($q) use ($g, $gClassIds) {
+                        $q->where('grade', $g);
+                        if (!empty($gClassIds)) {
+                            $q->orWhereIn('class_id', $gClassIds);
+                        }
+                    });
+                }
+
+                $totalInputs = (clone $tRecordsQuery)->count();
+                $inputtedStudentIds = (clone $tRecordsQuery)->distinct('student_id')->pluck('student_id')->toArray();
+                
+                $assignedInputted = count(array_intersect($assignedStudentIds, $inputtedStudentIds));
+                $assignedPending = max(0, $assignedCount - $assignedInputted);
+
+                $lastRecord = HalaqahRecord::where('teacher_id', $t->id)->latest('assessment_date')->latest('id')->first();
+
+                $progressPct = $assignedCount > 0 
+                    ? round(($assignedInputted / $assignedCount) * 100) 
+                    : ($totalInputs > 0 ? 100 : 0);
+
+                $teacherMonitoringList->push([
+                    'teacher' => $t,
+                    'assigned_count' => $assignedCount,
+                    'total_inputs' => $totalInputs,
+                    'inputted_students_count' => count($inputtedStudentIds),
+                    'assigned_inputted_count' => $assignedInputted,
+                    'assigned_pending_count' => $assignedPending,
+                    'progress_pct' => $progressPct,
+                    'last_input_date' => $lastRecord?->assessment_date,
+                    'last_input_at' => $lastRecord?->created_at,
+                    'is_active' => $totalInputs > 0,
+                ]);
+            }
+
+            $teacherMonitoringList = $teacherMonitoringList->sortByDesc('total_inputs')->values();
+            $teachersTotalCount = $teacherMonitoringList->count();
+            $teachersWithInputCount = $teacherMonitoringList->where('total_inputs', '>', 0)->count();
+            $teachersWithoutInputCount = $teachersTotalCount - $teachersWithInputCount;
+
+            // 2. Rekapitulasi Capaian Siswa di Tab Laporan
             $studentReportList = (clone $statsQuery)
                 ->select(
                     'student_id',
@@ -481,6 +568,69 @@ class HalaqahController extends Controller
                 ->orderBy('total_setoran', 'desc')
                 ->paginate(20, ['*'], 'report_page')
                 ->withQueryString();
+
+            if ($studentReportList->count() > 0) {
+                $repStudentIds = $studentReportList->pluck('student_id')->toArray();
+                
+                $studentTeachers = QuranHalaqahMember::with('teacher')
+                    ->whereIn('student_id', $repStudentIds)
+                    ->get()
+                    ->keyBy('student_id');
+
+                $lastRecordsByStudent = HalaqahRecord::with('teacher')
+                    ->whereIn('student_id', $repStudentIds)
+                    ->latest('assessment_date')
+                    ->latest('id')
+                    ->get()
+                    ->groupBy('student_id');
+
+                foreach ($studentReportList as $item) {
+                    $stId = $item->student_id;
+                    $member = $studentTeachers->get($stId);
+                    $stRecs = $lastRecordsByStudent->get($stId, collect());
+                    
+                    $item->assigned_teacher = $member?->teacher ?? $stRecs->first()?->teacher;
+                    $item->last_tahsin = $stRecs->where('program_type', 'tahsin')->first();
+                    $item->last_tahfidz = $stRecs->where('program_type', 'tahfidz')->first();
+                    $item->last_record = $stRecs->first();
+                }
+            }
+
+            // 3. Santri yang BELUM Diinput dalam filter aktif
+            $inputtedStudentIdsInFilter = (clone $statsQuery)->distinct('student_id')->pluck('student_id')->toArray();
+
+            $uninputtedQuery = Student::with(['user', 'class', 'halaqahMember.teacher'])
+                ->where(function ($q) {
+                    $q->whereIn('student_status', ['active', 'Aktif'])->orWhereNull('student_status');
+                });
+
+            if ($filterGrade !== 'all' && is_numeric($filterGrade)) {
+                $g = (int) $filterGrade;
+                $gClassIds = $this->getClassIdsByGrade($g);
+                $uninputtedQuery->where(function ($q) use ($g, $gClassIds) {
+                    $q->whereIn('class_id', $gClassIds)
+                      ->orWhereHas('halaqahMember', function ($hmq) use ($g) {
+                          $hmq->where('grade', $g);
+                      });
+                });
+            }
+
+            if ($filterClassId !== 'all') {
+                $uninputtedQuery->where('class_id', (int) $filterClassId);
+            }
+
+            if (!$isAdmin || ($filterTeacherId !== 'all' && !empty($filterTeacherId))) {
+                $tId = !$isAdmin ? $user->id : (int) $filterTeacherId;
+                $uninputtedQuery->whereHas('halaqahMember', function ($hmq) use ($tId) {
+                    $hmq->where('teacher_id', $tId);
+                });
+            }
+
+            if (!empty($inputtedStudentIdsInFilter)) {
+                $uninputtedQuery->whereNotIn('id', $inputtedStudentIdsInFilter);
+            }
+
+            $uninputtedStudents = $uninputtedQuery->orderBy('class_id')->orderBy('nisn')->get();
         }
 
         // ── TAB 4: REKAP KEHADIRAN HALAQAH (MULTI-FILTER) ──
@@ -826,7 +976,12 @@ class HalaqahController extends Controller
             'attentionStudents',
             'targets',
             'tasmiExams',
-            'jilidExams'
+            'jilidExams',
+            'teacherMonitoringList',
+            'teachersTotalCount',
+            'teachersWithInputCount',
+            'teachersWithoutInputCount',
+            'uninputtedStudents'
         ));
     }
 
@@ -1098,64 +1253,416 @@ class HalaqahController extends Controller
     }
 
     /**
-     * Export Excel Matriks & Rekap Halaqah
+     * Export Excel Matriks & Rekap Halaqah (3 Lembar Kerja: Monitoring Guru, Rekap Santri, Log Rincian)
      */
     public function exportExcel(Request $request)
     {
         $user = Auth::user();
         $isAdmin = $user->hasRole(['super-admin', 'admin', 'kepala-sekolah']);
         
+        $grade = $request->get('grade', $request->get('history_grade', 'all'));
+        $timeFilter = $request->get('time_filter', 'all');
+
+        // Query Utama Catatan Riwayat sesuai Filter
         $query = HalaqahRecord::with(['student.user', 'class', 'teacher'])
             ->latest('assessment_date')
             ->latest('id');
-
         $this->applyHalaqahFilters($query, $request, $isAdmin, $user);
-
         $records = $query->get();
 
         $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle("Rekap Halaqah Qur'an");
 
-        // Header
-        $headers = ['No', 'Tanggal', 'NISN', 'Nama Santri', 'Kelas Asal', 'Kehadiran', 'Program', 'Materi / Detail', 'Nilai Kognitif', 'Nilai Adab', 'Predikat', 'Ustadz Pembimbing', 'Catatan'];
-        $col = 'A';
-        foreach ($headers as $h) {
-            $sheet->setCellValue($col . '1', $h);
-            $sheet->getColumnDimension($col)->setAutoSize(true);
-            $col++;
+        // ═════════════════════════════════════════════════════════════════════
+        // SHEET 1: MONITORING KEAKTIFAN INPUT GURU
+        // ═════════════════════════════════════════════════════════════════════
+        $sheetTeachers = $spreadsheet->getActiveSheet();
+        $sheetTeachers->setTitle("Monitoring Guru");
+
+        // Judul & Metadata
+        $sheetTeachers->setCellValue('A1', "SDIT AL-FAHMI PALU - LAPORAN MONITORING GURU HALAQAH AL-QUR'AN");
+        $sheetTeachers->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        
+        $metaText = "Tingkat Kelas: " . ($grade !== 'all' ? "Tingkat {$grade}" : "Seluruh Tingkat") . 
+                    " | Filter Waktu: " . strtoupper($timeFilter) . 
+                    " | Tanggal Ekspor: " . date('d/m/Y H:i') . 
+                    " | Diunduh oleh: " . $user->name;
+        $sheetTeachers->setCellValue('A2', $metaText);
+        $sheetTeachers->getStyle('A2')->getFont()->setItalic(true)->setSize(9)->getColor()->setRGB('64748B');
+
+        $headersGuru = [
+            'A4' => 'No',
+            'B4' => 'Nama Guru Pembimbing',
+            'C4' => 'Kontak / WhatsApp',
+            'D4' => 'Tingkat Kelas Binaan',
+            'E4' => 'Total Frekuensi Input',
+            'F4' => 'Santri Binaan',
+            'G4' => 'Santri Sudah Diinput',
+            'H4' => 'Santri Belum Diinput',
+            'I4' => 'Progres Input (%)',
+            'J4' => 'Terakhir Menginput',
+            'K4' => 'Status Keaktifan'
+        ];
+
+        foreach ($headersGuru as $cell => $title) {
+            $sheetTeachers->setCellValue($cell, $title);
         }
 
-        // Style Header
-        $sheet->getStyle('A1:M1')->getFont()->setBold(true);
+        $headerStyle = [
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '047857']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '065F46']]],
+        ];
+        $sheetTeachers->getStyle('A4:K4')->applyFromArray($headerStyle);
+        $sheetTeachers->getRowDimension(4)->setRowHeight(26);
 
-        // Data Rows
-        $row = 2;
+        // Ambil Data Guru
+        $quranTeachers = User::whereHas('roles', function ($rq) {
+            $rq->whereIn('slug', ['guru-quran', 'guru_quran', 'guru', 'teacher']);
+        })->orderBy('name', 'asc')->get();
+
+        $teachersToProcess = $isAdmin ? $quranTeachers : collect([$user]);
+        $rowG = 5;
+
+        foreach ($teachersToProcess as $idx => $t) {
+            $assignedQuery = QuranHalaqahMember::where('teacher_id', $t->id);
+            if ($grade !== 'all' && is_numeric($grade)) {
+                $assignedQuery->where('grade', (int) $grade);
+            }
+            $assignedStudentIds = $assignedQuery->pluck('student_id')->toArray();
+            $assignedGrades = QuranHalaqahMember::where('teacher_id', $t->id)->distinct('grade')->pluck('grade')->filter()->sort()->implode(', ');
+            $assignedCount = count($assignedStudentIds);
+
+            // Input records guru
+            $tQuery = HalaqahRecord::where('teacher_id', $t->id);
+            if ($grade !== 'all' && is_numeric($grade)) {
+                $g = (int) $grade;
+                $gClassIds = $this->getClassIdsByGrade($g);
+                $tQuery->where(function ($q) use ($g, $gClassIds) {
+                    $q->where('grade', $g);
+                    if (!empty($gClassIds)) {
+                        $q->orWhereIn('class_id', $gClassIds);
+                    }
+                });
+            }
+            // Filter waktu
+            if ($timeFilter === 'daily' && $request->filled('date')) {
+                $tQuery->whereDate('assessment_date', $request->date);
+            } elseif ($timeFilter === 'monthly') {
+                $m = (int) ($request->month ?? Carbon::now()->month);
+                $y = (int) ($request->year ?? Carbon::now()->year);
+                $tQuery->whereMonth('assessment_date', $m)->whereYear('assessment_date', $y);
+            } elseif ($timeFilter === 'range') {
+                if ($request->filled('date_from')) $tQuery->whereDate('assessment_date', '>=', $request->date_from);
+                if ($request->filled('date_to')) $tQuery->whereDate('assessment_date', '<=', $request->date_to);
+            }
+
+            $totalInputs = (clone $tQuery)->count();
+            $inputtedStudentIds = (clone $tQuery)->distinct('student_id')->pluck('student_id')->toArray();
+            $assignedInputted = count(array_intersect($assignedStudentIds, $inputtedStudentIds));
+            $assignedPending = max(0, $assignedCount - $assignedInputted);
+
+            $lastRecord = HalaqahRecord::where('teacher_id', $t->id)->latest('assessment_date')->latest('id')->first();
+            $progressPct = $assignedCount > 0 ? round(($assignedInputted / $assignedCount) * 100) : ($totalInputs > 0 ? 100 : 0);
+
+            $statusText = $totalInputs == 0 ? 'Belum Ada Input' : ($assignedCount > 0 && $assignedInputted >= $assignedCount ? 'Tuntas 100%' : 'Aktif Sebagian');
+
+            $sheetTeachers->setCellValue('A' . $rowG, $idx + 1);
+            $sheetTeachers->setCellValue('B' . $rowG, $t->name);
+            $sheetTeachers->setCellValue('C' . $rowG, "'" . ($t->phone ?: '-'));
+            $sheetTeachers->setCellValue('D' . $rowG, $assignedGrades ? "Tingkat " . $assignedGrades : '-');
+            $sheetTeachers->setCellValue('E' . $rowG, $totalInputs);
+            $sheetTeachers->setCellValue('F' . $rowG, $assignedCount);
+            $sheetTeachers->setCellValue('G' . $rowG, $assignedInputted);
+            $sheetTeachers->setCellValue('H' . $rowG, $assignedPending);
+            $sheetTeachers->setCellValue('I' . $rowG, $progressPct . '%');
+            $sheetTeachers->setCellValue('J' . $rowG, $lastRecord ? $lastRecord->assessment_date->format('d/m/Y') : '-');
+            $sheetTeachers->setCellValue('K' . $rowG, $statusText);
+
+            $sheetTeachers->getStyle('A' . $rowG)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheetTeachers->getStyle('E' . $rowG . ':I' . $rowG)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheetTeachers->getStyle('J' . $rowG . ':K' . $rowG)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheetTeachers->getStyle('A' . $rowG . ':K' . $rowG)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('E2E8F0');
+
+            $rowG++;
+        }
+
+        foreach (range('A', 'K') as $col) {
+            $sheetTeachers->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // SHEET 2: REKAPITULASI PROGRES SANTRI
+        // ═════════════════════════════════════════════════════════════════════
+        $sheetStudents = $spreadsheet->createSheet();
+        $sheetStudents->setTitle("Rekap Santri");
+
+        $sheetStudents->setCellValue('A1', "SDIT AL-FAHMI PALU - REKAPITULASI PROGRES SANTRI HALAQAH AL-QUR'AN");
+        $sheetStudents->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheetStudents->setCellValue('A2', $metaText);
+        $sheetStudents->getStyle('A2')->getFont()->setItalic(true)->setSize(9)->getColor()->setRGB('64748B');
+
+        $headersSantri = [
+            'A4' => 'No',
+            'B4' => 'NISN',
+            'C4' => 'Nama Santri',
+            'D4' => 'Kelas / Rombel',
+            'E4' => 'Guru Pembimbing (Musyrif)',
+            'F4' => 'Total Kali Diinput',
+            'G4' => 'Capaian Tahsin Terakhir',
+            'H4' => 'Capaian Tahfidz Terakhir',
+            'I4' => 'Nilai Rata-rata',
+            'J4' => 'Predikat',
+            'K4' => 'Terakhir Disetor',
+            'L4' => 'Status Input'
+        ];
+
+        foreach ($headersSantri as $cell => $title) {
+            $sheetStudents->setCellValue($cell, $title);
+        }
+        $sheetStudents->getStyle('A4:L4')->applyFromArray($headerStyle);
+        $sheetStudents->getRowDimension(4)->setRowHeight(26);
+
+        // Ambil Data Seluruh Santri di Scope Filter
+        $studentQuery = Student::with(['user', 'class', 'halaqahMember.teacher'])
+            ->where(function ($q) {
+                $q->whereIn('student_status', ['active', 'Aktif'])->orWhereNull('student_status');
+            });
+
+        if ($grade !== 'all' && is_numeric($grade)) {
+            $g = (int) $grade;
+            $gClassIds = $this->getClassIdsByGrade($g);
+            $studentQuery->where(function ($q) use ($g, $gClassIds) {
+                $q->whereIn('class_id', $gClassIds)
+                  ->orWhereHas('halaqahMember', function ($hmq) use ($g) {
+                      $hmq->where('grade', $g);
+                  });
+            });
+        }
+
+        if ($request->filled('class_id') && $request->class_id !== 'all') {
+            $studentQuery->where('class_id', (int) $request->class_id);
+        }
+
+        if (!$isAdmin || ($request->filled('teacher_id') && $request->teacher_id !== 'all')) {
+            $tId = !$isAdmin ? $user->id : (int) $request->teacher_id;
+            $studentQuery->where(function ($q) use ($tId) {
+                $q->whereHas('halaqahMember', function ($hmq) use ($tId) {
+                    $hmq->where('teacher_id', $tId);
+                })->orWhereHas('halaqahRecords', function ($hrq) use ($tId) {
+                    $hrq->where('teacher_id', $tId);
+                });
+            });
+        }
+
+        $allStudents = $studentQuery->orderBy('class_id')->orderBy('nisn')->get();
+        $allStudentIds = $allStudents->pluck('id')->toArray();
+
+        // Hitung aggregasi inputan per santri dalam filter
+        $studentAggregates = HalaqahRecord::whereIn('student_id', $allStudentIds);
+        if ($timeFilter === 'daily' && $request->filled('date')) {
+            $studentAggregates->whereDate('assessment_date', $request->date);
+        } elseif ($timeFilter === 'monthly') {
+            $m = (int) ($request->month ?? Carbon::now()->month);
+            $y = (int) ($request->year ?? Carbon::now()->year);
+            $studentAggregates->whereMonth('assessment_date', $m)->whereYear('assessment_date', $y);
+        } elseif ($timeFilter === 'range') {
+            if ($request->filled('date_from')) $studentAggregates->whereDate('assessment_date', '>=', $request->date_from);
+            if ($request->filled('date_to')) $studentAggregates->whereDate('assessment_date', '<=', $request->date_to);
+        }
+
+        $studentCounts = (clone $studentAggregates)
+            ->select('student_id', DB::raw('COUNT(*) as total'), DB::raw('AVG(score_cognitive) as avg_score'), DB::raw('MAX(assessment_date) as last_date'))
+            ->groupBy('student_id')
+            ->get()
+            ->keyBy('student_id');
+
+        // Record Tahsin & Tahfidz Terakhir
+        $latestRecords = HalaqahRecord::with('teacher')
+            ->whereIn('student_id', $allStudentIds)
+            ->latest('assessment_date')
+            ->latest('id')
+            ->get()
+            ->groupBy('student_id');
+
+        $rowS = 5;
+        foreach ($allStudents as $sIdx => $st) {
+            $counts = $studentCounts->get($st->id);
+            $totalSetoran = $counts ? $counts->total : 0;
+            $avgScore = $counts ? round($counts->avg_score, 1) : 0;
+            $lastDate = $counts && $counts->last_date ? Carbon::parse($counts->last_date)->format('d/m/Y') : '-';
+            $pred = $totalSetoran > 0 ? HalaqahRecord::calculatePredicate($avgScore) : '-';
+
+            $stRecs = $latestRecords->get($st->id, collect());
+            $lastTahsin = $stRecs->where('program_type', 'tahsin')->first();
+            $lastTahfidz = $stRecs->where('program_type', 'tahfidz')->first();
+
+            $tahsinText = $lastTahsin ? ($lastTahsin->jilid_level . ($lastTahsin->page_start ? " hl. {$lastTahsin->page_start}" . ($lastTahsin->page_end ? "-{$lastTahsin->page_end}" : '') : '')) : '-';
+            $tahfidzText = $lastTahfidz ? ("Surah " . ($lastTahfidz->surah_name ?: '-') . ($lastTahfidz->ayat_start ? " ({$lastTahfidz->ayat_start}-{$lastTahfidz->ayat_end})" : '') . ($lastTahfidz->juz_number ? " [Juz {$lastTahfidz->juz_number}]" : '')) : '-';
+
+            $teacherName = $st->halaqahMember?->teacher?->name ?? ($stRecs->first()?->teacher?->name ?? '-');
+            $statusInput = $totalSetoran > 0 ? 'Sudah Diinput' : 'Belum Ada Input';
+
+            $sheetStudents->setCellValue('A' . $rowS, $sIdx + 1);
+            $sheetStudents->setCellValue('B' . $rowS, "'" . ($st->nisn ?: $st->nis ?: '-'));
+            $sheetStudents->setCellValue('C' . $rowS, $st->user?->name ?? 'Santri');
+            $sheetStudents->setCellValue('D' . $rowS, $st->class?->name ?? '-');
+            $sheetStudents->setCellValue('E' . $rowS, $teacherName);
+            $sheetStudents->setCellValue('F' . $rowS, $totalSetoran);
+            $sheetStudents->setCellValue('G' . $rowS, $tahsinText);
+            $sheetStudents->setCellValue('H' . $rowS, $tahfidzText);
+            $sheetStudents->setCellValue('I' . $rowS, $totalSetoran > 0 ? $avgScore : '-');
+            $sheetStudents->setCellValue('J' . $rowS, $pred);
+            $sheetStudents->setCellValue('K' . $rowS, $lastDate);
+            $sheetStudents->setCellValue('L' . $rowS, $statusInput);
+
+            $sheetStudents->getStyle('A' . $rowS)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheetStudents->getStyle('F' . $rowS)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheetStudents->getStyle('I' . $rowS . ':L' . $rowS)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheetStudents->getStyle('A' . $rowS . ':L' . $rowS)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('E2E8F0');
+
+            if ($totalSetoran == 0) {
+                $sheetStudents->getStyle('L' . $rowS)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('DC2626'))->setBold(true);
+            }
+
+            $rowS++;
+        }
+
+        foreach (range('A', 'L') as $col) {
+            $sheetStudents->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // SHEET 3: RINCIAN LOG LENGKAP INPUTAN (TRANSAKSI SETORAN)
+        // ═════════════════════════════════════════════════════════════════════
+        $sheetLogs = $spreadsheet->createSheet();
+        $sheetLogs->setTitle("Rincian Log Inputan");
+
+        $sheetLogs->setCellValue('A1', "SDIT AL-FAHMI PALU - RINCIAN LOG SETORAN & EVALUASI AL-QUR'AN");
+        $sheetLogs->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheetLogs->setCellValue('A2', $metaText);
+        $sheetLogs->getStyle('A2')->getFont()->setItalic(true)->setSize(9)->getColor()->setRGB('64748B');
+
+        $headersLog = [
+            'A4' => 'No',
+            'B4' => 'Tanggal',
+            'C4' => 'NISN',
+            'D4' => 'Nama Santri',
+            'E4' => 'Kelas Asal',
+            'F4' => 'Kehadiran',
+            'G4' => 'Program',
+            'H4' => 'Kategori',
+            'I4' => 'Materi / Rincian Capaian',
+            'J4' => 'Nilai Kognitif',
+            'K4' => 'Nilai Adab',
+            'L4' => 'Predikat',
+            'M4' => 'Guru Pembimbing',
+            'N4' => 'Catatan Pembimbing'
+        ];
+
+        foreach ($headersLog as $cell => $title) {
+            $sheetLogs->setCellValue($cell, $title);
+        }
+        $sheetLogs->getStyle('A4:N4')->applyFromArray($headerStyle);
+        $sheetLogs->getRowDimension(4)->setRowHeight(26);
+
+        $rowL = 5;
         foreach ($records as $index => $rec) {
-            $sheet->setCellValue('A' . $row, $index + 1);
-            $sheet->setCellValue('B' . $row, $rec->assessment_date->format('Y-m-d'));
-            $sheet->setCellValue('C' . $row, $rec->student->nisn ?? '-');
-            $sheet->setCellValue('D' . $row, $rec->student->user->name ?? 'Santri');
-            $sheet->setCellValue('E' . $row, $rec->class->name ?? '-');
-            $sheet->setCellValue('F' . $row, ucfirst($rec->attendance_status));
-            $sheet->setCellValue('G' . $row, strtoupper($rec->program_type));
-            $sheet->setCellValue('H' . $row, $rec->material_summary);
-            $sheet->setCellValue('I' . $row, $rec->score_cognitive);
-            $sheet->setCellValue('J' . $row, $rec->score_adab);
-            $sheet->setCellValue('K' . $row, $rec->predicate);
-            $sheet->setCellValue('L' . $row, $rec->teacher->name ?? '-');
-            $sheet->setCellValue('M' . $row, $rec->teacher_notes ?? '-');
-            $row++;
+            $sheetLogs->setCellValue('A' . $rowL, $index + 1);
+            $sheetLogs->setCellValue('B' . $rowL, $rec->assessment_date ? $rec->assessment_date->format('Y-m-d') : '-');
+            $sheetLogs->setCellValue('C' . $rowL, "'" . ($rec->student->nisn ?? '-'));
+            $sheetLogs->setCellValue('D' . $rowL, $rec->student->user->name ?? 'Santri');
+            $sheetLogs->setCellValue('E' . $rowL, $rec->class->name ?? '-');
+            $sheetLogs->setCellValue('F' . $rowL, ucfirst($rec->attendance_status));
+            $sheetLogs->setCellValue('G' . $rowL, strtoupper($rec->program_type));
+            $sheetLogs->setCellValue('H' . $rowL, ucfirst($rec->record_category ?? 'ziyadah'));
+            $sheetLogs->setCellValue('I' . $rowL, $rec->material_summary);
+            $sheetLogs->setCellValue('J' . $rowL, $rec->score_cognitive);
+            $sheetLogs->setCellValue('K' . $rowL, $rec->score_adab);
+            $sheetLogs->setCellValue('L' . $rowL, $rec->predicate);
+            $sheetLogs->setCellValue('M' . $rowL, $rec->teacher->name ?? '-');
+            $sheetLogs->setCellValue('N' . $rowL, $rec->teacher_notes ?? '-');
+
+            $sheetLogs->getStyle('A' . $rowL)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheetLogs->getStyle('B' . $rowL)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheetLogs->getStyle('F' . $rowL . ':H' . $rowL)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheetLogs->getStyle('J' . $rowL . ':L' . $rowL)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheetLogs->getStyle('A' . $rowL . ':N' . $rowL)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('E2E8F0');
+
+            $rowL++;
         }
+
+        foreach (range('A', 'N') as $col) {
+            $sheetLogs->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // Set default aktif sheet ke sheet pertama
+        $spreadsheet->setActiveSheetIndex(0);
 
         $writer = new Xlsx($spreadsheet);
-        $fileName = 'Rekap_Halaqah_AlQuran_' . date('Ymd_His') . '.xlsx';
+        $fileName = 'Rekap_Halaqah_AlQuran_Lengkap_' . date('Ymd_His') . '.xlsx';
 
         return response()->streamDownload(function () use ($writer) {
             $writer->save('php://output');
         }, $fileName, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+        ]);
+    }
+
+    /**
+     * API JSON: Dapatkan rincian seluruh riwayat inputan/setoran santri
+     */
+    public function getStudentRecords(Request $request, $studentId)
+    {
+        $student = Student::with(['user', 'class', 'halaqahMember.teacher'])->findOrFail($studentId);
+        
+        $records = HalaqahRecord::with('teacher')
+            ->where('student_id', $studentId)
+            ->latest('assessment_date')
+            ->latest('id')
+            ->get();
+
+        $user = Auth::user();
+        $isAdmin = $user->hasRole(['super-admin', 'admin', 'kepala-sekolah']);
+
+        $recordData = $records->map(function ($r) use ($user, $isAdmin) {
+            return [
+                'id' => $r->id,
+                'date' => $r->assessment_date ? $r->assessment_date->format('d/m/Y') : '-',
+                'raw_date' => $r->assessment_date ? $r->assessment_date->format('Y-m-d') : '',
+                'program_type' => $r->program_type,
+                'record_category' => $r->record_category ?? 'ziyadah',
+                'material' => $r->material_summary,
+                'score_cognitive' => (float) $r->score_cognitive,
+                'score_adab' => (float) $r->score_adab,
+                'predicate' => $r->predicate,
+                'attendance_status' => $r->attendance_status,
+                'teacher_name' => $r->teacher?->name ?? 'Ustadz Pembimbing',
+                'teacher_notes' => $r->teacher_notes ?: '-',
+                'can_delete' => $isAdmin || ($r->teacher_id === $user->id),
+                'delete_url' => route('admin.halaqah.destroy', $r->id),
+                'wa_url' => route('admin.halaqah.send-wa', $r->id),
+            ];
+        });
+
+        $avgScore = $records->count() > 0 ? round($records->avg('score_cognitive'), 1) : 0;
+        $overallPredicate = HalaqahRecord::calculatePredicate($avgScore);
+
+        return response()->json([
+            'success' => true,
+            'student' => [
+                'id' => $student->id,
+                'name' => $student->user?->name ?? 'Santri',
+                'nisn' => $student->nisn ?? $student->nis ?? '-',
+                'class_name' => $student->class?->name ?? '-',
+                'teacher_name' => $student->halaqahMember?->teacher?->name ?? ($records->first()?->teacher?->name ?? 'Belum Ditugaskan'),
+                'total_inputs' => $records->count(),
+                'avg_score' => $avgScore,
+                'predicate' => $overallPredicate,
+                'parent_phone' => $student->parent_phone ?: $student->phone,
+            ],
+            'records' => $recordData,
         ]);
     }
 
