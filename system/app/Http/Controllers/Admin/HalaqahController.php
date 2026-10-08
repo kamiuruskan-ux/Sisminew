@@ -130,6 +130,49 @@ class HalaqahController extends Controller
     }
 
     /**
+     * Dapatkan daftar Guru Al-Qur'an (Musyrif / Musyrifah) yang valid.
+     * Hanya menyaring guru yang memiliki role spesifik Al-Qur'an atau terdaftar membimbing/mencatat halaqah.
+     */
+    public function getQuranTeachers()
+    {
+        // 1. ID guru berdasarkan role spesifik Al-Qur'an
+        $quranRoleTeacherIds = User::whereHas('roles', function ($rq) {
+            $rq->whereIn('slug', [
+                'guru-quran',
+                'guru_quran',
+                'guru-qur-an',
+                'guru-tahfidz',
+                'guru_tahfidz',
+                'koordinator-quran',
+                'koordinator_quran'
+            ]);
+        })->pluck('id')->toArray();
+
+        // 2. ID guru yang terdaftar memiliki kelompok halaqah
+        $assignedTeacherIds = QuranHalaqahMember::pluck('teacher_id')
+            ->filter()
+            ->unique()
+            ->toArray();
+
+        // 3. ID guru yang pernah mencatat setoran/evaluasi halaqah
+        $recordedTeacherIds = HalaqahRecord::pluck('teacher_id')
+            ->filter()
+            ->unique()
+            ->toArray();
+
+        $validIds = array_unique(array_merge($quranRoleTeacherIds, $assignedTeacherIds, $recordedTeacherIds));
+
+        if (!empty($validIds)) {
+            return User::whereIn('id', $validIds)->orderBy('name', 'asc')->get();
+        }
+
+        // Fallback jika belum ada yang terdaftar
+        return User::whereHas('roles', function ($rq) {
+            $rq->whereIn('slug', ['guru-quran', 'guru_quran', 'guru-qur-an']);
+        })->orderBy('name', 'asc')->get();
+    }
+
+    /**
      * Terapkan filter komprehensif ke query HalaqahRecord
      */
     protected function applyHalaqahFilters($query, Request $request, bool $isAdmin, $user)
@@ -264,10 +307,8 @@ class HalaqahController extends Controller
             || (bool) (stripos($user->email, 'koordinator') !== false);
         $canManageTarget = $isCoordinator;
         
-        // Daftar Guru Al-Qur'an (untuk dropdown Admin / selector kelompok)
-        $quranTeachers = User::whereHas('roles', function ($rq) {
-            $rq->whereIn('slug', ['guru-quran', 'guru_quran', 'guru', 'teacher']);
-        })->orderBy('name', 'asc')->get();
+        // Daftar Guru Al-Qur'an (untuk dropdown Admin / selector kelompok / monitoring)
+        $quranTeachers = $this->getQuranTeachers();
 
         $tab = $request->get('tab', 'input'); // 'input', 'history', 'reports', 'attendance', 'target', 'tasmi'
         $mode = $request->get('mode', 'individual'); // 'individual', 'mass'
@@ -1316,10 +1357,8 @@ class HalaqahController extends Controller
         $sheetTeachers->getStyle('A4:K4')->applyFromArray($headerStyle);
         $sheetTeachers->getRowDimension(4)->setRowHeight(26);
 
-        // Ambil Data Guru
-        $quranTeachers = User::whereHas('roles', function ($rq) {
-            $rq->whereIn('slug', ['guru-quran', 'guru_quran', 'guru', 'teacher']);
-        })->orderBy('name', 'asc')->get();
+        // Ambil Data Guru Al-Qur'an
+        $quranTeachers = $this->getQuranTeachers();
 
         $teachersToProcess = $isAdmin ? $quranTeachers : collect([$user]);
         $rowG = 5;
