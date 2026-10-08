@@ -509,6 +509,7 @@
                             'items' => [
                                 ['route' => 'student.library.index', 'match' => 'student.library.*', 'label' => 'Perpustakaan Digital', 'icon' => 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253', 'color' => 'rose'],
                                 ['route' => 'student.profile', 'match' => 'student.profile', 'label' => 'Profil Siswa', 'icon' => 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z', 'color' => 'sky'],
+                                ['route' => 'student.account', 'match' => 'student.account*', 'label' => 'Keamanan & Password', 'icon' => 'M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z', 'color' => 'amber'],
                             ]
                         ],
                     ];
@@ -674,6 +675,7 @@
                                     <p class="text-[10px] text-slate-400 truncate mt-0.5">{{ auth()->user()->email }}</p>
                                 </div>
                                 <a href="{{ route('student.profile') }}" class="block px-4 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">Profil Saya</a>
+                                <a href="{{ route('student.account') }}" class="block px-4 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">Keamanan & Password</a>
                                 <div class="border-t border-slate-100 dark:border-slate-700 my-1"></div>
                                 <form method="POST" action="{{ route('logout') }}">
                                     @csrf

@@ -351,6 +351,164 @@ class StudentController extends Controller
         return redirect()->route('admin.students.index')->with('success', 'Data siswa berhasil diperbarui.');
     }
 
+    public function resetPassword($encodedId, Request $request)
+    {
+        $id = is_numeric($encodedId) ? $encodedId : decode_id($encodedId);
+        $student = Student::with('user')->findOrFail($id);
+
+        $allowedClassIds = auth()->user()->getAssignedClassIds();
+        if ($allowedClassIds !== null && (!in_array($student->class_id, $allowedClassIds))) {
+            abort(403, 'Akses ditolak: Anda tidak memiliki wewenang untuk mereset akun santri di luar kelas binaan Anda.');
+        }
+
+        if (!$student->user) {
+            return back()->withErrors(['error' => 'Akun pengguna untuk siswa ini tidak ditemukan.']);
+        }
+
+        $validated = $request->validate([
+            'password' => 'required|min:8',
+            'pin'      => 'nullable|numeric|digits:6',
+        ], [
+            'password.required' => 'Password baru wajib diisi.',
+            'password.min'      => 'Password minimal terdiri dari 8 karakter.',
+            'pin.numeric'       => 'PIN harus berupa angka.',
+            'pin.digits'        => 'PIN transaksi/keamanan harus 6 digit angka.',
+        ]);
+
+        $student->user->password = Hash::make($validated['password']);
+        $student->user->locked_until = null;
+        $student->user->failed_login_attempts = 0;
+        $student->user->save();
+
+        if ($request->filled('pin')) {
+            $student->pin = Hash::make($validated['pin']);
+            $student->save();
+        }
+
+        // Send WA Notification if requested
+        $waTarget = $student->phone ?? $student->parent_phone ?? $student->user->phone;
+        if ($waTarget && ($request->boolean('send_wa') || $request->boolean('open_wa'))) {
+            $schoolName = Setting::get('school_name', 'Sekolah');
+            $pinInfo = $request->filled('pin') ? "\n- PIN Keamanan: *{$validated['pin']}*" : "";
+            $waMsg = "Pemberitahuan Reset Password Siswa - {$schoolName}\n\nHalo *{$student->user->name}* (NISN: {$student->nisn}),\n\nPassword akun login siswa Anda telah berhasil direset oleh Administrator.\n\n*Kredensial Login Baru:*\n- Identitas / Email: *{$student->user->email}*\n- NISN: *{$student->nisn}*\n- Password Baru: *{$validated['password']}*{$pinInfo}\n\nSilakan masuk melalui portal berikut:\n" . route('login') . "\n\nDemi keamanan akun, harap segera ubah password Anda di menu Pengaturan Akun setelah login.\nTerima kasih.";
+
+            if (\App\Models\Setting::get('wa_notify_attendance', '1') == '1' || $request->boolean('send_wa')) {
+                \App\Services\WhatsAppService::sendMessage($waTarget, $waMsg);
+            }
+
+            if ($request->boolean('open_wa')) {
+                $cleanPhone = preg_replace('/[^0-9]/', '', $waTarget);
+                if (str_starts_with($cleanPhone, '0')) {
+                    $cleanPhone = '62' . substr($cleanPhone, 1);
+                }
+                $openWaUrl = 'https://wa.me/' . $cleanPhone . '?text=' . urlencode($waMsg);
+                return back()->with([
+                    'success' => 'Password akun siswa berhasil direset dan siap dikirim via WhatsApp.',
+                    'open_wa_url' => $openWaUrl,
+                ]);
+            }
+        }
+
+        return back()->with('success', 'Password akun siswa berhasil direset.');
+    }
+
+    public function updateCredentials($encodedId, Request $request)
+    {
+        $id = is_numeric($encodedId) ? $encodedId : decode_id($encodedId);
+        $student = Student::with('user')->findOrFail($id);
+
+        $allowedClassIds = auth()->user()->getAssignedClassIds();
+        if ($allowedClassIds !== null && (!in_array($student->class_id, $allowedClassIds))) {
+            abort(403, 'Akses ditolak: Anda tidak memiliki wewenang untuk mengubah data santri di luar kelas binaan Anda.');
+        }
+
+        if (!$student->user) {
+            return back()->withErrors(['error' => 'Akun pengguna untuk siswa ini tidak ditemukan.']);
+        }
+
+        $validated = $request->validate([
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|email|max:255|unique:users,email,' . $student->user_id,
+            'phone'    => 'nullable|string|max:30',
+            'password' => 'nullable|string|min:8',
+            'pin'      => 'nullable|numeric|digits:6',
+        ], [
+            'name.required'  => 'Nama siswa wajib diisi.',
+            'email.required' => 'Email login siswa wajib diisi.',
+            'email.email'    => 'Format email tidak valid.',
+            'email.unique'   => 'Alamat email ini sudah terdaftar pada pengguna lain.',
+            'password.min'   => 'Password baru minimal 8 karakter.',
+            'pin.digits'     => 'PIN transaksi/keamanan harus 6 digit angka.',
+        ]);
+
+        $student->user->name = $validated['name'];
+        $student->user->email = $validated['email'];
+        if ($request->has('phone')) {
+            $student->user->phone = $validated['phone'];
+            $student->phone = $validated['phone'];
+        }
+        if ($request->filled('password')) {
+            $student->user->password = Hash::make($validated['password']);
+        }
+        $student->user->locked_until = null;
+        $student->user->failed_login_attempts = 0;
+        $student->user->save();
+
+        if ($request->filled('pin')) {
+            $student->pin = Hash::make($validated['pin']);
+        }
+        $student->save();
+
+        // Send WA Notification if requested
+        $waTarget = $student->phone ?? $student->parent_phone ?? $student->user->phone;
+        if ($waTarget && ($request->boolean('send_wa') || $request->boolean('open_wa'))) {
+            $schoolName = Setting::get('school_name', 'Sekolah');
+            $passInfo = $request->filled('password') ? "\n- Password Baru: *{$validated['password']}*" : "";
+            $pinInfo = $request->filled('pin') ? "\n- PIN Keamanan: *{$validated['pin']}*" : "";
+            $waMsg = "Pembaruan Akun Siswa - {$schoolName}\n\nHalo *{$student->user->name}*,\nData akun login Anda telah diperbarui oleh Administrator.\n\n*Informasi Akun Terkini:*\n- Email Login: *{$validated['email']}*\n- No. Handphone: *{$student->phone}*{$passInfo}{$pinInfo}\n\nSilakan masuk melalui portal berikut:\n" . route('login') . "\nTerima kasih.";
+
+            if (\App\Models\Setting::get('wa_notify_attendance', '1') == '1' || $request->boolean('send_wa')) {
+                \App\Services\WhatsAppService::sendMessage($waTarget, $waMsg);
+            }
+
+            if ($request->boolean('open_wa')) {
+                $cleanPhone = preg_replace('/[^0-9]/', '', $waTarget);
+                if (str_starts_with($cleanPhone, '0')) {
+                    $cleanPhone = '62' . substr($cleanPhone, 1);
+                }
+                $openWaUrl = 'https://wa.me/' . $cleanPhone . '?text=' . urlencode($waMsg);
+                return back()->with([
+                    'success' => 'Kredensial akun siswa berhasil diperbarui dan siap dikirim via WhatsApp.',
+                    'open_wa_url' => $openWaUrl,
+                ]);
+            }
+        }
+
+        return back()->with('success', 'Kredensial akun siswa berhasil diperbarui.');
+    }
+
+    public function unlockAccount($encodedId)
+    {
+        $id = is_numeric($encodedId) ? $encodedId : decode_id($encodedId);
+        $student = Student::with('user')->findOrFail($id);
+
+        $allowedClassIds = auth()->user()->getAssignedClassIds();
+        if ($allowedClassIds !== null && (!in_array($student->class_id, $allowedClassIds))) {
+            abort(403, 'Akses ditolak: Anda tidak memiliki wewenang untuk membuka kunci santri di luar kelas binaan Anda.');
+        }
+
+        if (!$student->user) {
+            return back()->withErrors(['error' => 'Akun pengguna tidak ditemukan.']);
+        }
+
+        $student->user->update([
+            'locked_until' => null,
+            'failed_login_attempts' => 0,
+        ]);
+
+        return back()->with('success', 'Kunci keamanan akun siswa berhasil dibuka. Siswa dapat login kembali.');
+    }
+
     public function destroy($encodedId)
     {
         // Jika input berupa angka murni (misal: 10), gunakan langsung. Jika string hash, decode dulu.

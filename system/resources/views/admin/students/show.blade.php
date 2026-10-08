@@ -4,7 +4,32 @@
 @section('page_title', 'Detail Data Siswa')
 
 @section('content')
-<div class="space-y-6 w-full pb-16">
+<div class="space-y-6 w-full pb-16"
+     x-data="{
+         showPasswordModal: false,
+         showCredentialsModal: false,
+         newPassword: '',
+         newPin: '',
+         generatePassword() {
+             const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+             let res = 'SISWA';
+             for (let i = 0; i < 4; i++) {
+                 res += chars.charAt(Math.floor(Math.random() * chars.length));
+             }
+             this.newPassword = res;
+         },
+         generatePin() {
+             let pin = '';
+             for (let i = 0; i < 6; i++) {
+                 pin += Math.floor(Math.random() * 10);
+             }
+             this.newPin = pin;
+         }
+     }"
+     @if(session('open_wa_url'))
+     x-init="setTimeout(() => window.open('{{ session('open_wa_url') }}', '_blank'), 300)"
+     @endif
+>
     <!-- Header Navigation & Action -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-[#1A222C] p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
         <div class="flex items-center space-x-4">
@@ -78,25 +103,69 @@
 
             <hr class="border-slate-100 dark:border-slate-800">
 
-            <div class="space-y-3">
-                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Kontak & Akses</h3>
-                <div class="space-y-2 text-xs">
-                    <div class="flex justify-between py-1">
-                        <span class="text-[#64748B] dark:text-[#8A99AD]">No. Handphone / WA</span>
-                        <span class="font-bold text-[#1C2434] dark:text-white">{{ $student->phone ?? $student->user->phone ?? '-' }}</span>
-                    </div>
-                    <div class="flex justify-between py-1">
-                        <span class="text-[#64748B] dark:text-[#8A99AD]">Status Akun</span>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                        <span>Akun & Kredensial Login</span>
+                    </h3>
+                    @if($student->user?->isLockedOut())
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400 border border-rose-200 dark:border-rose-800 animate-pulse">
+                            Terkunci
+                        </span>
+                    @else
                         <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50">
                             Aktif
                         </span>
+                    @endif
+                </div>
+
+                <div class="space-y-2 text-xs">
+                    <div class="flex justify-between py-1 border-b border-slate-50 dark:border-slate-800/50">
+                        <span class="text-[#64748B] dark:text-[#8A99AD]">Email / Username:</span>
+                        <span class="font-mono font-bold text-[#1C2434] dark:text-white truncate max-w-[150px]">{{ $student->user->email ?? '-' }}</span>
                     </div>
-                    <div class="flex justify-between py-1">
-                        <span class="text-[#64748B] dark:text-[#8A99AD]">PIN Akses</span>
+                    <div class="flex justify-between py-1 border-b border-slate-50 dark:border-slate-800/50">
+                        <span class="text-[#64748B] dark:text-[#8A99AD]">No. HP Siswa:</span>
+                        <span class="font-bold text-[#1C2434] dark:text-white">{{ $student->phone ?? '-' }}</span>
+                    </div>
+                    <div class="flex justify-between py-1 border-b border-slate-50 dark:border-slate-800/50">
+                        <span class="text-[#64748B] dark:text-[#8A99AD]">No. HP Wali:</span>
+                        <span class="font-bold text-[#1C2434] dark:text-white">{{ $student->parent_phone ?? '-' }}</span>
+                    </div>
+                    <div class="flex justify-between py-1 border-b border-slate-50 dark:border-slate-800/50">
+                        <span class="text-[#64748B] dark:text-[#8A99AD]">PIN Transaksi:</span>
                         <span class="font-bold text-[#1C2434] dark:text-white">
-                            {{ $student->pin ? 'Tersedia (Encrypted)' : 'Belum diatur' }}
+                            {{ $student->pin ? 'Sudah Diatur' : 'Belum Diatur' }}
                         </span>
                     </div>
+                    <div class="flex justify-between py-1">
+                        <span class="text-[#64748B] dark:text-[#8A99AD]">Terakhir Login:</span>
+                        <span class="font-bold text-slate-700 dark:text-slate-300">{{ $student->user?->last_login_at ? $student->user->last_login_at->diffForHumans() : 'Belum pernah' }}</span>
+                    </div>
+                </div>
+
+                @if($student->user?->isLockedOut())
+                    <form action="{{ route('admin.students.unlock', encode_id($student->id)) }}" method="POST">
+                        @csrf
+                        <button type="submit" class="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
+                            <span>Buka Kunci Akun Siswa</span>
+                        </button>
+                    </form>
+                @endif
+
+                <div class="pt-2 flex flex-col gap-2">
+                    <button type="button" @click="showPasswordModal = true"
+                            class="w-full py-2.5 px-3 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-600 dark:hover:text-white border border-indigo-200/80 dark:border-indigo-800 rounded-xl transition-all font-bold text-xs flex items-center justify-center space-x-1.5 shadow-2xs cursor-pointer">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                        <span>Reset Password & PIN</span>
+                    </button>
+                    <button type="button" @click="showCredentialsModal = true"
+                            class="w-full py-2.5 px-3 bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-600 dark:hover:text-white border border-blue-200/80 dark:border-blue-800 rounded-xl transition-all font-bold text-xs flex items-center justify-center space-x-1.5 shadow-2xs cursor-pointer">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        <span>Ubah Kredensial (Email/No HP)</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -213,6 +282,175 @@
                         Belum ada catatan evaluasi halaqah untuk santri ini.
                     </div>
                 @endif
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Reset Password & PIN Siswa -->
+    <div x-show="showPasswordModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
+        <div class="fixed inset-0 bg-slate-950/70 backdrop-blur-xs transition-opacity" @click="showPasswordModal = false"></div>
+
+        <div class="flex min-h-screen items-center justify-center p-4">
+            <div class="relative w-full max-w-md transform rounded-3xl bg-white dark:bg-boxdark p-6 sm:p-8 text-left shadow-2xl transition-all border border-slate-200 dark:border-strokedark"
+                 @click.away="showPasswordModal = false"
+                 x-data="{ showPassPlain: false }">
+
+                <div class="flex items-center justify-center w-14 h-14 mx-auto mb-4 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-2xl border border-indigo-100 dark:border-indigo-800">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                    </svg>
+                </div>
+
+                <h3 class="text-lg font-extrabold text-center text-slate-900 dark:text-white mb-1">Reset Password & PIN Siswa</h3>
+                <p class="text-xs text-center text-slate-500 dark:text-slate-400 mb-5 leading-relaxed">Atur ulang kata sandi login santri: <strong class="text-slate-800 dark:text-slate-200">{{ $student->user->name }}</strong></p>
+
+                <form action="{{ route('admin.students.reset-password', encode_id($student->id)) }}" method="POST" class="space-y-4">
+                    @csrf
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-[11px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Password Baru <span class="text-rose-500">*</span></label>
+                            <button type="button" @click="generatePassword()" class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                <span>Acak Password</span>
+                            </button>
+                        </div>
+                        <div class="relative">
+                            <input :type="showPassPlain ? 'text' : 'password'" 
+                                   name="password" 
+                                   x-model="newPassword"
+                                   required minlength="8"
+                                   class="w-full px-4 py-2.5 bg-slate-50 dark:bg-boxdark-2 border border-slate-200 dark:border-strokedark rounded-xl text-center font-mono text-sm font-bold text-slate-800 dark:text-slate-200 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition"
+                                   placeholder="Minimal 8 karakter">
+                            <button type="button" @click="showPassPlain = !showPassPlain" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-[11px] font-bold">
+                                <span x-text="showPassPlain ? 'Tutup' : 'Lihat'"></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-[11px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">PIN Transaksi/Absen (Opsional)</label>
+                            <button type="button" @click="generatePin()" class="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer">
+                                <span>Acak 6 Digit</span>
+                            </button>
+                        </div>
+                        <input type="text" 
+                               name="pin" 
+                               x-model="newPin"
+                               maxlength="6"
+                               class="w-full px-4 py-2.5 bg-slate-50 dark:bg-boxdark-2 border border-slate-200 dark:border-strokedark rounded-xl text-center font-mono text-sm font-bold text-emerald-700 dark:text-emerald-300 tracking-widest focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition"
+                               placeholder="6 digit angka (opsional)">
+                        <p class="text-[10px] text-slate-400 mt-1 italic">Kosongkan jika tidak ingin mengubah PIN transaksi santri saat ini.</p>
+                    </div>
+
+                    <div class="p-3 bg-slate-50 dark:bg-boxdark-2 rounded-xl border border-slate-100 dark:border-strokedark space-y-1.5 text-xs">
+                        <label class="flex items-center gap-2 text-slate-700 dark:text-slate-300 cursor-pointer">
+                            <input type="checkbox" name="send_wa" value="1" checked class="w-3.5 h-3.5 rounded text-indigo-600">
+                            <span>Kirim kredensial baru ke WhatsApp Siswa / Wali</span>
+                        </label>
+                        <label class="flex items-center gap-2 text-slate-700 dark:text-slate-300 cursor-pointer">
+                            <input type="checkbox" name="open_wa" value="1" class="w-3.5 h-3.5 rounded text-indigo-600">
+                            <span>Buka chat WhatsApp langsung setelah menyimpan</span>
+                        </label>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2.5 pt-2">
+                        <button type="button" @click="showPasswordModal = false"
+                                class="px-4 py-2 rounded-xl border border-slate-200 dark:border-strokedark text-slate-600 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 transition-colors">
+                            Batal
+                        </button>
+                        <button type="submit"
+                                class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer">
+                            Simpan Password Baru
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Edit Kredensial Siswa (Email / No HP / Nama) -->
+    <div x-show="showCredentialsModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
+        <div class="fixed inset-0 bg-slate-950/70 backdrop-blur-xs transition-opacity" @click="showCredentialsModal = false"></div>
+
+        <div class="flex min-h-screen items-center justify-center p-4">
+            <div class="relative w-full max-w-lg transform rounded-3xl bg-white dark:bg-boxdark p-6 sm:p-8 text-left shadow-2xl transition-all border border-slate-200 dark:border-strokedark"
+                 @click.away="showCredentialsModal = false">
+                
+                <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-100 dark:border-slate-800">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-extrabold text-base text-slate-900 dark:text-white">Ubah Kredensial Akun Siswa</h3>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Perbarui email login, nama pengguna, dan nomor telepon</p>
+                        </div>
+                    </div>
+                    <button type="button" @click="showCredentialsModal = false" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <form action="{{ route('admin.students.update-credentials', encode_id($student->id)) }}" method="POST" class="space-y-4">
+                    @csrf
+                    @method('PUT')
+
+                    <div class="space-y-1.5">
+                        <label class="block text-[11px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Nama Lengkap Siswa</label>
+                        <input type="text" name="name" value="{{ old('name', $student->user->name) }}" required
+                               class="w-full px-4 py-2.5 bg-slate-50 dark:bg-boxdark-2 border border-slate-200 dark:border-strokedark rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition">
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="block text-[11px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Email (Username Login Siswa) <span class="text-rose-500">*</span></label>
+                        <input type="email" name="email" value="{{ old('email', $student->user->email) }}" required
+                               class="w-full px-4 py-2.5 bg-slate-50 dark:bg-boxdark-2 border border-slate-200 dark:border-strokedark rounded-xl text-xs font-mono font-bold text-slate-800 dark:text-slate-200 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition">
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="block text-[11px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Nomor Handphone / WhatsApp Siswa</label>
+                        <input type="text" name="phone" value="{{ old('phone', $student->phone ?? $student->user->phone) }}"
+                               class="w-full px-4 py-2.5 bg-slate-50 dark:bg-boxdark-2 border border-slate-200 dark:border-strokedark rounded-xl text-xs font-mono font-bold text-slate-800 dark:text-slate-200 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition"
+                               placeholder="08123456789">
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="block text-[11px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Password Baru (Kosongkan jika tidak diubah)</label>
+                        <input type="password" name="password" minlength="8"
+                               class="w-full px-4 py-2.5 bg-slate-50 dark:bg-boxdark-2 border border-slate-200 dark:border-strokedark rounded-xl text-xs font-mono text-slate-800 dark:text-slate-200 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition"
+                               placeholder="Minimal 8 karakter (opsional)">
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="block text-[11px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">PIN Transaksi Baru (Opsional, 6 digit)</label>
+                        <input type="text" name="pin" maxlength="6"
+                               class="w-full px-4 py-2.5 bg-slate-50 dark:bg-boxdark-2 border border-slate-200 dark:border-strokedark rounded-xl text-xs font-mono text-slate-800 dark:text-slate-200 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition"
+                               placeholder="6 digit angka (opsional)">
+                    </div>
+
+                    <div class="p-3 bg-slate-50 dark:bg-boxdark-2 rounded-xl border border-slate-100 dark:border-strokedark space-y-1.5 text-xs">
+                        <label class="flex items-center gap-2 text-slate-700 dark:text-slate-300 cursor-pointer">
+                            <input type="checkbox" name="send_wa" value="1" checked class="w-3.5 h-3.5 rounded text-blue-600">
+                            <span>Kirim notifikasi pembaruan ke WhatsApp Siswa / Wali</span>
+                        </label>
+                        <label class="flex items-center gap-2 text-slate-700 dark:text-slate-300 cursor-pointer">
+                            <input type="checkbox" name="open_wa" value="1" class="w-3.5 h-3.5 rounded text-blue-600">
+                            <span>Buka chat WhatsApp langsung setelah menyimpan</span>
+                        </label>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2.5 pt-2">
+                        <button type="button" @click="showCredentialsModal = false"
+                                class="px-4 py-2 rounded-xl border border-slate-200 dark:border-strokedark text-slate-600 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 transition-colors">
+                            Batal
+                        </button>
+                        <button type="submit"
+                                class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer">
+                            Simpan Perubahan
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

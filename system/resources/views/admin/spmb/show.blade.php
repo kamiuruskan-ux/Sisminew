@@ -34,6 +34,17 @@
     rejectFormAction: '',
     passwordFormAction: '',
     deleteFormAction: '',
+    showCredentialsModal: false,
+    credentialsFormAction: '{{ route('admin.spmb.update-credentials', encode_id($spmb->id)) }}',
+    newPasswordValue: '',
+    generateRandomPassword() {
+        const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+        let res = 'SPMB';
+        for (let i = 0; i < 4; i++) {
+            res += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        this.newPasswordValue = res;
+    },
     openRejectModal(registrationId, registrationName) {
         this.deleteTarget = { id: registrationId, name: registrationName };
         this.rejectFormAction = '{{ route('admin.spmb.reject', encode_id($spmb->id)) }}';
@@ -42,7 +53,11 @@
     openPasswordModal(registrationId, registrationName) {
         this.deleteTarget = { id: registrationId, name: registrationName };
         this.passwordFormAction = '{{ route('admin.spmb.reset-password', encode_id($spmb->id)) }}';
+        this.newPasswordValue = '';
         this.showPasswordModal = true;
+    },
+    openCredentialsModal() {
+        this.showCredentialsModal = true;
     },
 
     openPreview(imageUrl, title) {
@@ -200,35 +215,156 @@ x-init="setTimeout(() => window.open('{{ session('open_wa_url') }}', '_blank'), 
                  x-transition:leave="ease-in duration-200"
                  x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
                  x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-                 class="relative inline-block w-full max-w-lg p-8 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-2xl rounded-3xl border border-slate-100">
+                 class="relative inline-block w-full max-w-lg p-6 sm:p-8 my-8 overflow-hidden text-left align-middle transition-all transform bg-white rounded-3xl shadow-2xl border border-slate-100"
+                 x-data="{ showPassPlain: false }">
 
-                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-6 bg-indigo-50 text-indigo-600 rounded-2xl border border-indigo-100">
+                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-indigo-50 text-indigo-600 rounded-2xl border border-indigo-100">
                     <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
                     </svg>
                 </div>
 
-                <h3 class="text-xl font-extrabold text-center text-slate-900 mb-1">Reset Password Akun</h3>
-                <p class="text-xs text-center text-slate-500 mb-6 leading-relaxed">Atur ulang kata sandi login untuk pendaftar <strong class="text-slate-900" x-text="deleteTarget?.name"></strong></p>
+                <h3 class="text-lg font-extrabold text-center text-slate-900 mb-1">Reset Password Akun Pendaftar</h3>
+                <p class="text-xs text-center text-slate-500 mb-5 leading-relaxed">Atur ulang kata sandi login untuk <strong class="text-slate-900" x-text="deleteTarget?.name || '{{ addslashes($spmb->full_name) }}'"></strong></p>
 
-                <form :action="passwordFormAction" method="POST">
+                <form :action="passwordFormAction" method="POST" class="space-y-4">
                     @csrf
-                    <div class="mb-6 space-y-2">
-                        <label class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider text-center">Password Baru <span class="text-rose-500">*</span></label>
-                        <input type="password" name="password" required minlength="8"
-                               class="w-full px-4 py-3 bg-slate-50 border border-slate-200/90 rounded-2xl text-center font-mono text-base font-extrabold text-indigo-700 tracking-widest focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition"
-                               placeholder="********">
-                        <p class="text-[10px] font-bold text-slate-400 text-center uppercase tracking-wider italic">Gunakan minimal 8 karakter aman</p>
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Password Baru <span class="text-rose-500">*</span></label>
+                            <button type="button" @click="generateRandomPassword()" class="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                <span>Acak Password</span>
+                            </button>
+                        </div>
+                        <div class="relative">
+                            <input :type="showPassPlain ? 'text' : 'password'" 
+                                   name="password" 
+                                   x-model="newPasswordValue"
+                                   required minlength="8"
+                                   class="w-full px-4 py-3 bg-slate-50 border border-slate-200/90 rounded-2xl text-center font-mono text-base font-extrabold text-indigo-700 tracking-wider focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition"
+                                   placeholder="Minimal 8 karakter">
+                            <button type="button" @click="showPassPlain = !showPassPlain" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold">
+                                <span x-text="showPassPlain ? 'Sembunyikan' : 'Lihat'"></span>
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1 italic text-center">Gunakan minimal 8 karakter aman (huruf & angka).</p>
                     </div>
 
-                    <div class="flex flex-col sm:flex-row gap-3">
+                    <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-2 text-xs">
+                        <label class="flex items-center gap-2.5 text-slate-700 cursor-pointer font-medium">
+                            <input type="checkbox" name="send_wa" value="1" checked class="w-4 h-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500">
+                            <span>Kirim notifikasi password baru ke WhatsApp</span>
+                        </label>
+                        <label class="flex items-center gap-2.5 text-slate-700 cursor-pointer font-medium">
+                            <input type="checkbox" name="open_wa" value="1" class="w-4 h-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500">
+                            <span>Buka WhatsApp Web/App langsung setelah menyimpan</span>
+                        </label>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-2.5 pt-2">
                         <button type="button" @click="showPasswordModal = false"
                                 class="w-full sm:flex-1 py-3 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition font-extrabold text-xs">
                             Batal
                         </button>
                         <button type="submit"
-                                class="w-full sm:flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-indigo-600/20">
-                            Reset Password Now
+                                class="w-full sm:flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-indigo-600/20 cursor-pointer">
+                            Simpan & Terapkan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Credentials Modal (Email / Phone / Name) -->
+    <div x-show="showCredentialsModal"
+         x-cloak
+         class="fixed inset-0 z-[110] overflow-y-auto"
+         style="display: none;">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+            <div x-show="showCredentialsModal"
+                 x-transition:enter="ease-out duration-300"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100"
+                 x-transition:leave="ease-in duration-200"
+                 x-transition:leave-start="opacity-100"
+                 x-transition:leave-end="opacity-0"
+                 class="fixed inset-0 transition-opacity bg-slate-950/60 backdrop-blur-md"
+                 @click="showCredentialsModal = false">
+            </div>
+
+            <div x-show="showCredentialsModal"
+                 x-transition:enter="ease-out duration-300"
+                 x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                 x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                 x-transition:leave="ease-in duration-200"
+                 x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                 x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                 class="relative inline-block w-full max-w-lg p-6 sm:p-8 my-8 overflow-hidden text-left align-middle transition-all transform bg-white rounded-3xl shadow-2xl border border-slate-100">
+
+                <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-extrabold text-base text-slate-900">Ubah Kredensial Akun Pendaftar</h3>
+                            <p class="text-xs text-slate-500">Perbaiki email (username) & kontak jika salah ketik saat registrasi</p>
+                        </div>
+                    </div>
+                    <button type="button" @click="showCredentialsModal = false" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <form :action="credentialsFormAction" method="POST" class="space-y-4">
+                    @csrf
+                    @method('PUT')
+
+                    <div class="space-y-1.5">
+                        <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Nama Lengkap Pengguna</label>
+                        <input type="text" name="name" value="{{ old('name', $spmb->user?->name ?? $spmb->full_name) }}" required
+                               class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-xs font-bold text-slate-800 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition">
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Alamat Email (Username Login) <span class="text-rose-500">*</span></label>
+                        <input type="email" name="email" value="{{ old('email', $spmb->user?->email ?? $spmb->email) }}" required
+                               class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-xs font-mono font-bold text-slate-800 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition"
+                               placeholder="email@example.com">
+                        <p class="text-[10px] text-slate-400 italic">Pendaftar menggunakan email ini untuk masuk ke portal.</p>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Nomor HP / WhatsApp</label>
+                        <input type="text" name="phone" value="{{ old('phone', $spmb->user?->phone ?? $spmb->phone) }}"
+                               class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-xs font-mono font-bold text-slate-800 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition"
+                               placeholder="08123456789">
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Password Baru (Kosongkan jika tidak diubah)</label>
+                        <input type="password" name="password" minlength="8"
+                               class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/90 rounded-xl text-xs font-mono font-medium text-slate-800 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition"
+                               placeholder="Minimal 8 karakter (opsional)">
+                    </div>
+
+                    <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-2 text-xs">
+                        <label class="flex items-center gap-2.5 text-slate-700 cursor-pointer font-medium">
+                            <input type="checkbox" name="send_wa" value="1" checked class="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500">
+                            <span>Kirim informasi pembaruan ke WhatsApp pendaftar</span>
+                        </label>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                        <button type="button" @click="showCredentialsModal = false"
+                                class="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-100 transition-colors">
+                            Batal
+                        </button>
+                        <button type="submit"
+                                class="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-lg shadow-blue-600/25 transition-all cursor-pointer">
+                            Simpan Perubahan
                         </button>
                     </div>
                 </form>
@@ -993,6 +1129,70 @@ x-init="setTimeout(() => window.open('{{ session('open_wa_url') }}', '_blank'), 
                                 </button>
                             </form>
                         @endif
+                    </div>
+                </div>
+
+                <!-- Account & Credentials Management Panel -->
+                <div class="premium-card overflow-hidden shadow-sm border-slate-200">
+                    <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-xs">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                            </div>
+                            <h3 class="font-extrabold text-xs text-slate-900 uppercase tracking-wider">Akun & Kredensial Login</h3>
+                        </div>
+                        @if($spmb->user?->isLockedOut())
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-700 border border-rose-200 animate-pulse">Terkunci</span>
+                        @else
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-700 border border-emerald-200">Aktif</span>
+                        @endif
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div class="space-y-2 text-xs">
+                            <div class="flex items-center justify-between py-1 border-b border-slate-50">
+                                <span class="text-slate-400 font-semibold">Email / Username:</span>
+                                <span class="font-mono font-bold text-slate-800 text-right truncate max-w-[180px]">{{ $spmb->user?->email ?? $spmb->email }}</span>
+                            </div>
+                            <div class="flex items-center justify-between py-1 border-b border-slate-50">
+                                <span class="text-slate-400 font-semibold">No. Telepon:</span>
+                                <span class="font-mono font-bold text-slate-800">{{ $spmb->user?->phone ?? $spmb->phone ?? '-' }}</span>
+                            </div>
+                            <div class="flex items-center justify-between py-1 border-b border-slate-50">
+                                <span class="text-slate-400 font-semibold">Status Login:</span>
+                                @if($spmb->user?->isLockedOut())
+                                    <span class="font-bold text-rose-600">Terkunci (Keamanan)</span>
+                                @else
+                                    <span class="font-bold text-emerald-600">Normal (Dapat Login)</span>
+                                @endif
+                            </div>
+                            <div class="flex items-center justify-between py-1">
+                                <span class="text-slate-400 font-semibold">Login Terakhir:</span>
+                                <span class="font-semibold text-slate-600">{{ $spmb->user?->last_login_at ? $spmb->user->last_login_at->diffForHumans() : 'Belum pernah' }}</span>
+                            </div>
+                        </div>
+
+                        @if($spmb->user?->isLockedOut())
+                            <form action="{{ route('admin.spmb.unlock', encode_id($spmb->id)) }}" method="POST">
+                                @csrf
+                                <button type="submit" class="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
+                                    <span>Buka Kunci Akun Sekarang</span>
+                                </button>
+                            </form>
+                        @endif
+
+                        <div class="pt-3 border-t border-slate-100 flex flex-col sm:flex-row gap-2">
+                            <button type="button" @click="openPasswordModal({{ $spmb->id }}, '{{ addslashes($spmb->full_name) }}')"
+                                    class="w-full sm:flex-1 py-2.5 px-3 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white border border-indigo-200/80 rounded-xl transition-all font-extrabold text-xs flex items-center justify-center space-x-1.5 cursor-pointer shadow-2xs">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                                <span>Reset Password</span>
+                            </button>
+                            <button type="button" @click="openCredentialsModal()"
+                                    class="w-full sm:flex-1 py-2.5 px-3 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white border border-blue-200/80 rounded-xl transition-all font-extrabold text-xs flex items-center justify-center space-x-1.5 cursor-pointer shadow-2xs">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                <span>Ubah Kredensial</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
 

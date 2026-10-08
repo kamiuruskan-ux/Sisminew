@@ -681,14 +681,130 @@ class SpmbController extends Controller
         $id = $this->resolveId($encodedId);
         $spmb = SpmbRegistration::with('user')->findOrFail($id);
 
+        if (!$spmb->user) {
+            return back()->withErrors(['error' => 'Akun pengguna untuk pendaftar ini tidak ditemukan.']);
+        }
+
         $validated = $request->validate([
             'password' => 'required|min:8',
+        ], [
+            'password.required' => 'Password baru wajib diisi.',
+            'password.min' => 'Password minimal terdiri dari 8 karakter.',
         ]);
 
         $spmb->user->password = Hash::make($validated['password']);
+        $spmb->user->locked_until = null;
+        $spmb->user->failed_login_attempts = 0;
         $spmb->user->save();
 
-        return back()->with('success', 'Password user berhasil direset.');
+        // Send WA Notification if requested
+        $waTarget = $spmb->parent_phone ?? $spmb->phone ?? $spmb->user->phone;
+        if ($waTarget && ($request->boolean('send_wa') || $request->boolean('open_wa'))) {
+            $schoolName = Setting::get('school_name', 'Sekolah');
+            $waMsg = "Pemberitahuan Reset Password Akun SPMB - {$schoolName}\n\nHalo *{$spmb->full_name}* (No. Registrasi: {$spmb->registration_number}),\n\nPassword akun portal pendaftaran SPMB Anda telah berhasil direset oleh Administrator.\n\n*Informasi Login Terbaru:*\n- Identitas/Email: *{$spmb->user->email}*\n- No. Handphone: *{$spmb->phone}*\n- Password Baru: *{$validated['password']}*\n\nSilakan masuk melalui portal berikut:\n" . route('login') . "\n\nDemi keamanan akun, silakan ubah password ini setelah Anda berhasil login.\nTerima kasih.";
+            
+            if (\App\Models\Setting::get('wa_notify_spmb', '1') == '1' || $request->boolean('send_wa')) {
+                \App\Services\WhatsAppService::sendMessage($waTarget, $waMsg);
+            }
+
+            if ($request->boolean('open_wa')) {
+                $cleanPhone = preg_replace('/[^0-9]/', '', $waTarget);
+                if (str_starts_with($cleanPhone, '0')) {
+                    $cleanPhone = '62' . substr($cleanPhone, 1);
+                }
+                $openWaUrl = 'https://wa.me/' . $cleanPhone . '?text=' . urlencode($waMsg);
+                return back()->with([
+                    'success' => 'Password akun pendaftar berhasil direset dan siap dikirim via WhatsApp.',
+                    'open_wa_url' => $openWaUrl,
+                ]);
+            }
+        }
+
+        return back()->with('success', 'Password akun pendaftar SPMB berhasil direset.');
+    }
+
+    public function updateCredentials($encodedId, Request $request)
+    {
+        $id = $this->resolveId($encodedId);
+        $spmb = SpmbRegistration::with('user')->findOrFail($id);
+
+        if (!$spmb->user) {
+            return back()->withErrors(['error' => 'Akun pengguna untuk pendaftar ini tidak ditemukan.']);
+        }
+
+        $validated = $request->validate([
+            'email'    => 'required|email|max:255|unique:users,email,' . $spmb->user_id,
+            'name'     => 'nullable|string|max:255',
+            'phone'    => 'nullable|string|max:30',
+            'password' => 'nullable|string|min:8',
+        ], [
+            'email.required' => 'Email login pendaftar wajib diisi.',
+            'email.email'    => 'Format email tidak valid.',
+            'email.unique'   => 'Alamat email ini sudah terdaftar pada pengguna lain.',
+            'password.min'   => 'Password baru minimal 8 karakter.',
+        ]);
+
+        $spmb->user->email = $validated['email'];
+        if ($request->filled('name')) {
+            $spmb->user->name = $validated['name'];
+            $spmb->full_name = $validated['name'];
+        }
+        if ($request->filled('phone')) {
+            $spmb->user->phone = $validated['phone'];
+            $spmb->phone = $validated['phone'];
+        }
+        if ($request->filled('password')) {
+            $spmb->user->password = Hash::make($validated['password']);
+        }
+        $spmb->user->locked_until = null;
+        $spmb->user->failed_login_attempts = 0;
+        $spmb->user->save();
+
+        $spmb->email = $validated['email'];
+        $spmb->save();
+
+        // Send WA Notification if requested
+        $waTarget = $spmb->parent_phone ?? $spmb->phone ?? $spmb->user->phone;
+        if ($waTarget && ($request->boolean('send_wa') || $request->boolean('open_wa'))) {
+            $schoolName = Setting::get('school_name', 'Sekolah');
+            $passText = $request->filled('password') ? "\n- Password Baru: *{$validated['password']}*" : "";
+            $waMsg = "Pembaruan Akun Login SPMB - {$schoolName}\n\nHalo *{$spmb->full_name}*,\nData akun login pendaftaran Anda telah diperbarui oleh Administrator.\n\n*Informasi Login Terkini:*\n- Email Login: *{$validated['email']}*\n- Nomor Telepon: *{$spmb->phone}*{$passText}\n\nSilakan masuk melalui portal berikut:\n" . route('login') . "\nTerima kasih.";
+
+            if (\App\Models\Setting::get('wa_notify_spmb', '1') == '1' || $request->boolean('send_wa')) {
+                \App\Services\WhatsAppService::sendMessage($waTarget, $waMsg);
+            }
+
+            if ($request->boolean('open_wa')) {
+                $cleanPhone = preg_replace('/[^0-9]/', '', $waTarget);
+                if (str_starts_with($cleanPhone, '0')) {
+                    $cleanPhone = '62' . substr($cleanPhone, 1);
+                }
+                $openWaUrl = 'https://wa.me/' . $cleanPhone . '?text=' . urlencode($waMsg);
+                return back()->with([
+                    'success' => 'Kredensial akun pendaftar berhasil diperbarui dan siap dikirim via WhatsApp.',
+                    'open_wa_url' => $openWaUrl,
+                ]);
+            }
+        }
+
+        return back()->with('success', 'Kredensial akun pendaftar SPMB berhasil diperbarui.');
+    }
+
+    public function unlockAccount($encodedId)
+    {
+        $id = $this->resolveId($encodedId);
+        $spmb = SpmbRegistration::with('user')->findOrFail($id);
+
+        if (!$spmb->user) {
+            return back()->withErrors(['error' => 'Akun pengguna tidak ditemukan.']);
+        }
+
+        $spmb->user->update([
+            'locked_until' => null,
+            'failed_login_attempts' => 0,
+        ]);
+
+        return back()->with('success', 'Kunci keamanan akun berhasil dibuka. Pendaftar dapat login kembali.');
     }
 
     public function destroy($encodedId)

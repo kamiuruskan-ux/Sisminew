@@ -159,8 +159,16 @@
                         </div>
                     </div>
 
+                    <!-- Link ke Pengaturan Akun & Password -->
+                    <div class="mt-4 pt-3.5 border-t border-slate-100 dark:border-slate-700">
+                        <a href="{{ route('student.account') }}" class="w-full py-2.5 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-700 dark:text-amber-300 font-bold text-xs rounded-xl transition-all border border-amber-200 dark:border-amber-800 flex items-center justify-center gap-2 cursor-pointer shadow-xs">
+                            <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                            <span>Ubah Password & PIN Keamanan</span>
+                        </a>
+                    </div>
+
                     <!-- Logout Button under Profile Card -->
-                    <form id="profile-logout-form" method="POST" action="{{ route('logout') }}" class="mt-4 pt-3.5 border-t border-slate-100 dark:border-slate-700">
+                    <form id="profile-logout-form" method="POST" action="{{ route('logout') }}" class="mt-2">
                         @csrf
                         <button type="submit" class="w-full py-2.5 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 font-bold text-xs rounded-xl transition-all border border-rose-200 dark:border-rose-800 flex items-center justify-center gap-2 cursor-pointer shadow-xs">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>

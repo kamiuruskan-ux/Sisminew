@@ -272,6 +272,9 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::post('students/{student}/toggle-status', [StudentController::class, 'toggleStatus'])->name('students.toggle-status');
         Route::get('students/{student}/edit', [StudentController::class, 'edit'])->name('students.edit');
         Route::put('students/{student}', [StudentController::class, 'update'])->name('students.update');
+        Route::post('students/{encodedId}/reset-password', [StudentController::class, 'resetPassword'])->name('students.reset-password');
+        Route::put('students/{encodedId}/credentials', [StudentController::class, 'updateCredentials'])->name('students.update-credentials');
+        Route::post('students/{encodedId}/unlock', [StudentController::class, 'unlockAccount'])->name('students.unlock');
 
         Route::post('alumni/graduate-class', [\App\Http\Controllers\Admin\AlumniController::class, 'graduateClass'])->name('alumni.graduate-class');
         Route::post('alumni/graduate-selected', [\App\Http\Controllers\Admin\AlumniController::class, 'graduateSelected'])->name('alumni.graduate-selected');
@@ -324,6 +327,8 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::post('spmb/{encodedId}/accept', [SpmbController::class, 'accept'])->name('spmb.accept');
         Route::post('spmb/{encodedId}/reject', [SpmbController::class, 'reject'])->name('spmb.reject');
         Route::post('spmb/{encodedId}/reset-password', [SpmbController::class, 'resetPassword'])->name('spmb.reset-password');
+        Route::put('spmb/{encodedId}/credentials', [SpmbController::class, 'updateCredentials'])->name('spmb.update-credentials');
+        Route::post('spmb/{encodedId}/unlock', [SpmbController::class, 'unlockAccount'])->name('spmb.unlock');
         Route::post('spmb/{encodedId}/update-photo', [SpmbController::class, 'updatePhoto'])->name('spmb.update-photo');
         Route::post('spmb/{encodedId}/request-revision', [SpmbController::class, 'requestRevision'])->name('spmb.request-revision');
     });

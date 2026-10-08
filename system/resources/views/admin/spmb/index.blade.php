@@ -66,6 +66,24 @@
         const url = 'https://wa.me/' + this.waTarget.phone + '?text=' + encodeURIComponent(this.waTarget.message);
         window.open(url, '_blank');
         this.showWaModal = false;
+    },
+    showPasswordModal: false,
+    passwordTarget: { id: null, name: '' },
+    passwordFormAction: '',
+    passwordValue: '',
+    generatePassword() {
+        const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+        let res = 'SPMB';
+        for (let i = 0; i < 4; i++) {
+            res += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        this.passwordValue = res;
+    },
+    openPasswordModal(encodedId, name) {
+        this.passwordTarget = { id: encodedId, name: name };
+        this.passwordFormAction = '{{ url('admin/spmb') }}/' + encodedId + '/reset-password';
+        this.passwordValue = '';
+        this.showPasswordModal = true;
     }
 }">
     @component('components.delete-modal', ['title' => 'Hapus Pendaftaran SPMB', 'message' => 'Apakah Anda yakin ingin menghapus :name ini? Tindakan ini tidak dapat dibatalkan.'])
@@ -142,6 +160,73 @@
                         <span>Buka WhatsApp ↗</span>
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Quick Reset Password Akun SPMB -->
+    <div x-show="showPasswordModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
+        <div class="fixed inset-0 bg-slate-950/70 backdrop-blur-xs transition-opacity" @click="showPasswordModal = false"></div>
+
+        <div class="flex min-h-screen items-center justify-center p-4">
+            <div class="relative w-full max-w-md transform rounded-3xl bg-white dark:bg-boxdark p-6 sm:p-8 text-left shadow-2xl transition-all border border-slate-200 dark:border-strokedark"
+                 @click.away="showPasswordModal = false"
+                 x-data="{ showPassPlain: false }">
+                
+                <div class="flex items-center justify-center w-14 h-14 mx-auto mb-4 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-2xl border border-indigo-100 dark:border-indigo-800">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                    </svg>
+                </div>
+
+                <h3 class="text-lg font-extrabold text-center text-slate-900 dark:text-white mb-1">Reset Password Akun</h3>
+                <p class="text-xs text-center text-slate-500 dark:text-slate-400 mb-5 leading-relaxed">Atur ulang password pendaftar: <strong class="text-slate-800 dark:text-slate-200" x-text="passwordTarget.name"></strong></p>
+
+                <form :action="passwordFormAction" method="POST" class="space-y-4">
+                    @csrf
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-[11px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Password Baru <span class="text-rose-500">*</span></label>
+                            <button type="button" @click="generatePassword()" class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                <span>Acak Password</span>
+                            </button>
+                        </div>
+                        <div class="relative">
+                            <input :type="showPassPlain ? 'text' : 'password'" 
+                                   name="password" 
+                                   x-model="passwordValue"
+                                   required minlength="8"
+                                   class="w-full px-4 py-2.5 bg-slate-50 dark:bg-boxdark-2 border border-slate-200 dark:border-strokedark rounded-xl text-center font-mono text-sm font-bold text-slate-800 dark:text-slate-200 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition"
+                                   placeholder="Minimal 8 karakter">
+                            <button type="button" @click="showPassPlain = !showPassPlain" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-[11px] font-bold">
+                                <span x-text="showPassPlain ? 'Tutup' : 'Lihat'"></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-slate-50 dark:bg-boxdark-2 rounded-xl border border-slate-100 dark:border-strokedark space-y-1.5 text-xs">
+                        <label class="flex items-center gap-2 text-slate-700 dark:text-slate-300 cursor-pointer">
+                            <input type="checkbox" name="send_wa" value="1" checked class="w-3.5 h-3.5 rounded text-indigo-600">
+                            <span>Kirim info password ke WhatsApp</span>
+                        </label>
+                        <label class="flex items-center gap-2 text-slate-700 dark:text-slate-300 cursor-pointer">
+                            <input type="checkbox" name="open_wa" value="1" class="w-3.5 h-3.5 rounded text-indigo-600">
+                            <span>Buka chat WhatsApp langsung</span>
+                        </label>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2.5 pt-2">
+                        <button type="button" @click="showPasswordModal = false"
+                                class="px-4 py-2 rounded-xl border border-slate-200 dark:border-strokedark text-slate-600 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 transition-colors">
+                            Batal
+                        </button>
+                        <button type="submit"
+                                class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer">
+                            Simpan Password
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -631,6 +716,12 @@
                                             <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                                         </button>
                                     @endif
+                                    <button type="button" 
+                                            @click="openPasswordModal('{{ encode_id($registration->id) }}', '{{ addslashes($registration->full_name) }}')"
+                                            class="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-600 hover:text-white text-indigo-600 dark:text-indigo-400 font-bold text-xs transition-all border border-indigo-200 dark:border-indigo-800 inline-flex items-center shadow-2xs cursor-pointer"
+                                            title="Reset Password Akun">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                                    </button>
                                     <a href="{{ route('admin.spmb.show', encode_id($registration->id)) }}"
                                        class="px-3.5 py-2 rounded-xl bg-[#3C50E0]/10 text-[#3C50E0] hover:bg-[#3C50E0] hover:text-white font-bold text-xs transition-all border border-[#3C50E0]/20 inline-flex items-center space-x-1.5">
                                         <span>Detail</span>
