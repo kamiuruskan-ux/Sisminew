@@ -21,7 +21,7 @@ return new class extends Migration
                 
                 $table->date('assessment_date');
                 $table->enum('attendance_status', ['hadir', 'sakit', 'izin', 'alpa'])->default('hadir');
-                $table->enum('program_type', ['tahsin', 'tahfidz'])->default('tahsin');
+                $table->string('program_type', 50)->default('tahsin');
                 
                 // Tahsin details
                 $table->string('tahsin_type', 50)->nullable()->default('jilid'); // 'jilid', 'tilawah'

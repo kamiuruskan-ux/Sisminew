@@ -73,6 +73,22 @@ class DatabaseSchemaChecker
                     });
                     $updatedTables[] = 'halaqah_records (tambah kolom record_category)';
                 }
+
+                // Pastikan program_type mendukung 'tilawah' (ubah dari ENUM('tahsin', 'tahfidz') ke VARCHAR)
+                try {
+                    $colInfo = DB::select("SELECT DATA_TYPE, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'halaqah_records' AND COLUMN_NAME = 'program_type'");
+                    if (!empty($colInfo)) {
+                        $colType = strtolower($colInfo[0]->COLUMN_TYPE ?? $colInfo[0]->DATA_TYPE ?? '');
+                        if (str_contains($colType, 'enum')) {
+                            DB::statement("ALTER TABLE `halaqah_records` MODIFY COLUMN `program_type` VARCHAR(50) NOT NULL DEFAULT 'tahsin'");
+                            $updatedTables[] = 'halaqah_records (ubah kolom program_type menjadi varchar)';
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    try {
+                        DB::statement("ALTER TABLE `halaqah_records` MODIFY COLUMN `program_type` VARCHAR(50) NOT NULL DEFAULT 'tahsin'");
+                    } catch (\Throwable $ex) {}
+                }
             }
 
             // 1b. Tabel Target Hafalan & Capaian Al-Qur'an (quran_targets)
