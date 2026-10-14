@@ -440,7 +440,7 @@ class TeacherAttendanceController extends Controller
     {
         $user = auth()->user();
         $tab = $request->input('tab', 'general'); // 'general' | 'briefing'
-        $briefingTab = $request->input('briefing_tab', 'recap'); // 'recap' | 'history'
+        $briefingTab = $request->input('briefing_tab', 'cards'); // 'cards' | 'history'
         $mode = $request->input('mode', 'monthly'); // 'today' | 'range' | 'monthly'
 
         $todayDate = date('Y-m-d');
@@ -523,9 +523,13 @@ class TeacherAttendanceController extends Controller
             ? \App\Models\BriefingAttendance::where('session_id', $briefingSession->id)->get()->keyBy('user_id')
             : collect();
 
-        // Group staff by jabatan
+        // Group staff by jabatan (Kantin/Vendor dan Staf Toko tidak dimasukkan di laporan briefing)
         $allStaff = User::employees()->orderBy('name')->get();
-        $groupedByJabatan = $allStaff->groupBy(function ($u) {
+        $briefingStaff = $allStaff->reject(function ($u) {
+            $j = strtolower($u->jabatan ?: ($u->roles->first()?->name ?? ''));
+            return str_contains($j, 'kantin') || str_contains($j, 'vendor') || str_contains($j, 'toko');
+        });
+        $groupedByJabatan = $briefingStaff->groupBy(function ($u) {
             return $u->jabatan ?: ($u->roles->first()?->name ?? 'Staf / Guru');
         });
 
@@ -679,7 +683,14 @@ class TeacherAttendanceController extends Controller
             ? \App\Models\BriefingAttendance::where('session_id', $briefingSession->id)->get()->keyBy('user_id')
             : collect();
 
-        $allStaff = User::employees()->orderBy('jabatan')->orderBy('name')->get();
+        $allStaff = User::employees()
+            ->orderBy('jabatan')
+            ->orderBy('name')
+            ->get()
+            ->reject(function ($st) {
+                $j = strtolower($st->jabatan ?: ($st->roles->first()?->name ?? ''));
+                return str_contains($j, 'kantin') || str_contains($j, 'vendor') || str_contains($j, 'toko');
+            });
         $row = 5;
         $no = 1;
         foreach ($allStaff as $st) {

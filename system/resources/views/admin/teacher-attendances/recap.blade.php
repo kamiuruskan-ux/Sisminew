@@ -6,7 +6,7 @@
 @section('content')
 <div class="space-y-6" x-data="{
     activeTab: '{{ $tab }}',
-    briefingSubTab: '{{ $briefingTab }}',
+    briefingSubTab: '{{ in_array($briefingTab, ["cards", "recap"]) ? "cards" : ($briefingTab ?: "cards") }}',
     searchQuery: '{{ $search }}'
 }">
     <!-- ======================================================== -->
@@ -22,7 +22,7 @@
         </button>
 
         <!-- Tab 2: Laporan Briefing -->
-        <button type="button" @click="activeTab = 'briefing'"
+        <button type="button" @click="activeTab = 'briefing'; briefingSubTab = 'cards'"
                 :class="activeTab === 'briefing' ? 'bg-white dark:bg-[#1A222C] text-indigo-600 dark:text-indigo-400 border-indigo-400 dark:border-indigo-600 shadow-sm font-black' : 'bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border-transparent font-bold'"
                 class="px-5 py-2.5 rounded-2xl border text-xs flex items-center gap-2 transition cursor-pointer whitespace-nowrap">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
@@ -388,7 +388,7 @@
         <!-- Sub-Tabs: LOG & REKAP ABSENSI BRIEFING vs HISTORY POIN & MATERI BRIEFING -->
         <div class="flex items-center gap-2 p-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-2xl w-fit">
             <button type="button" @click="briefingSubTab = 'cards'"
-                    :class="briefingSubTab === 'cards' ? 'bg-indigo-600 text-white shadow-sm font-black' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-bold'"
+                    :class="(briefingSubTab === 'cards' || briefingSubTab === 'recap') ? 'bg-indigo-600 text-white shadow-sm font-black' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-bold'"
                     class="px-5 py-2 rounded-xl text-xs flex items-center gap-2 transition cursor-pointer">
                 <span>💼</span>
                 <span class="tracking-wider uppercase">LOG & REKAP ABSENSI BRIEFING</span>
@@ -403,7 +403,7 @@
         </div>
 
         <!-- SUB-TAB 1: LOG & REKAP PER FORMASI JABATAN (Photo 2) -->
-        <div x-show="briefingSubTab === 'cards'" class="space-y-6">
+        <div x-show="briefingSubTab === 'cards' || briefingSubTab === 'recap'" class="space-y-6">
             <!-- Header Banner -->
             <div class="tailadmin-card p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
