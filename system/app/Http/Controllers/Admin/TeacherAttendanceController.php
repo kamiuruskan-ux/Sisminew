@@ -467,7 +467,9 @@ class TeacherAttendanceController extends Controller
             ->distinct('user_id')
             ->count('user_id');
 
-        $halaqahAktif = \App\Models\Student::where('status', 'active')->count();
+        $halaqahAktif = \App\Models\Student::where(function ($q) {
+            $q->whereIn('student_status', ['active', 'Aktif'])->orWhereNull('student_status');
+        })->count();
 
         // Rata kedisiplinan bulan ini
         $monthlyAllRecords = TeacherAttendance::whereYear('date', $year)

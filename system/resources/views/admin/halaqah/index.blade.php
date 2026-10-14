@@ -125,13 +125,22 @@
         }
     },
 
+    // ── Global Data Stores for Modals (Eliminate HTML quote breaking) ──
+    teacherMonitoringList: @json($teacherMonitoringList->values() ?? []),
+    classTargetAchievements: @json($classTargetAchievements ?? []),
+    gradeTargetAchievements: @json($gradeTargetAchievements ?? []),
+
     // ── Monitoring Keaktifan Guru Modal ──
     isTeacherDetailModalOpen: false,
     selectedTeacherData: null,
     teacherStudentSearch: '',
     teacherStudentFilter: 'all',
-    openTeacherDetailModal(teacherRow) {
-        this.selectedTeacherData = teacherRow;
+    openTeacherDetailModal(idxOrData) {
+        if (typeof idxOrData === 'number') {
+            this.selectedTeacherData = this.teacherMonitoringList[idxOrData] || null;
+        } else {
+            this.selectedTeacherData = idxOrData;
+        }
         this.teacherStudentSearch = '';
         this.teacherStudentFilter = 'all';
         this.isTeacherDetailModalOpen = true;
@@ -144,26 +153,39 @@
     get filteredTeacherStudents() {
         if (!this.selectedTeacherData || !this.selectedTeacherData.students_detail) return [];
         let list = this.selectedTeacherData.students_detail;
-        if (this.teacherStudentFilter === 'done') {
-            list = list.filter(s => s.is_inputted);
+        if (this.teacherStudentFilter === 'done' || this.teacherStudentFilter === 'inputted') {
+            list = list.filter(s => s.is_inputted || s.is_evaluated);
         } else if (this.teacherStudentFilter === 'pending') {
-            list = list.filter(s => !s.is_inputted);
+            list = list.filter(s => !s.is_inputted && !s.is_evaluated);
         }
         if (this.teacherStudentSearch) {
             const q = this.teacherStudentSearch.toLowerCase();
-            list = list.filter(s => (s.name && s.name.toLowerCase().includes(q)) || (s.nisn && s.nisn.includes(q)));
+            list = list.filter(s => (s.name && s.name.toLowerCase().includes(q)) || (s.nisn && s.nisn.includes(q)) || (s.class_name && s.class_name.toLowerCase().includes(q)));
         }
         return list;
     },
 
-    // ── Filter Ketercapaian Target & Modal Detail Kelas ──
+    // ── Filter Ketercapaian Target & Modal Detail Kelas / Tingkat ──
     targetGradeFilter: 'all',
+    targetSectionView: 'all', // 'all', 'tingkat', 'rombel'
     isClassTargetModalOpen: false,
     selectedClassTarget: null,
+    selectedClassTargetData: null,
     classStudentSearch: '',
     classStudentFilter: 'all',
-    openClassTargetModal(cta) {
-        this.selectedClassTarget = cta;
+    openClassTargetModal(typeOrData, index = null) {
+        if (typeof typeOrData === 'string' && index !== null) {
+            if (typeOrData === 'grade') {
+                this.selectedClassTarget = this.gradeTargetAchievements[index] || null;
+            } else {
+                this.selectedClassTarget = this.classTargetAchievements[index] || null;
+            }
+        } else if (typeof typeOrData === 'number') {
+            this.selectedClassTarget = this.classTargetAchievements[typeOrData] || null;
+        } else {
+            this.selectedClassTarget = typeOrData;
+        }
+        this.selectedClassTargetData = this.selectedClassTarget;
         this.classStudentSearch = '';
         this.classStudentFilter = 'all';
         this.isClassTargetModalOpen = true;
@@ -174,18 +196,27 @@
         document.body.style.overflow = '';
     },
     get filteredClassStudents() {
-        if (!this.selectedClassTarget || !this.selectedClassTarget.students_detail) return [];
-        let list = this.selectedClassTarget.students_detail;
-        if (this.classStudentFilter === 'tuntas') {
-            list = list.filter(s => s.is_overall_tuntas);
-        } else if (this.classStudentFilter === 'belum') {
-            list = list.filter(s => !s.is_overall_tuntas);
+        const target = this.selectedClassTarget || this.selectedClassTargetData;
+        if (!target || !target.students_detail) return [];
+        let list = target.students_detail;
+        if (this.classStudentFilter === 'tuntas' || this.classStudentFilter === 'achieved') {
+            list = list.filter(s => s.is_overall_tuntas || s.is_fully_achieved);
+        } else if (this.classStudentFilter === 'belum' || this.classStudentFilter === 'unachieved') {
+            list = list.filter(s => !s.is_overall_tuntas && !s.is_fully_achieved);
+        } else if (this.classStudentFilter === 'tahsin_done') {
+            list = list.filter(s => s.tahsin_achieved || s.tahsin_tuntas);
+        } else if (this.classStudentFilter === 'tahfidz_done') {
+            list = list.filter(s => s.tahfidz_achieved || s.tahfidz_tuntas);
         }
         if (this.classStudentSearch) {
             const q = this.classStudentSearch.toLowerCase();
-            list = list.filter(s => (s.name && s.name.toLowerCase().includes(q)) || (s.nisn && s.nisn.includes(q)));
+            list = list.filter(s => (s.name && s.name.toLowerCase().includes(q)) || (s.nisn && s.nisn.includes(q)) || (s.class_name && s.class_name.toLowerCase().includes(q)));
         }
         return list;
+    },
+    openStudentRecordModal(stId) {
+        if (!stId) return;
+        window.location.href = '{{ route('admin.halaqah.index') }}?tab=history&filter_student_id=' + stId;
     },
 
     // ── Manajemen Kelompok Halaqah (Modal Interaktif) ──
@@ -1783,7 +1814,7 @@
                             <td class="py-3.5 px-4 text-center whitespace-nowrap">
                                 <div class="flex items-center justify-center gap-1.5">
                                     <button type="button"
-                                            @click="openTeacherDetailModal({{ json_encode($tRow) }})"
+                                            @click="openTeacherDetailModal({{ $loop->index }})"
                                             class="px-3 py-1.5 rounded-xl text-xs font-black transition flex items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer"
                                             title="Lihat rincian bimbingan &amp; progres santri binaan guru ini">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
@@ -1878,22 +1909,22 @@
 
         </div>
 
-        {{-- KARTU KETERCAPAIAN TARGET KURIKULUM TAHSIN & TAHFIDZ PER KELAS --}}
-        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center font-black shadow-md shadow-emerald-500/20 shrink-0">
+        {{-- KARTU KETERCAPAIAN TARGET KURIKULUM TAHSIN & TAHFIDZ (PER TINGKAT & PER KELAS) --}}
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-6">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center font-black shadow-md shadow-emerald-500/20 shrink-0">
                         🎯
                     </div>
                     <div>
                         <h4 class="text-xs sm:text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                            <span>KETERCAPAIAN TARGET KURIKULUM PER KELAS</span>
+                            <span>KETERCAPAIAN TARGET KURIKULUM AL-QUR'AN</span>
                             <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-                                {{ count($classTargetAchievements ?? []) }} Kelas
+                                {{ count($gradeTargetAchievements ?? []) }} Tingkat • {{ count($classTargetAchievements ?? []) }} Rombel
                             </span>
                         </h4>
                         <p class="text-[11px] text-slate-400">
-                            Persentase santri yang telah memenuhi target standar capaian Tahsin (Jilid &amp; Halaman) dan Tahfidz (Juz &amp; Surah) per rombel kelas
+                            Analisis capaian Tahsin (Jilid &amp; Halaman) dan Tahfidz (Juz &amp; Surah) berbasis Tingkat Kelas dan Rombel
                         </p>
                     </div>
                 </div>
@@ -1903,78 +1934,165 @@
                     <span class="text-[11px] font-bold text-slate-400 mr-1">Filter Tingkat:</span>
                     <button type="button" @click="targetGradeFilter = 'all'"
                             :class="targetGradeFilter === 'all' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'"
-                            class="px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer">
+                            class="px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer">
                         Semua
                     </button>
                     @foreach([1, 2, 3, 4, 5, 6] as $grNum)
                     <button type="button" @click="targetGradeFilter = '{{ $grNum }}'"
                             :class="targetGradeFilter === '{{ $grNum }}' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'"
-                            class="px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer">
+                            class="px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer">
                         Kelas {{ $grNum }}
                     </button>
                     @endforeach
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pt-1">
-                @forelse($classTargetAchievements ?? [] as $cta)
-                <div x-show="targetGradeFilter === 'all' || String(targetGradeFilter) === String('{{ $cta['grade'] }}')"
-                     class="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:border-emerald-300 dark:hover:border-emerald-700 transition space-y-3 flex flex-col justify-between">
-                    <div>
-                        <div class="flex items-center justify-between mb-3">
-                            <div>
-                                <span class="text-xs font-black text-slate-900 dark:text-white">{{ $cta['class_name'] }}</span>
-                                <p class="text-[10px] text-slate-400 font-semibold">{{ $cta['total_students'] }} Santri Terdaftar</p>
-                            </div>
-                            <div class="text-right">
-                                <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ $cta['overall_pct'] >= 75 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : ($cta['overall_pct'] >= 50 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300') }}">
-                                    {{ $cta['overall_pct'] }}% Tuntas
-                                </span>
-                            </div>
-                        </div>
-
-                        {{-- Progress Tahsin --}}
-                        <div class="space-y-1 mb-2.5">
-                            <div class="flex justify-between items-baseline text-[11px]">
-                                <span class="font-extrabold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                                    📖 Tahsin
-                                    <span class="text-[10px] font-normal text-slate-400 truncate max-w-[130px]">({{ $cta['tahsin_target'] }})</span>
-                                </span>
-                                <span class="font-bold text-slate-700 dark:text-slate-300">{{ $cta['tahsin_achieved'] }}/{{ $cta['total_students'] }} ({{ $cta['tahsin_pct'] }}%)</span>
-                            </div>
-                            <div class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                                <div class="bg-amber-500 h-2 rounded-full transition-all duration-500" style="width: {{ $cta['tahsin_pct'] }}%"></div>
-                            </div>
-                        </div>
-
-                        {{-- Progress Tahfidz --}}
-                        <div class="space-y-1 mb-3">
-                            <div class="flex justify-between items-baseline text-[11px]">
-                                <span class="font-extrabold text-teal-600 dark:text-teal-400 flex items-center gap-1">
-                                    🌟 Tahfidz
-                                    <span class="text-[10px] font-normal text-slate-400 truncate max-w-[130px]">({{ $cta['tahfidz_target'] }})</span>
-                                </span>
-                                <span class="font-bold text-slate-700 dark:text-slate-300">{{ $cta['tahfidz_achieved'] }}/{{ $cta['total_students'] }} ({{ $cta['tahfidz_pct'] }}%)</span>
-                            </div>
-                            <div class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                                <div class="bg-teal-500 h-2 rounded-full transition-all duration-500" style="width: {{ $cta['tahfidz_pct'] }}%"></div>
-                            </div>
-                        </div>
+            {{-- 1. SEKSI REKAP KETERCAPAIAN TARGET PER TINGKAT (KELAS 1 S/D 6) --}}
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                            📊 REKAPITULASI TARGET PER TINGKAT KELAS
+                        </span>
+                        <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
+                            Akumulasi Seluruh Siswa Per Tingkat
+                        </span>
                     </div>
+                </div>
 
-                    {{-- Tombol Buka Rincian Santri & Batas Bacaan --}}
-                    <button type="button"
-                            @click="openClassTargetModal({{ json_encode($cta) }})"
-                            class="w-full py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 dark:text-emerald-300 rounded-xl text-xs font-black border border-emerald-200 dark:border-emerald-800 transition flex items-center justify-center gap-1.5 cursor-pointer">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                        <span>Lihat Nama Santri &amp; Batas Bacaan</span>
-                    </button>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    @forelse($gradeTargetAchievements ?? [] as $gtaIndex => $gta)
+                    <div x-show="targetGradeFilter === 'all' || String(targetGradeFilter) === String('{{ $gta['grade'] }}')"
+                         class="p-4 rounded-2xl border-2 border-slate-200/90 dark:border-slate-800 bg-gradient-to-br from-white to-slate-50/60 dark:from-slate-900 dark:to-slate-800/40 hover:border-emerald-400 dark:hover:border-emerald-600 transition shadow-xs flex flex-col justify-between space-y-3">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <div>
+                                    <span class="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{{ $gta['grade_label'] }}</span>
+                                    <p class="text-[10px] text-slate-500 font-bold">{{ $gta['total_students'] }} Santri ({{ $gta['total_classes'] }} Rombel Kelas)</p>
+                                </div>
+                                <div>
+                                    <span class="px-2.5 py-1 rounded-xl text-[10px] font-black {{ $gta['overall_pct'] >= 75 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300/40' : ($gta['overall_pct'] >= 50 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300/40' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300/40') }}">
+                                        {{ $gta['overall_pct'] }}% Tuntas
+                                    </span>
+                                </div>
+                            </div>
+
+                            {{-- Progress Tahsin --}}
+                            <div class="space-y-1 mb-2.5">
+                                <div class="flex justify-between items-baseline text-[11px]">
+                                    <span class="font-black text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                        📖 Tahsin
+                                        <span class="text-[10px] font-normal text-slate-400 truncate max-w-[130px]">({{ $gta['tahsin_target'] }})</span>
+                                    </span>
+                                    <span class="font-bold text-slate-700 dark:text-slate-300 font-mono">{{ $gta['tahsin_achieved'] }}/{{ $gta['total_students'] }} ({{ $gta['tahsin_pct'] }}%)</span>
+                                </div>
+                                <div class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                                    <div class="bg-amber-500 h-2 rounded-full transition-all duration-500" style="width: {{ $gta['tahsin_pct'] }}%"></div>
+                                </div>
+                            </div>
+
+                            {{-- Progress Tahfidz --}}
+                            <div class="space-y-1 mb-3">
+                                <div class="flex justify-between items-baseline text-[11px]">
+                                    <span class="font-black text-teal-600 dark:text-teal-400 flex items-center gap-1">
+                                        🌟 Tahfidz
+                                        <span class="text-[10px] font-normal text-slate-400 truncate max-w-[130px]">({{ $gta['tahfidz_target'] }})</span>
+                                    </span>
+                                    <span class="font-bold text-slate-700 dark:text-slate-300 font-mono">{{ $gta['tahfidz_achieved'] }}/{{ $gta['total_students'] }} ({{ $gta['tahfidz_pct'] }}%)</span>
+                                </div>
+                                <div class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                                    <div class="bg-teal-500 h-2 rounded-full transition-all duration-500" style="width: {{ $gta['tahfidz_pct'] }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Tombol Buka Rincian Santri Tingkat --}}
+                        <button type="button"
+                                @click="openClassTargetModal('grade', {{ $gtaIndex }})"
+                                class="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 dark:text-indigo-300 rounded-xl text-xs font-black border border-indigo-200 dark:border-indigo-800 transition flex items-center justify-center gap-1.5 cursor-pointer">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            <span>Lihat Santri Tingkat {{ $gta['grade'] }} ({{ $gta['total_students'] }} Siswa)</span>
+                        </button>
+                    </div>
+                    @empty
+                    <div class="col-span-full py-4 text-center text-slate-400 text-xs">
+                        Tidak ada data target tingkat kelas.
+                    </div>
+                    @endforelse
                 </div>
-                @empty
-                <div class="col-span-full py-8 text-center text-slate-400 text-xs">
-                    Belum ada data rombel kelas atau santri aktif.
+            </div>
+
+            {{-- 2. SEKSI RINCIAN KETERCAPAIAN PER ROMBEL KELAS --}}
+            <div class="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                        🏫 RINCIAN KETERCAPAIAN TARGET PER ROMBEL KELAS
+                    </span>
+                    <span class="text-[11px] text-slate-400">
+                        Klik tombol untuk memeriksa batas bacaan &amp; mutaba'ah per anak
+                    </span>
                 </div>
-                @endforelse
+
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    @forelse($classTargetAchievements ?? [] as $ctaIndex => $cta)
+                    <div x-show="targetGradeFilter === 'all' || String(targetGradeFilter) === String('{{ $cta['grade'] }}')"
+                         class="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:border-emerald-300 dark:hover:border-emerald-700 transition space-y-3 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <div>
+                                    <span class="text-xs font-black text-slate-900 dark:text-white">{{ $cta['class_name'] }}</span>
+                                    <p class="text-[10px] text-slate-400 font-semibold">{{ $cta['total_students'] }} Santri Terdaftar</p>
+                                </div>
+                                <div class="text-right">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ $cta['overall_pct'] >= 75 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : ($cta['overall_pct'] >= 50 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300') }}">
+                                        {{ $cta['overall_pct'] }}% Tuntas
+                                    </span>
+                                </div>
+                            </div>
+
+                            {{-- Progress Tahsin --}}
+                            <div class="space-y-1 mb-2.5">
+                                <div class="flex justify-between items-baseline text-[11px]">
+                                    <span class="font-extrabold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                        📖 Tahsin
+                                        <span class="text-[10px] font-normal text-slate-400 truncate max-w-[130px]">({{ $cta['tahsin_target'] }})</span>
+                                    </span>
+                                    <span class="font-bold text-slate-700 dark:text-slate-300 font-mono">{{ $cta['tahsin_achieved'] }}/{{ $cta['total_students'] }} ({{ $cta['tahsin_pct'] }}%)</span>
+                                </div>
+                                <div class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                                    <div class="bg-amber-500 h-2 rounded-full transition-all duration-500" style="width: {{ $cta['tahsin_pct'] }}%"></div>
+                                </div>
+                            </div>
+
+                            {{-- Progress Tahfidz --}}
+                            <div class="space-y-1 mb-3">
+                                <div class="flex justify-between items-baseline text-[11px]">
+                                    <span class="font-extrabold text-teal-600 dark:text-teal-400 flex items-center gap-1">
+                                        🌟 Tahfidz
+                                        <span class="text-[10px] font-normal text-slate-400 truncate max-w-[130px]">({{ $cta['tahfidz_target'] }})</span>
+                                    </span>
+                                    <span class="font-bold text-slate-700 dark:text-slate-300 font-mono">{{ $cta['tahfidz_achieved'] }}/{{ $cta['total_students'] }} ({{ $cta['tahfidz_pct'] }}%)</span>
+                                </div>
+                                <div class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                                    <div class="bg-teal-500 h-2 rounded-full transition-all duration-500" style="width: {{ $cta['tahfidz_pct'] }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Tombol Buka Rincian Santri & Batas Bacaan --}}
+                        <button type="button"
+                                @click="openClassTargetModal('class', {{ $ctaIndex }})"
+                                class="w-full py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 dark:text-emerald-300 rounded-xl text-xs font-black border border-emerald-200 dark:border-emerald-800 transition flex items-center justify-center gap-1.5 cursor-pointer">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            <span>Lihat Santri Kelas Ini &amp; Batas Bacaan</span>
+                        </button>
+                    </div>
+                    @empty
+                    <div class="col-span-full py-8 text-center text-slate-400 text-xs">
+                        Belum ada data rombel kelas atau santri aktif.
+                    </div>
+                    @endforelse
+                </div>
             </div>
         </div>
 

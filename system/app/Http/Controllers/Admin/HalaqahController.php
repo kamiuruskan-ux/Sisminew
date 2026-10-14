@@ -621,9 +621,12 @@ class HalaqahController extends Controller
                             'nisn' => $st->nisn ?? $st->nis ?? '-',
                             'class_name' => $st->class?->name ?? '-',
                             'is_inputted' => $isInputted,
+                            'is_evaluated' => $isInputted,
                             'program_type' => $stRec?->program_type ?? '-',
                             'materi' => $materiText,
+                            'last_material' => $materiText,
                             'score' => $stRec?->score_cognitive ?? null,
+                            'score_cognitive' => $stRec?->score_cognitive ?? null,
                             'predicate' => $stRec?->predicate ?? null,
                             'date' => $stRec?->assessment_date ? $stRec->assessment_date->format('d/m/Y') : null,
                         ];
@@ -835,9 +838,10 @@ class HalaqahController extends Controller
             }
         }
 
-        // ── KETERCAPAIAN TARGET KURIKULUM PER KELAS ──
+        // ── KETERCAPAIAN TARGET KURIKULUM PER KELAS & PER TINGKAT ──
         $classTargetAchievements = [];
         $allTargets = QuranTarget::all();
+        $studentTeacherMap = QuranHalaqahMember::with('teacher')->get()->keyBy('student_id');
         $studentsByClass = Student::with('user')
             ->when(\Illuminate\Support\Facades\Schema::hasColumn('students', 'student_status'), function ($sq) {
                 $sq->where(function($q) {
@@ -875,7 +879,10 @@ class HalaqahController extends Controller
         // Evaluasi per kelas
         $classesToEvaluate = $allClasses;
         if ($filterGrade !== 'all' && is_numeric($filterGrade)) {
-            $classesToEvaluate = $classesToEvaluate->where('grade', (int)$filterGrade);
+            $classesToEvaluate = $classesToEvaluate->filter(function ($c) use ($filterGrade) {
+                $g = !empty($c->grade) && is_numeric($c->grade) ? (int)$c->grade : (preg_match('/^(\d+)/', trim($c->name), $m) ? (int)$m[1] : 0);
+                return $g === (int)$filterGrade;
+            });
         }
         if ($filterClassId !== 'all') {
             $classesToEvaluate = $classesToEvaluate->where('id', (int)$filterClassId);
@@ -885,8 +892,12 @@ class HalaqahController extends Controller
             $clsStudents = $studentsByClass->get($cls->id, collect());
             $totalStudents = $clsStudents->count();
 
+            $resolvedGrade = !empty($cls->grade) && is_numeric($cls->grade) 
+                ? (int)$cls->grade 
+                : (preg_match('/^(\d+)/', trim($cls->name), $m) ? (int)$m[1] : 1);
+
             // Target untuk tingkat kelas ini
-            $gradeTargets = $allTargets->where('grade', $cls->grade);
+            $gradeTargets = $allTargets->where('grade', $resolvedGrade);
             $tahsinTarget = $gradeTargets->where('program_type', 'tahsin')->sortByDesc('semester')->first();
             $tahfidzTarget = $gradeTargets->where('program_type', 'tahfidz')->sortByDesc('semester')->first();
 
@@ -909,6 +920,8 @@ class HalaqahController extends Controller
 
             if ($totalStudents > 0) {
                 foreach ($clsStudents as $st) {
+                    $stTeacherName = $studentTeacherMap->get($st->id)?->teacher?->name;
+
                     // Check Tahsin
                     $stTahsin = $latestTahsinByStudent->get($st->id);
                     $isTahsinTuntas = false;
@@ -952,15 +965,24 @@ class HalaqahController extends Controller
                         }
                     }
 
+                    $isOverallTuntas = ($isTahsinTuntas && $isTahfidzTuntas);
+
                     $studentsDetail[] = [
                         'id' => $st->id,
                         'name' => $st->user?->name ?? 'Santri',
                         'nisn' => $st->nisn ?? $st->nis ?? '-',
+                        'class_name' => $cls->name,
+                        'teacher_name' => $stTeacherName ?? '-',
+                        'tahsin_status' => $tahsinText,
                         'tahsin_text' => $tahsinText,
+                        'tahsin_achieved' => $isTahsinTuntas,
                         'tahsin_tuntas' => $isTahsinTuntas,
+                        'tahfidz_status' => $tahfidzText,
                         'tahfidz_text' => $tahfidzText,
+                        'tahfidz_achieved' => $isTahfidzTuntas,
                         'tahfidz_tuntas' => $isTahfidzTuntas,
-                        'is_overall_tuntas' => ($isTahsinTuntas && $isTahfidzTuntas),
+                        'is_fully_achieved' => $isOverallTuntas,
+                        'is_overall_tuntas' => $isOverallTuntas,
                     ];
                 }
             }
@@ -972,7 +994,7 @@ class HalaqahController extends Controller
             $classTargetAchievements[] = [
                 'class_id' => $cls->id,
                 'class_name' => $cls->name,
-                'grade' => $cls->grade,
+                'grade' => $resolvedGrade,
                 'total_students' => $totalStudents,
                 'tahsin_target' => $tahsinTargetLabel,
                 'tahsin_achieved' => $tahsinAchieved,
@@ -982,6 +1004,53 @@ class HalaqahController extends Controller
                 'tahfidz_pct' => $tahfidzPct,
                 'overall_pct' => $overallPct,
                 'students_detail' => $studentsDetail,
+            ];
+        }
+
+        // ── KETERCAPAIAN TARGET KURIKULUM PER TINGKAT (TINGKAT 1 S/D 6) ──
+        $gradeTargetAchievements = [];
+        $classTargetColl = collect($classTargetAchievements);
+        foreach ($availableGrades as $grNum) {
+            $grClasses = $classTargetColl->where('grade', $grNum);
+            $grTotalStudents = $grClasses->sum('total_students');
+            $grTahsinAchieved = $grClasses->sum('tahsin_achieved');
+            $grTahfidzAchieved = $grClasses->sum('tahfidz_achieved');
+            $grTahsinPct = $grTotalStudents > 0 ? round(($grTahsinAchieved / $grTotalStudents) * 100) : 0;
+            $grTahfidzPct = $grTotalStudents > 0 ? round(($grTahfidzAchieved / $grTotalStudents) * 100) : 0;
+            $grOverallPct = round(($grTahsinPct + $grTahfidzPct) / 2);
+
+            $grGradeTargets = $allTargets->where('grade', $grNum);
+            $grTahsinTarget = $grGradeTargets->where('program_type', 'tahsin')->sortByDesc('semester')->first();
+            $grTahfidzTarget = $grGradeTargets->where('program_type', 'tahfidz')->sortByDesc('semester')->first();
+
+            $grTahsinLabel = $grTahsinTarget 
+                ? ($grTahsinTarget->target_jilid . ($grTahsinTarget->target_page_end ? ' Hal. ' . $grTahsinTarget->target_page_end : '')) 
+                : 'Target Belum Diset';
+            $grTahfidzLabel = $grTahfidzTarget 
+                ? (($grTahfidzTarget->target_juz ? 'Juz ' . $grTahfidzTarget->target_juz : '') . ($grTahfidzTarget->target_surah_start ? ' (' . $grTahfidzTarget->target_surah_start . ($grTahfidzTarget->target_surah_end ? ' s.d ' . $grTahfidzTarget->target_surah_end : '') . ')' : '')) 
+                : 'Target Belum Diset';
+
+            $grStudentsDetail = [];
+            foreach ($grClasses as $cAch) {
+                foreach ($cAch['students_detail'] as $stDet) {
+                    $grStudentsDetail[] = $stDet;
+                }
+            }
+
+            $gradeTargetAchievements[] = [
+                'grade' => $grNum,
+                'class_name' => "Tingkat Kelas {$grNum}",
+                'grade_label' => "Tingkat Kelas {$grNum}",
+                'total_classes' => $grClasses->count(),
+                'total_students' => $grTotalStudents,
+                'tahsin_target' => $grTahsinLabel,
+                'tahsin_achieved' => $grTahsinAchieved,
+                'tahsin_pct' => $grTahsinPct,
+                'tahfidz_target' => $grTahfidzLabel,
+                'tahfidz_achieved' => $grTahfidzAchieved,
+                'tahfidz_pct' => $grTahfidzPct,
+                'overall_pct' => $grOverallPct,
+                'students_detail' => $grStudentsDetail,
             ];
         }
 
@@ -1060,6 +1129,7 @@ class HalaqahController extends Controller
             'juzStats',
             'surahDistribution',
             'classTargetAchievements',
+            'gradeTargetAchievements',
             'tasmiStudents',
             'studentReportList',
             'attendanceStats',
