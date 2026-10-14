@@ -56,8 +56,12 @@ class BpiController extends Controller
             ->get()
             ->sortBy(fn($s) => $s->user?->name ?? '');
         $mentors = User::whereHas('roles', function($q) {
-            $q->whereIn('slug', ['guru', 'admin', 'super-admin']);
-        })->orWhere('user_type', 'guru')->orderBy('name')->get();
+            $q->whereIn('slug', ['guru', 'teacher', 'guru-quran', 'admin', 'super-admin', 'kepala-sekolah']);
+        })->orderBy('name')->get();
+
+        if ($mentors->isEmpty()) {
+            $mentors = User::employees()->orderBy('name')->get();
+        }
 
         // Riwayat Agenda Pertemuan BPI
         $agendaQuery = BpiAgenda::with(['group', 'mentor', 'attendances.student.user'])
