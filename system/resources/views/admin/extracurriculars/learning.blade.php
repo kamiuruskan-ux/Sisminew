@@ -211,11 +211,14 @@
                     </svg>
                 </div>
                 <div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 flex-wrap">
                         <h2 class="text-lg font-bold text-gray-900 dark:text-white">
                             {{ $selectedExtra?->name ?? 'Pilih Ekstrakurikuler' }}
                         </h2>
                         @if($selectedExtra)
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                                {{ $selectedExtra->category_label }}
+                            </span>
                             <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                                 {{ $totalEnrolledMembers }} Santri di Kelompok Ini
                             </span>
@@ -242,7 +245,7 @@
                     <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-2">Pilih Ekstrakurikuler</label>
                     <select name="extracurricular_id" onchange="this.form.submit()" class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-emerald-500 focus:border-emerald-500 font-medium">
                         @foreach($extracurriculars as $ex)
-                            <option value="{{ $ex->id }}" {{ $selectedExtraId == $ex->id ? 'selected' : '' }}>{{ $ex->name }} ({{ ucfirst($ex->category ?? 'Wajib') }})</option>
+                            <option value="{{ $ex->id }}" {{ $selectedExtraId == $ex->id ? 'selected' : '' }}>{{ $ex->name }} ({{ $ex->category_label }})</option>
                         @endforeach
                     </select>
                 </div>
@@ -562,7 +565,7 @@
                     <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-2">Pilih Ekstrakurikuler</label>
                     <select name="extracurricular_id" onchange="this.form.submit()" class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                         @foreach($extracurriculars as $ex)
-                            <option value="{{ $ex->id }}" {{ $selectedExtraId == $ex->id ? 'selected' : '' }}>{{ $ex->name }}</option>
+                            <option value="{{ $ex->id }}" {{ $selectedExtraId == $ex->id ? 'selected' : '' }}>{{ $ex->name }} ({{ $ex->category_label }})</option>
                         @endforeach
                     </select>
                 </div>

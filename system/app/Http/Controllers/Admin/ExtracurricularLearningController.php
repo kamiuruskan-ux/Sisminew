@@ -24,7 +24,7 @@ class ExtracurricularLearningController extends Controller
         ExtracurricularMember::ensureTableExists();
 
         $user = auth()->user();
-        $extracurriculars = Extracurricular::orderBy('name')->get();
+        $extracurriculars = Extracurricular::with('categoryModel')->orderBy('name')->get();
         $classes = ClassModel::orderBy('grade')->orderBy('name')->get();
         $activeYear = AcademicYear::getActive();
 
@@ -79,7 +79,7 @@ class ExtracurricularLearningController extends Controller
         }
 
         // Riwayat Agenda
-        $agendaQuery = ExtracurricularAgenda::with(['extracurricular', 'coach', 'students.student.user'])
+        $agendaQuery = ExtracurricularAgenda::with(['extracurricular.categoryModel', 'coach', 'students.student.user'])
             ->latest('date')
             ->latest('id');
 
@@ -399,7 +399,7 @@ class ExtracurricularLearningController extends Controller
             ->toArray();
 
         // Ekskul lain yang diikuti santri untuk referensi pembina
-        $otherMemberships = ExtracurricularMember::with('extracurricular')
+        $otherMemberships = ExtracurricularMember::with(['extracurricular.categoryModel'])
             ->where('extracurricular_id', '!=', $extraId)
             ->whereIn('student_id', $allStudents->pluck('id'))
             ->when($activeYear, fn($q) => $q->where('academic_year_id', $activeYear->id))
@@ -409,7 +409,10 @@ class ExtracurricularLearningController extends Controller
         $studentsData = $allStudents->map(function ($st) use ($currentMemberIds, $otherMemberships) {
             $isInGroup = in_array($st->id, $currentMemberIds);
             $otherExtras = $otherMemberships->get($st->id, collect())
-                ->pluck('extracurricular.name')
+                ->map(function ($m) {
+                    if (!$m->extracurricular) return null;
+                    return $m->extracurricular->name . ' (' . $m->extracurricular->category_label . ')';
+                })
                 ->filter()
                 ->unique()
                 ->values()

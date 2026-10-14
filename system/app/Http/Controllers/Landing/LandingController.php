@@ -232,8 +232,9 @@ class LandingController extends Controller
 
     public function extracurricular()
     {
-        $extracurriculars = \App\Models\Extracurricular::active()->orderBy('order')->get();
-        return view('landing.extracurricular', compact('extracurriculars'));
+        $extracurriculars = \App\Models\Extracurricular::active()->with('categoryModel')->orderBy('order')->get();
+        $categories = \App\Models\ExtracurricularCategory::where('is_active', true)->orderBy('order')->orderBy('name')->get();
+        return view('landing.extracurricular', compact('extracurriculars', 'categories'));
     }
 
 

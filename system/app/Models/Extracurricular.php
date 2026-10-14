@@ -26,6 +26,10 @@ class Extracurricular extends Model
         'order' => 'integer',
     ];
 
+    protected $appends = [
+        'category_label',
+    ];
+
     protected static function boot()
     {
         parent::boot();
@@ -45,6 +49,30 @@ class Extracurricular extends Model
     public function getImageUrlAttribute(): ?string
     {
         return get_public_file_url($this->image, 'img/extracurriculars');
+    }
+
+    public function categoryModel()
+    {
+        return $this->belongsTo(ExtracurricularCategory::class, 'category', 'slug');
+    }
+
+    public function getCategoryLabelAttribute(): string
+    {
+        return $this->getCategoryNameAttribute();
+    }
+
+    public function getCategoryNameAttribute(): string
+    {
+        if ($this->relationLoaded('categoryModel') && $this->categoryModel) {
+            return $this->categoryModel->name;
+        }
+
+        $name = ExtracurricularCategory::getCategoryNameBySlug($this->category);
+        if ($name) {
+            return $name;
+        }
+
+        return !empty($this->category) ? ucfirst($this->category) : 'Wajib';
     }
 
     public function members()

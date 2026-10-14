@@ -164,6 +164,8 @@ class ExtracurricularController extends Controller
             'is_active' => true,
         ]);
 
+        ExtracurricularCategory::clearCache();
+
         return redirect()->route('admin.extracurriculars.index')
             ->with('success', 'Kategori ekstrakurikuler baru berhasil ditambahkan.');
     }
@@ -186,6 +188,8 @@ class ExtracurricularController extends Controller
             'order' => $validated['order'] ?? $category->order,
         ]);
 
+        ExtracurricularCategory::clearCache();
+
         return redirect()->route('admin.extracurriculars.index')
             ->with('success', 'Kategori ekstrakurikuler berhasil diperbarui.');
     }
@@ -202,6 +206,7 @@ class ExtracurricularController extends Controller
         }
 
         $category->delete();
+        ExtracurricularCategory::clearCache();
 
         return redirect()->route('admin.extracurriculars.index')
             ->with('success', 'Kategori ekstrakurikuler berhasil dihapus.');

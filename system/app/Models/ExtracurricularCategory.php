@@ -56,6 +56,8 @@ class ExtracurricularCategory extends Model
         }
     }
 
+    protected static ?array $cachedCategoryMap = null;
+
     public static function getCategoryList(): array
     {
         self::ensureTableExists();
@@ -71,5 +73,44 @@ class ExtracurricularCategory extends Model
         }
 
         return $cats->pluck('name', 'slug')->toArray();
+    }
+
+    public static function getCategoryNameBySlug(?string $slug): ?string
+    {
+        if (empty($slug)) {
+            return null;
+        }
+
+        if (static::$cachedCategoryMap === null) {
+            self::ensureTableExists();
+            static::$cachedCategoryMap = self::pluck('name', 'slug')->toArray();
+        }
+
+        if (isset(static::$cachedCategoryMap[$slug])) {
+            return static::$cachedCategoryMap[$slug];
+        }
+
+        // Cek jika kategori disimpan sebagai ID
+        if (is_numeric($slug)) {
+            $catById = self::find((int) $slug);
+            if ($catById) {
+                static::$cachedCategoryMap[$slug] = $catById->name;
+                return $catById->name;
+            }
+        }
+
+        // Cek jika dicari langsung dari DB jika ada record baru atau pencarian berdasarkan nama
+        $cat = self::where('slug', $slug)->orWhere('name', $slug)->first();
+        if ($cat) {
+            static::$cachedCategoryMap[$slug] = $cat->name;
+            return $cat->name;
+        }
+
+        return null;
+    }
+
+    public static function clearCache(): void
+    {
+        static::$cachedCategoryMap = null;
     }
 }

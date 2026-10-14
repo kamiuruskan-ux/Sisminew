@@ -56,26 +56,36 @@
                     class="shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition-all">
                 Semua Ekstra
             </button>
-            <button @click="activeTab = 'kepemimpinan'" 
-                    :class="activeTab === 'kepemimpinan' ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
-                    class="shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition-all">
-                Kepemimpinan & Organisasi
-            </button>
-            <button @click="activeTab = 'sains'" 
-                    :class="activeTab === 'sains' ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
-                    class="shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition-all">
-                Sains & Teknologi
-            </button>
-            <button @click="activeTab = 'olahraga'" 
-                    :class="activeTab === 'olahraga' ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
-                    class="shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition-all">
-                Olahraga & Atletik
-            </button>
-            <button @click="activeTab = 'seni'" 
-                    :class="activeTab === 'seni' ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
-                    class="shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition-all">
-                Seni & Budaya
-            </button>
+            @if(isset($categories) && $categories->isNotEmpty())
+                @foreach($categories as $cat)
+                    <button @click="activeTab = '{{ $cat->slug }}'" 
+                            :class="activeTab === '{{ $cat->slug }}' ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                            class="shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition-all">
+                        {{ $cat->name }}
+                    </button>
+                @endforeach
+            @else
+                <button @click="activeTab = 'kepemimpinan'" 
+                        :class="activeTab === 'kepemimpinan' ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                        class="shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition-all">
+                    Kepemimpinan & Organisasi
+                </button>
+                <button @click="activeTab = 'sains'" 
+                        :class="activeTab === 'sains' ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                        class="shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition-all">
+                    Al-Qur'an
+                </button>
+                <button @click="activeTab = 'olahraga'" 
+                        :class="activeTab === 'olahraga' ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                        class="shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition-all">
+                    Olahraga & Atletik
+                </button>
+                <button @click="activeTab = 'seni'" 
+                        :class="activeTab === 'seni' ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                        class="shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition-all">
+                    Seni & Budaya
+                </button>
+            @endif
         </div>
     </div>
 </div>
@@ -110,14 +120,8 @@
                         'olahraga' => 'indigo',
                         'seni' => 'purple',
                     ];
-                    $color = $categoryColors[$extra->category] ?? 'primary';
-                    $categoryLabels = [
-                        'kepemimpinan' => 'Kepemimpinan',
-                        'sains' => 'Sains & Teknologi',
-                        'olahraga' => 'Olahraga',
-                        'seni' => 'Seni & Budaya',
-                    ];
-                    $label = $categoryLabels[$extra->category] ?? ucfirst($extra->category);
+                    $color = $extra->categoryModel?->color ?? ($categoryColors[$extra->category] ?? 'emerald');
+                    $label = $extra->category_label;
                 @endphp
                 <div x-show="matchesTab('{{ $extra->category }}')"
                      class="bg-white rounded-3xl p-7 border border-slate-200/80 shadow-sm hover:shadow-2xl hover:border-{{ $color }}-500/40 transition-all duration-300 flex flex-col justify-between items-center text-center group transform hover:-translate-y-2 relative overflow-hidden" 
