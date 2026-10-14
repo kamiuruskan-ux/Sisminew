@@ -375,7 +375,7 @@
 
                 <td class="label">Kelas</td>
                 <td class="colon">:</td>
-                <td class="value">{{ $student->class->name ?? '-' }}</td>
+                <td class="value">{{ $data['class_name'] ?? ($student->class->name ?? '-') }}</td>
             </tr>
             <tr>
                 <td class="label">

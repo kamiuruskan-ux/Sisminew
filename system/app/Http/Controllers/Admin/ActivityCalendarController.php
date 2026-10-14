@@ -61,15 +61,30 @@ class ActivityCalendarController extends Controller
 
         if ($selectedEvent) {
             if (in_array($selectedEvent->target_audience, ['all', 'students', 'class'])) {
-                $stQuery = Student::with(['user', 'class'])
+                $eventDate = $selectedEvent->date_start;
+                $eventYear = \App\Models\AcademicYear::where('start_date', '<=', $eventDate)
+                    ->where('end_date', '>=', $eventDate)
+                    ->first() ?? \App\Models\AcademicYear::getActive();
+
+                $targetClassId = ($selectedEvent->target_audience === 'class' && $selectedEvent->class_id) 
+                    ? $selectedEvent->class_id 
+                    : $selectedClassId;
+
+                $stQuery = Student::with(['user', 'class', 'classHistories'])
                     ->where(function($q) {
                         $q->whereIn('student_status', ['active', 'Aktif'])->orWhereNull('student_status');
                     })
                     ->orderBy('nisn', 'asc');
-                if ($selectedEvent->target_audience === 'class' && $selectedEvent->class_id) {
-                    $stQuery->where('class_id', $selectedEvent->class_id);
-                } elseif ($selectedClassId) {
-                    $stQuery->where('class_id', $selectedClassId);
+
+                if ($targetClassId) {
+                    $stQuery->where(function($q) use ($targetClassId, $eventYear) {
+                        $q->where('class_id', $targetClassId);
+                        if ($eventYear) {
+                            $q->orWhereHas('classHistories', function($hq) use ($targetClassId, $eventYear) {
+                                $hq->where('class_id', $targetClassId)->where('academic_year_id', $eventYear->id);
+                            });
+                        }
+                    });
                 }
                 $studentsList = $stQuery->get();
             }
@@ -125,6 +140,11 @@ class ActivityCalendarController extends Controller
             'description' => 'nullable|string',
         ]);
 
+        $eventYear = \App\Models\AcademicYear::where('start_date', '<=', $validated['date_start'])
+            ->where('end_date', '>=', $validated['date_start'])
+            ->first() ?? \App\Models\AcademicYear::getActive();
+
+        $validated['academic_year_id'] = $eventYear?->id;
         $validated['created_by'] = Auth::id();
         $validated['is_active'] = true;
 
@@ -152,6 +172,11 @@ class ActivityCalendarController extends Controller
             'class_id' => 'nullable|exists:classes,id',
             'description' => 'nullable|string',
         ]);
+
+        $eventYear = \App\Models\AcademicYear::where('start_date', '<=', $validated['date_start'])
+            ->where('end_date', '>=', $validated['date_start'])
+            ->first() ?? \App\Models\AcademicYear::getActive();
+        $validated['academic_year_id'] = $eventYear?->id;
 
         $event->update($validated);
 
@@ -187,6 +212,7 @@ class ActivityCalendarController extends Controller
                 $notes = $item['notes'] ?? null;
 
                 if ($pType === 'student') {
+                    $stModel = Student::find($participantId);
                     ActivityAttendance::updateOrCreate(
                         [
                             'event_id' => $event->id,
@@ -194,6 +220,8 @@ class ActivityCalendarController extends Controller
                             'student_id' => $participantId,
                         ],
                         [
+                            'class_id' => $stModel?->class_id,
+                            'academic_year_id' => $event->academic_year_id ?? \App\Models\AcademicYear::getActive()?->id,
                             'status' => $status,
                             'notes' => $notes,
                             'check_in_time' => $nowTime,
@@ -208,6 +236,7 @@ class ActivityCalendarController extends Controller
                             'user_id' => $participantId,
                         ],
                         [
+                            'academic_year_id' => $event->academic_year_id ?? \App\Models\AcademicYear::getActive()?->id,
                             'status' => $status,
                             'notes' => $notes,
                             'check_in_time' => $nowTime,

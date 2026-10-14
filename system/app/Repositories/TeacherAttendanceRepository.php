@@ -37,6 +37,12 @@ class TeacherAttendanceRepository implements AttendanceRepositoryInterface
      */
     public function save(TeacherAttendance $attendance): TeacherAttendance
     {
+        if (empty($attendance->academic_year_id)) {
+            $attDate = $attendance->date ? (is_string($attendance->date) ? $attendance->date : $attendance->date->format('Y-m-d')) : date('Y-m-d');
+            $attendance->academic_year_id = \App\Models\AcademicYear::where('start_date', '<=', $attDate)
+                ->where('end_date', '>=', $attDate)
+                ->value('id') ?? \App\Models\AcademicYear::where('is_active', true)->value('id');
+        }
         $attendance->save();
         return $attendance;
     }

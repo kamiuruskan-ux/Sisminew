@@ -226,7 +226,7 @@
             <tr>
                 <td>Kelas / Rombel</td>
                 <td>:</td>
-                <td>{{ $student->class?->name ?? '-' }}</td>
+                <td>{{ $className ?? ($student->class?->name ?? '-') }}</td>
                 <td>Kelompok BPI</td>
                 <td>:</td>
                 <td>{{ $group?->name ?? 'Kelompok Tarbiyah' }}</td>

@@ -1397,8 +1397,9 @@ class HalaqahController extends Controller
         $allStudentIdsInGrade = Student::whereIn('class_id', $classIdsInGrade)->pluck('id');
 
         DB::transaction(function () use ($teacherId, $grade, $studentIds, $allStudentIdsInGrade, $activeYear) {
-            // Lepas santri di tingkat ini yang sebelumnya ada di kelompok guru ini tapi sekarang di-uncheck
+            // Lepas santri di tingkat ini yang sebelumnya ada di kelompok guru ini pada tahun ajaran ini tapi sekarang di-uncheck
             QuranHalaqahMember::where('teacher_id', $teacherId)
+                ->when($activeYear, fn($q) => $q->where('academic_year_id', $activeYear->id))
                 ->where(function ($q) use ($grade, $allStudentIdsInGrade) {
                     $q->where('grade', $grade)
                       ->orWhereIn('student_id', $allStudentIdsInGrade);
@@ -1406,13 +1407,15 @@ class HalaqahController extends Controller
                 ->whereNotIn('student_id', $studentIds)
                 ->delete();
 
-            // Simpan / pindahkan santri yang dicentang ke kelompok guru ini (sifatnya eksklusif: 1 santri = 1 guru halaqah)
+            // Simpan / pindahkan santri yang dicentang ke kelompok guru ini pada tahun ajaran aktif (1 santri = 1 guru halaqah per tahun ajaran)
             foreach ($studentIds as $sid) {
                 QuranHalaqahMember::updateOrCreate(
-                    ['student_id' => $sid],
+                    [
+                        'student_id' => $sid,
+                        'academic_year_id' => $activeYear?->id,
+                    ],
                     [
                         'teacher_id' => $teacherId,
-                        'academic_year_id' => $activeYear?->id,
                         'grade' => $grade,
                         'group_name' => "Halaqah Tingkat {$grade}",
                     ]

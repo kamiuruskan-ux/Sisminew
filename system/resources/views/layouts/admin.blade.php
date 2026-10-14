@@ -719,7 +719,7 @@
                         <!-- Dropdown Struktur Akademik & Kelas -->
                         @if(auth()->user()->hasPermission('view-classes|view-majors|view-subjects|view-schedules|view-academic-years'))
                         @php
-                            $isAcademicDropdownActive = request()->routeIs('admin.classes.*') || request()->routeIs('admin.subjects.*') || request()->routeIs('admin.majors.*') || request()->routeIs('admin.academic-years.*') || request()->routeIs('admin.schedules.*');
+                            $isAcademicDropdownActive = request()->routeIs('admin.classes.*') || request()->routeIs('admin.class-promotions.*') || request()->routeIs('admin.subjects.*') || request()->routeIs('admin.majors.*') || request()->routeIs('admin.academic-years.*') || request()->routeIs('admin.schedules.*');
                         @endphp
                         <div x-data="{ open: {{ $isAcademicDropdownActive ? 'true' : 'false' }} }">
                             <button type="button" @click="open = !open" 
@@ -739,6 +739,10 @@
                                     <a href="{{ route('admin.classes.index') }}"
                                        class="nav-link text-xs {{ request()->routeIs('admin.classes.*') ? 'nav-link-active' : '' }}">
                                         <span>Data Kelas</span>
+                                    </a>
+                                    <a href="{{ route('admin.class-promotions.index') }}"
+                                       class="nav-link text-xs {{ request()->routeIs('admin.class-promotions.*') ? 'nav-link-active' : '' }}">
+                                        <span>Kenaikan & Kelulusan</span>
                                     </a>
                                 @endif
                                 @if(Setting::get('is_vocational', '0') == '1' && auth()->user()->hasPermission('view-majors'))

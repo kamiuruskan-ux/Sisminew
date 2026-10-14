@@ -99,6 +99,31 @@ class Student extends Model
         return $this->belongsTo(ClassModel::class, 'class_id');
     }
 
+    public function classHistories(): HasMany
+    {
+        return $this->hasMany(StudentClassHistory::class, 'student_id')->orderBy('academic_year_id', 'desc');
+    }
+
+    public function getClassForYear(?int $academicYearId = null): ?ClassModel
+    {
+        if (!$academicYearId) {
+            return $this->class;
+        }
+
+        if ($this->relationLoaded('classHistories')) {
+            $history = $this->classHistories->where('academic_year_id', $academicYearId)->first();
+        } else {
+            $history = $this->classHistories()->where('academic_year_id', $academicYearId)->first();
+        }
+
+        return $history?->class ?? $this->class;
+    }
+
+    public function getClassNameForYear(?int $academicYearId = null): string
+    {
+        return $this->getClassForYear($academicYearId)?->name ?? $this->class?->name ?? 'Belum ada kelas';
+    }
+
 
     public function paymentBills(): HasMany
     {

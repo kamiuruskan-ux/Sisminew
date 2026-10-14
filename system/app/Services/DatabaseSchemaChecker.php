@@ -368,6 +368,126 @@ class DatabaseSchemaChecker
                 });
             }
 
+            // 15. Tabel Riwayat Kenaikan Kelas Siswa per Tahun Ajaran (student_class_histories)
+            if (!Schema::hasTable('student_class_histories')) {
+                Schema::create('student_class_histories', function (Blueprint $table) {
+                    $table->id();
+                    $table->unsignedBigInteger('student_id');
+                    $table->unsignedBigInteger('class_id')->nullable();
+                    $table->unsignedBigInteger('academic_year_id');
+                    $table->string('status', 30)->default('active'); // active, promoted, retained, graduated, transferred
+                    $table->text('notes')->nullable();
+                    $table->timestamp('promoted_at')->nullable();
+                    $table->unsignedBigInteger('promoted_by')->nullable();
+                    $table->timestamps();
+
+                    $table->foreign('student_id')->references('id')->on('students')->onDelete('cascade');
+                    $table->index(['student_id', 'academic_year_id'], 'idx_sch_std_year');
+                    $table->index(['class_id', 'academic_year_id'], 'idx_sch_cls_year');
+                    $table->index('status', 'idx_sch_status');
+                });
+                $createdTables[] = 'student_class_histories';
+            }
+
+            // Auto-backfill riwayat kelas awal jika tabel student_class_histories masih kosong
+            try {
+                $historyCount = \DB::table('student_class_histories')->count();
+                $activeYear = \App\Models\AcademicYear::where('is_active', true)->first() ?? \App\Models\AcademicYear::first();
+                if ($historyCount === 0 && $activeYear) {
+                    $activeStudents = \App\Models\Student::whereNotNull('class_id')->get(['id', 'class_id']);
+                    $historiesToInsert = [];
+                    $now = now();
+                    foreach ($activeStudents as $st) {
+                        $historiesToInsert[] = [
+                            'student_id' => $st->id,
+                            'class_id' => $st->class_id,
+                            'academic_year_id' => $activeYear->id,
+                            'status' => 'active',
+                            'notes' => 'Riwayat kelas awal sistem',
+                            'created_at' => $now,
+                            'updated_at' => $now,
+                        ];
+                    }
+                    if (!empty($historiesToInsert)) {
+                        foreach (array_chunk($historiesToInsert, 200) as $chunk) {
+                            \DB::table('student_class_histories')->insert($chunk);
+                        }
+                        $updatedTables[] = 'student_class_histories (auto-backfill ' . count($historiesToInsert) . ' siswa)';
+                    }
+                }
+            } catch (\Throwable $e) {}
+
+            // 16. Kolom Tahun Ajaran & Semester pada Tabel Nilai (grades)
+            if (Schema::hasTable('grades')) {
+                $hasGradYr = Schema::hasColumn('grades', 'academic_year_id');
+                $hasGradSem = Schema::hasColumn('grades', 'semester');
+                if (!$hasGradYr || !$hasGradSem) {
+                    Schema::table('grades', function (Blueprint $table) use ($hasGradYr, $hasGradSem) {
+                        if (!$hasGradYr) {
+                            $table->unsignedBigInteger('academic_year_id')->nullable()->after('class_id')->index();
+                        }
+                        if (!$hasGradSem) {
+                            $table->string('semester', 20)->default('ganjil')->after('academic_year_id')->index();
+                        }
+                    });
+                    $updatedTables[] = 'grades (tambah academic_year_id & semester)';
+                }
+
+                // Backfill grades yang belum memiliki academic_year_id
+                try {
+                    $activeYear = \App\Models\AcademicYear::where('is_active', true)->first() ?? \App\Models\AcademicYear::first();
+                    if ($activeYear) {
+                        \DB::table('grades')->whereNull('academic_year_id')->update([
+                            'academic_year_id' => $activeYear->id,
+                            'semester' => $activeYear->semester ?? 'ganjil',
+                        ]);
+                    }
+                } catch (\Throwable $e) {}
+            }
+
+            // 17. Kolom Tahun Ajaran pada Tabel Kalender & Absen Kegiatan (activity_events & activity_attendances)
+            if (Schema::hasTable('activity_events')) {
+                if (!Schema::hasColumn('activity_events', 'academic_year_id')) {
+                    Schema::table('activity_events', function (Blueprint $table) {
+                        $table->unsignedBigInteger('academic_year_id')->nullable()->after('class_id')->index();
+                    });
+                    $updatedTables[] = 'activity_events (tambah academic_year_id)';
+                }
+            }
+            if (Schema::hasTable('activity_attendances')) {
+                $hasActYr = Schema::hasColumn('activity_attendances', 'academic_year_id');
+                $hasActCls = Schema::hasColumn('activity_attendances', 'class_id');
+                if (!$hasActYr || !$hasActCls) {
+                    Schema::table('activity_attendances', function (Blueprint $table) use ($hasActYr, $hasActCls) {
+                        if (!$hasActYr) {
+                            $table->unsignedBigInteger('academic_year_id')->nullable()->after('event_id')->index();
+                        }
+                        if (!$hasActCls) {
+                            $table->unsignedBigInteger('class_id')->nullable()->after('student_id')->index();
+                        }
+                    });
+                    $updatedTables[] = 'activity_attendances (tambah academic_year_id & class_id)';
+                }
+            }
+
+            // 18. Kolom Tahun Ajaran pada KPI & Presensi Guru (kpi_evaluations & teacher_attendances)
+            if (Schema::hasTable('kpi_evaluations')) {
+                if (!Schema::hasColumn('kpi_evaluations', 'academic_year_id')) {
+                    Schema::table('kpi_evaluations', function (Blueprint $table) {
+                        $table->unsignedBigInteger('academic_year_id')->nullable()->after('period_semester')->index();
+                    });
+                    $updatedTables[] = 'kpi_evaluations (tambah academic_year_id)';
+                }
+            }
+            if (Schema::hasTable('teacher_attendances')) {
+                if (!Schema::hasColumn('teacher_attendances', 'academic_year_id')) {
+                    Schema::table('teacher_attendances', function (Blueprint $table) {
+                        $table->unsignedBigInteger('academic_year_id')->nullable()->after('date')->index();
+                    });
+                    $updatedTables[] = 'teacher_attendances (tambah academic_year_id)';
+                }
+            }
+
         } catch (\Throwable $e) {
             // Tangkap exception tanpa menghentikan eksekusi aplikasi
         }

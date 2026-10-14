@@ -428,7 +428,22 @@ class RaportController extends Controller
      */
     private function buildStudentRaportData(Student $student, ?AcademicYear $academicYear, string $semester): array
     {
-        $grades = Grade::where('student_id', $student->id)->get();
+        // Filter Nilai berdasarkan Tahun Ajaran & Semester
+        $gradeQuery = Grade::where('student_id', $student->id);
+        if ($academicYear) {
+            $gradeQuery->where(function ($q) use ($academicYear) {
+                $q->where('academic_year_id', $academicYear->id)
+                  ->orWhereNull('academic_year_id');
+            });
+            if (!empty($semester)) {
+                $normSem = strtolower($semester);
+                $gradeQuery->where(function ($q) use ($normSem) {
+                    $q->where('semester', $normSem)
+                      ->orWhereNull('semester');
+                });
+            }
+        }
+        $grades = $gradeQuery->get();
         $groupedGrades = $grades->groupBy('subject');
 
         $subjectResults = [];
@@ -480,8 +495,13 @@ class RaportController extends Controller
 
         $overallAverage = $subjectCount > 0 ? round($totalFinalScore / $subjectCount, 1) : 0;
 
-        // Attendance summary
-        $attendances = Attendance::where('student_id', $student->id)->get();
+        // Attendance summary (difilter berdasarkan rentang tanggal tahun ajaran)
+        $attQuery = Attendance::where('student_id', $student->id);
+        if ($academicYear && $academicYear->start_date && $academicYear->end_date) {
+            $attQuery->whereBetween('date', [$academicYear->start_date->format('Y-m-d'), $academicYear->end_date->format('Y-m-d')]);
+        }
+        $attendances = $attQuery->get();
+
         $attendanceSummary = [
             'present' => $attendances->whereIn('status', ['present', 'late'])->count(),
             'sick' => $attendances->where('status', 'sick')->count(),
@@ -492,7 +512,7 @@ class RaportController extends Controller
         // Ekstrakurikuler Wajib & Pilihan Khas SDIT (Dinamis dari input nilai ekskul)
         $dbExtracurriculars = \App\Models\ExtracurricularEvaluation::with('extracurricular')
             ->where('student_id', $student->id)
-            ->where('academic_year_id', $activeYear?->id)
+            ->where('academic_year_id', $academicYear?->id)
             ->get();
 
         if ($dbExtracurriculars->isNotEmpty()) {
@@ -586,8 +606,13 @@ class RaportController extends Controller
             ? $customNote
             : $dynamicNote;
 
+        $historicalClass = $student->getClassForYear($academicYear?->id);
+        $className = $historicalClass?->name ?? $student->class?->name ?? '-';
+
         return [
             'student' => $student,
+            'class_name' => $className,
+            'historical_class' => $historicalClass,
             'subjects' => $subjectResults,
             'overall_average' => $overallAverage,
             'attendance' => $attendanceSummary,

@@ -25,10 +25,17 @@ class BpiController extends Controller
         BpiAtp::ensureTableExists();
 
         $user = auth()->user();
-        $activeYear = AcademicYear::getActive();
+        $academicYears = AcademicYear::latest()->get();
+        $activeYear = AcademicYear::getActive() ?? $academicYears->first();
+        $selectedYearId = (int) ($request->get('academic_year_id') ?: ($activeYear?->id ?? 0));
 
         // Ambil kelompok BPI
         $groupQuery = BpiGroup::with(['mentor', 'members.student.user'])->where('is_active', true);
+        if ($selectedYearId > 0) {
+            $groupQuery->where(function($q) use ($selectedYearId) {
+                $q->where('academic_year_id', $selectedYearId)->orWhereNull('academic_year_id');
+            });
+        }
         
         // Jika bukan super-admin/kepala sekolah, prioritaskan kelompok bimbingannya
         if (!$user->hasRole(['super-admin', 'admin', 'kepala-sekolah'])) {
@@ -119,6 +126,8 @@ class BpiController extends Controller
             'agendas',
             'reports',
             'activeYear',
+            'academicYears',
+            'selectedYearId',
             'classes',
             'atps'
         ));
@@ -509,8 +518,13 @@ class BpiController extends Controller
         $headmasterName = Setting::get('headmaster_name', 'M. Fathan, S.Pd.I');
         $headmasterNip = Setting::get('headmaster_nip');
 
+        $historicalClass = $student->getClassForYear($activeYear?->id);
+        $className = $historicalClass?->name ?? $student->class?->name ?? '-';
+
         return view('admin.bpi.raport-print', compact(
             'student',
+            'className',
+            'historicalClass',
             'group',
             'report',
             'totalMeetings',

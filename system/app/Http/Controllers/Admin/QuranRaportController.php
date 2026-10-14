@@ -435,8 +435,13 @@ class QuranRaportController extends Controller
                 ->first();
         }
 
+        $historicalClass = $student->getClassForYear($academicYear?->id);
+        $className = $historicalClass?->name ?? $student->class?->name ?? '-';
+
         return [
             'student' => $student,
+            'class_name' => $className,
+            'historical_class' => $historicalClass,
             'teacher_name' => $teacherName,
             'teacher_note' => $teacherNote,
             'attendance' => $attendance,

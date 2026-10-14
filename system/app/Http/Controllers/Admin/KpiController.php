@@ -219,6 +219,11 @@ class KpiController extends Controller
 
         DB::beginTransaction();
         try {
+            $evalDate = sprintf('%04d-%02d-01', $year, $month);
+            $matchedYear = \App\Models\AcademicYear::where('start_date', '<=', $evalDate)
+                ->where('end_date', '>=', $evalDate)
+                ->first() ?? \App\Models\AcademicYear::getActive();
+
             // Find or create KpiEvaluation
             $evaluation = KpiEvaluation::updateOrCreate(
                 [
@@ -228,6 +233,8 @@ class KpiController extends Controller
                     'period_type' => 'month',
                 ],
                 [
+                    'academic_year_id' => $matchedYear?->id,
+                    'period_semester' => $matchedYear?->semester ?? ($month >= 7 ? 'ganjil' : 'genap'),
                     'evaluator_id' => auth()->id(),
                     'feedback_appreciation' => $request->input('feedback_appreciation'),
                     'feedback_improvement' => $request->input('feedback_improvement'),

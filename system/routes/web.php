@@ -350,6 +350,15 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::delete('classes/{class}', [ClassController::class, 'destroy'])->name('classes.destroy');
     });
 
+    // Class Promotions & Multi-Year Rollover (Kenaikan & Kelulusan Kelas)
+    Route::middleware('permission:view-classes')->group(function () {
+        Route::get('class-promotions', [\App\Http\Controllers\Admin\ClassPromotionController::class, 'index'])->name('class-promotions.index');
+        Route::get('class-promotions/history', [\App\Http\Controllers\Admin\ClassPromotionController::class, 'history'])->name('class-promotions.history');
+    });
+    Route::middleware('permission:edit-classes')->group(function () {
+        Route::post('class-promotions/process', [\App\Http\Controllers\Admin\ClassPromotionController::class, 'process'])->name('class-promotions.process');
+    });
+
     // Academic Years
     Route::middleware('permission:view-academic-years')->group(function () {
         Route::get('academic-years', [AcademicYearController::class, 'index'])->name('academic-years.index');

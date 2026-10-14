@@ -10,6 +10,8 @@ class Grade extends Model
     protected $fillable = [
         'student_id',
         'class_id',
+        'academic_year_id',
+        'semester',
         'subject',
         'type',
         'score',
@@ -29,6 +31,11 @@ class Grade extends Model
     public function class(): BelongsTo
     {
         return $this->belongsTo(ClassModel::class, 'class_id');
+    }
+
+    public function academicYear(): BelongsTo
+    {
+        return $this->belongsTo(AcademicYear::class, 'academic_year_id');
     }
 
     public function recordedBy(): BelongsTo
