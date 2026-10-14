@@ -971,13 +971,9 @@ class GradeController extends Controller
 
         $classes = ClassModel::orderBy('name', 'asc')->get();
         
-        // Ambil guru yang aktif (guru mapel / guru umum / role teacher)
-        $teachers = User::where(function($q) {
-            $q->where('role', 'guru')
-              ->orWhere('role', 'teacher')
-              ->orWhereHas('roles', function($rq) {
-                  $rq->whereIn('slug', ['guru', 'teacher', 'guru-mapel', 'guru-quran']);
-              });
+        // Ambil guru yang aktif berdasarkan relasi roles
+        $teachers = User::whereHas('roles', function ($q) {
+            $q->whereIn('slug', ['guru', 'teacher', 'guru-mapel', 'guru-quran', 'admin', 'super-admin', 'kepala-sekolah']);
         })->orderBy('name', 'asc')->get();
 
         $subjects = $this->getAllSchoolSubjects();
