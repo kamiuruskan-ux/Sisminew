@@ -6,6 +6,60 @@
 <div class="space-y-6" x-data="{
     tab: '{{ $currentTab }}',
     showGroupModal: false,
+    groupModalTitle: 'Tambah Kelompok Halaqah BPI',
+    groupFormAction: '{{ route('admin.bpi.store-group') }}',
+    groupFormMethod: 'POST',
+    groupForm: {
+        id: null,
+        name: '',
+        mentor_id: '{{ $mentors->first()?->id ?? '' }}',
+        gender: 'ikhwan',
+        level: '',
+        target_juz: '',
+        description: '',
+        member_ids: []
+    },
+    openCreateGroup() {
+        this.groupModalTitle = 'Tambah Kelompok Halaqah BPI';
+        this.groupFormAction = '{{ route('admin.bpi.store-group') }}';
+        this.groupFormMethod = 'POST';
+        this.groupForm = {
+            id: null,
+            name: '',
+            mentor_id: '{{ $mentors->first()?->id ?? '' }}',
+            gender: 'ikhwan',
+            level: '',
+            target_juz: '',
+            description: '',
+            member_ids: []
+        };
+        this.$nextTick(() => {
+            document.querySelectorAll('.student-checkbox').forEach(cb => cb.checked = false);
+        });
+        this.showGroupModal = true;
+    },
+    openEditGroup(grp) {
+        this.groupModalTitle = 'Edit Kelompok: ' + grp.name;
+        this.groupFormAction = '{{ url('admin/bpi/group') }}/' + grp.id;
+        this.groupFormMethod = 'PUT';
+        const memberIds = (grp.members || []).map(m => m.student_id);
+        this.groupForm = {
+            id: grp.id,
+            name: grp.name || '',
+            mentor_id: grp.mentor_id || '',
+            gender: grp.gender || 'ikhwan',
+            level: grp.level || '',
+            target_juz: grp.target_juz || '',
+            description: grp.description || '',
+            member_ids: memberIds
+        };
+        this.$nextTick(() => {
+            document.querySelectorAll('.student-checkbox').forEach(cb => {
+                cb.checked = memberIds.includes(parseInt(cb.value));
+            });
+        });
+        this.showGroupModal = true;
+    },
     showAtpModal: false,
     showReadingModal: false,
     readingAtp: null,
@@ -492,7 +546,7 @@
         <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-base font-bold text-gray-900 dark:text-white">Daftar Kelompok Halaqah BPI</h3>
-                <button type="button" @click="showGroupModal = true" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-xl text-sm transition-colors flex items-center gap-2">
+                <button type="button" @click="openCreateGroup()" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-xl text-sm transition-colors flex items-center gap-2 cursor-pointer shadow-sm">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                     </svg>
@@ -502,16 +556,19 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 @forelse($groups as $grp)
-                    <div class="p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/30 flex flex-col justify-between">
+                    <div class="p-5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/30 flex flex-col justify-between hover:border-teal-300 dark:hover:border-teal-600 transition-all shadow-sm">
                         <div>
                             <div class="flex items-center justify-between mb-2">
-                                <h4 class="font-bold text-gray-900 dark:text-white">{{ $grp->name }}</h4>
-                                <span class="px-2 py-0.5 rounded text-xs font-semibold {{ $grp->gender === 'ikhwan' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700' }}">
+                                <h4 class="font-bold text-gray-900 dark:text-white text-base">{{ $grp->name }}</h4>
+                                <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold {{ $grp->gender === 'ikhwan' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300' }}">
                                     {{ ucfirst($grp->gender) }}
                                 </span>
                             </div>
-                            <p class="text-xs text-gray-500 mb-3">Murabbi / Pembina: <span class="font-semibold text-gray-700 dark:text-gray-300">{{ $grp->mentor?->name ?? '-' }}</span></p>
-                            <div class="text-xs text-gray-400 mb-2">Santri Terdaftar: {{ $grp->members->count() }} orang</div>
+                            <p class="text-xs text-gray-500 mb-2">Murabbi / Pembina: <span class="font-bold text-gray-800 dark:text-gray-200">{{ $grp->mentor?->name ?? '-' }}</span></p>
+                            @if($grp->level)
+                                <p class="text-[11px] text-teal-600 dark:text-teal-400 font-semibold mb-2">Jenjang: {{ $grp->level }}</p>
+                            @endif
+                            <div class="text-xs text-gray-400 mb-2">Santri Terdaftar: <span class="font-bold text-gray-700 dark:text-gray-300">{{ $grp->members->count() }} orang</span></div>
                             <div class="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
                                 @foreach($grp->members as $m)
                                     <span class="inline-block px-2 py-0.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded text-xs text-gray-600 dark:text-gray-300">
@@ -520,9 +577,22 @@
                                 @endforeach
                             </div>
                         </div>
-                        <div class="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600 flex justify-end">
-                            <a href="{{ route('admin.bpi.index', ['tab' => 'agenda', 'bpi_group_id' => $grp->id]) }}" class="text-xs font-semibold text-teal-600 dark:text-teal-400 hover:underline">
-                                Buka Agenda Halaqah &rarr;
+                        <div class="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-1.5">
+                                <button type="button" @click="openEditGroup({{ json_encode($grp) }})" class="px-2.5 py-1.5 rounded-lg bg-teal-50 hover:bg-teal-100 dark:bg-teal-900/40 dark:hover:bg-teal-900/60 text-teal-700 dark:text-teal-300 text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="Edit Kelompok">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                    <span>Edit</span>
+                                </button>
+                                <form action="{{ route('admin.bpi.destroy-group', $grp->id) }}" method="POST" onsubmit="return confirm('Hapus kelompok halaqah {{ addslashes($grp->name) }}?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 text-xs font-semibold transition cursor-pointer" title="Hapus Kelompok">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    </button>
+                                </form>
+                            </div>
+                            <a href="{{ route('admin.bpi.index', ['tab' => 'agenda', 'bpi_group_id' => $grp->id]) }}" class="text-xs font-bold text-teal-600 dark:text-teal-400 hover:underline">
+                                Buka Agenda &rarr;
                             </a>
                         </div>
                     </div>
@@ -1043,23 +1113,24 @@
                         </svg>
                     </div>
                     <div>
-                        <h3 class="text-base font-bold text-gray-900 dark:text-white">Tambah Kelompok Halaqah BPI</h3>
+                        <h3 class="text-base font-bold text-gray-900 dark:text-white" x-text="groupModalTitle">Tambah Kelompok Halaqah BPI</h3>
                         <p class="text-xs text-gray-500 dark:text-gray-400">Tentukan murabbi dan pilih santri binaan</p>
                     </div>
                 </div>
                 <button type="button" @click="showGroupModal = false" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
             </div>
 
-            <form action="{{ route('admin.bpi.store-group') }}" method="POST" class="space-y-4">
+            <form :action="groupFormAction" method="POST" class="space-y-4">
                 @csrf
+                <input type="hidden" name="_method" :value="groupFormMethod">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Nama Kelompok BPI</label>
-                        <input type="text" name="name" placeholder="Contoh: Kelompok Umar bin Khattab 1" required class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <input type="text" name="name" x-model="groupForm.name" placeholder="Contoh: Kelompok Umar bin Khattab 1" required class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Guru Pembina / Murabbi</label>
-                        <select name="mentor_id" required class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <select name="mentor_id" x-model="groupForm.mentor_id" required class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             @foreach($mentors as $m)
                                 <option value="{{ $m->id }}">{{ $m->name }}</option>
                             @endforeach
@@ -1070,7 +1141,7 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Kategori Kelompok</label>
-                        <select name="gender" class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <select name="gender" x-model="groupForm.gender" class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                             <option value="ikhwan">Ikhwan (Laki-laki)</option>
                             <option value="akhwat">Akhwat (Perempuan)</option>
                             <option value="all">Campuran / Umum</option>
@@ -1078,7 +1149,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Tingkat / Jenjang</label>
-                        <input type="text" name="level" placeholder="Contoh: Kelas 7 atau Semua Tingkat" class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <input type="text" name="level" x-model="groupForm.level" placeholder="Contoh: Kelas 7 atau Semua Tingkat" class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                     </div>
                 </div>
 
@@ -1187,9 +1258,9 @@
 
                 <div class="flex justify-end gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
                     <button type="button" @click="showGroupModal = false" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-xl text-sm font-medium transition-colors">Batal</button>
-                    <button type="submit" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-sm shadow-sm transition-all flex items-center gap-1.5">
+                    <button type="submit" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-sm shadow-sm transition-all flex items-center gap-1.5 cursor-pointer">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Simpan Kelompok BPI
+                        <span x-text="groupForm.id ? 'Perbarui Kelompok BPI' : 'Simpan Kelompok BPI'">Simpan Kelompok BPI</span>
                     </button>
                 </div>
             </form>

@@ -300,6 +300,73 @@ class BpiController extends Controller
         }
     }
 
+    public function updateGroup(Request $request, $id)
+    {
+        $group = BpiGroup::findOrFail($id);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:150',
+            'mentor_id' => 'required|exists:users,id',
+            'level' => 'nullable|string|max:50',
+            'gender' => 'required|in:ikhwan,akhwat,all',
+            'target_juz' => 'nullable|string|max:100',
+            'description' => 'nullable|string',
+            'student_ids' => 'nullable|array',
+            'student_ids.*' => 'exists:students,id',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $group->update([
+                'name' => $validated['name'],
+                'mentor_id' => $validated['mentor_id'],
+                'level' => $validated['level'] ?? null,
+                'gender' => $validated['gender'],
+                'target_juz' => $validated['target_juz'] ?? null,
+                'description' => $validated['description'] ?? null,
+            ]);
+
+            // Sync susunan anggota kelompok
+            BpiGroupMember::where('bpi_group_id', $group->id)->delete();
+            if (!empty($validated['student_ids'])) {
+                foreach ($validated['student_ids'] as $stId) {
+                    BpiGroupMember::create([
+                        'bpi_group_id' => $group->id,
+                        'student_id' => $stId,
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            return redirect()->route('admin.bpi.index', [
+                'tab' => 'groups',
+                'bpi_group_id' => $group->id
+            ])->with('success', "Kelompok {$group->name} berhasil diperbarui!");
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal memperbarui kelompok: ' . $e->getMessage())->withInput();
+        }
+    }
+
+    public function destroyGroup($id)
+    {
+        $group = BpiGroup::findOrFail($id);
+
+        DB::beginTransaction();
+        try {
+            BpiGroupMember::where('bpi_group_id', $group->id)->delete();
+            $group->delete();
+            DB::commit();
+
+            return redirect()->route('admin.bpi.index', ['tab' => 'groups'])
+                ->with('success', 'Kelompok Bina Pribadi Islam berhasil dihapus.');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal menghapus kelompok: ' . $e->getMessage());
+        }
+    }
+
     public function saveReport(Request $request)
     {
         $validated = $request->validate([

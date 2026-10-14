@@ -552,6 +552,8 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::post('bpi/agenda/{id}/approve', [\App\Http\Controllers\Admin\BpiController::class, 'approveAgenda'])->name('bpi.approve-agenda');
         Route::post('bpi/agenda/{id}/reject', [\App\Http\Controllers\Admin\BpiController::class, 'rejectAgenda'])->name('bpi.reject-agenda');
         Route::post('bpi/store-group', [\App\Http\Controllers\Admin\BpiController::class, 'storeGroup'])->name('bpi.store-group');
+        Route::put('bpi/group/{id}', [\App\Http\Controllers\Admin\BpiController::class, 'updateGroup'])->name('bpi.update-group');
+        Route::delete('bpi/group/{id}', [\App\Http\Controllers\Admin\BpiController::class, 'destroyGroup'])->name('bpi.destroy-group');
         Route::post('bpi/atp', [\App\Http\Controllers\Admin\BpiController::class, 'storeAtp'])->name('bpi.atp.store');
         Route::put('bpi/atp/{id}', [\App\Http\Controllers\Admin\BpiController::class, 'updateAtp'])->name('bpi.atp.update');
         Route::delete('bpi/atp/{id}', [\App\Http\Controllers\Admin\BpiController::class, 'destroyAtp'])->name('bpi.atp.destroy');
