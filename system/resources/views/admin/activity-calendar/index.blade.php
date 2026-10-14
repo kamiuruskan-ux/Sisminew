@@ -151,7 +151,7 @@
                             $en = $ev->date_end ? $ev->date_end->format('Y-m-d') : $st;
                             return $currentDateStr >= $st && $currentDateStr <= $en;
                         });
-                        $dayOfWeek = Carbon::createFromDate($year, $month, $day)->dayOfWeekIso;
+                        $dayOfWeek = (int)date('N', strtotime($currentDateStr));
                     @endphp
                     <div class="min-h-[110px] p-2 hover:bg-slate-50/70 dark:hover:bg-slate-800/30 transition flex flex-col justify-between {{ $isToday ? 'bg-indigo-50/40 dark:bg-indigo-950/20 ring-1 ring-inset ring-indigo-500' : '' }}">
                         <div class="flex items-center justify-between">

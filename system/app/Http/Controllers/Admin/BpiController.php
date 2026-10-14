@@ -49,7 +49,12 @@ class BpiController extends Controller
         }
 
         // Jika kelompok belum punya anggota, sediakan santri aktif dari kelas untuk dipilih
-        $allStudents = Student::with('user', 'class')->where('status', 'active')->get()->sortBy(fn($s) => $s->user?->name ?? '');
+        $allStudents = Student::with('user', 'class')
+            ->where(function($q) {
+                $q->whereIn('student_status', ['active', 'Aktif'])->orWhereNull('student_status');
+            })
+            ->get()
+            ->sortBy(fn($s) => $s->user?->name ?? '');
         $mentors = User::whereHas('roles', function($q) {
             $q->whereIn('slug', ['guru', 'admin', 'super-admin']);
         })->orWhere('user_type', 'guru')->orderBy('name')->get();

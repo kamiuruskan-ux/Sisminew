@@ -76,6 +76,11 @@ class ExtracurricularController extends Controller
             ->with('success', 'Kegiatan Ekstrakurikuler berhasil ditambahkan.');
     }
 
+    public function show($id = null)
+    {
+        return redirect()->route('admin.extracurriculars.index');
+    }
+
     public function edit(Extracurricular $extracurricular)
     {
         $categories = [

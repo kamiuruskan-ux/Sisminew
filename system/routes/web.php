@@ -455,7 +455,14 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::put('testimonials/{encodedId}', [TestimonialController::class, 'update'])->name('testimonials.update');
         Route::delete('testimonials/{encodedId}', [TestimonialController::class, 'destroy'])->name('testimonials.destroy');
         Route::post('testimonials/{encodedId}/toggle-active', [TestimonialController::class, 'toggleActive'])->name('testimonials.toggle-active');
-        Route::resource('extracurriculars', \App\Http\Controllers\Admin\ExtracurricularController::class);
+        
+        // Pembelajaran & Nilai Ekstrakurikuler (Harus sebelum resource agar tidak tertangkap show)
+        Route::get('extracurriculars/learning', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'index'])->name('extracurriculars.learning.index');
+        Route::post('extracurriculars/learning/store-agenda', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'storeAgenda'])->name('extracurriculars.learning.store-agenda');
+        Route::delete('extracurriculars/learning/agenda/{id}', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'destroyAgenda'])->name('extracurriculars.learning.destroy-agenda');
+        Route::post('extracurriculars/learning/save-evaluations', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'saveEvaluations'])->name('extracurriculars.learning.save-evaluations');
+        
+        Route::resource('extracurriculars', \App\Http\Controllers\Admin\ExtracurricularController::class)->except(['show']);
         Route::post('extracurriculars/{extracurricular}/toggle', [\App\Http\Controllers\Admin\ExtracurricularController::class, 'toggleStatus'])->name('extracurriculars.toggle');
         
         Route::get('curriculum', [\App\Http\Controllers\Admin\CurriculumController::class, 'index'])->name('curriculum.index');
@@ -528,12 +535,6 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::delete('activity-calendar/{id}', [\App\Http\Controllers\Admin\ActivityCalendarController::class, 'destroy'])->name('activity-calendar.destroy');
         Route::post('activity-calendar/save-attendance', [\App\Http\Controllers\Admin\ActivityCalendarController::class, 'saveAttendance'])->name('activity-calendar.save-attendance');
         Route::get('activity-calendar/{id}/export-attendance', [\App\Http\Controllers\Admin\ActivityCalendarController::class, 'exportAttendance'])->name('activity-calendar.export-attendance');
-
-        // Modul Pembelajaran & Nilai Ekstrakurikuler
-        Route::get('extracurriculars/learning', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'index'])->name('extracurriculars.learning.index');
-        Route::post('extracurriculars/learning/store-agenda', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'storeAgenda'])->name('extracurriculars.learning.store-agenda');
-        Route::delete('extracurriculars/learning/agenda/{id}', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'destroyAgenda'])->name('extracurriculars.learning.destroy-agenda');
-        Route::post('extracurriculars/learning/save-evaluations', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'saveEvaluations'])->name('extracurriculars.learning.save-evaluations');
 
         // Modul Pembelajaran Bina Pribadi Islam (BPI) & Raport Khusus BPI
         Route::get('bpi', [\App\Http\Controllers\Admin\BpiController::class, 'index'])->name('bpi.index');

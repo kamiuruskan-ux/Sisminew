@@ -61,7 +61,11 @@ class ActivityCalendarController extends Controller
 
         if ($selectedEvent) {
             if (in_array($selectedEvent->target_audience, ['all', 'students', 'class'])) {
-                $stQuery = Student::with(['user', 'class'])->orderBy('nisn', 'asc');
+                $stQuery = Student::with(['user', 'class'])
+                    ->where(function($q) {
+                        $q->whereIn('student_status', ['active', 'Aktif'])->orWhereNull('student_status');
+                    })
+                    ->orderBy('nisn', 'asc');
                 if ($selectedEvent->target_audience === 'class' && $selectedEvent->class_id) {
                     $stQuery->where('class_id', $selectedEvent->class_id);
                 } elseif ($selectedClassId) {

@@ -35,7 +35,9 @@ class ExtracurricularLearningController extends Controller
         if ($selectedClassId) {
             $students = Student::with('user')
                 ->where('class_id', $selectedClassId)
-                ->where('status', 'active')
+                ->where(function($q) {
+                    $q->whereIn('student_status', ['active', 'Aktif'])->orWhereNull('student_status');
+                })
                 ->get()
                 ->sortBy(fn($s) => $s->user?->name ?? '');
         }
