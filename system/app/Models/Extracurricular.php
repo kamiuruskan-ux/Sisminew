@@ -46,4 +46,14 @@ class Extracurricular extends Model
     {
         return get_public_file_url($this->image, 'img/extracurriculars');
     }
+
+    public function members()
+    {
+        return $this->hasMany(ExtracurricularMember::class, 'extracurricular_id');
+    }
+
+    public function students()
+    {
+        return $this->belongsToMany(Student::class, 'extracurricular_members', 'extracurricular_id', 'student_id')->withTimestamps();
+    }
 }

@@ -9,6 +9,7 @@ use App\Models\Extracurricular;
 use App\Models\ExtracurricularAgenda;
 use App\Models\ExtracurricularAgendaStudent;
 use App\Models\ExtracurricularEvaluation;
+use App\Models\ExtracurricularMember;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -20,20 +21,55 @@ class ExtracurricularLearningController extends Controller
     public function index(Request $request)
     {
         ExtracurricularAgenda::ensureTableExists();
+        ExtracurricularMember::ensureTableExists();
 
         $user = auth()->user();
         $extracurriculars = Extracurricular::orderBy('name')->get();
-        $classes = ClassModel::orderBy('name')->get();
+        $classes = ClassModel::orderBy('grade')->orderBy('name')->get();
         $activeYear = AcademicYear::getActive();
 
+        $availableGrades = ClassModel::pluck('grade')->filter()->unique()->sort()->values();
+        if ($availableGrades->isEmpty()) {
+            $availableGrades = collect([1, 2, 3, 4, 5, 6]);
+        }
+
         $selectedExtraId = $request->get('extracurricular_id') ?: ($extracurriculars->first()?->id ?? null);
-        $selectedClassId = $request->get('class_id') ?: ($classes->first()?->id ?? null);
+        $selectedExtra = $selectedExtraId ? $extracurriculars->firstWhere('id', $selectedExtraId) : null;
+        $selectedGrade = $request->get('grade');
+        $selectedClassId = $request->get('class_id');
         $currentTab = $request->get('tab', 'agenda'); // agenda, history, evaluation
+
+        // Total anggota santri yang sudah terdaftar di kelompok ekskul ini
+        $totalEnrolledMembers = 0;
+        $memberStudentIds = [];
+        if ($selectedExtraId) {
+            $memberStudentIds = ExtracurricularMember::where('extracurricular_id', $selectedExtraId)
+                ->when($activeYear, fn($q) => $q->where('academic_year_id', $activeYear->id))
+                ->pluck('student_id')
+                ->toArray();
+            $totalEnrolledMembers = count($memberStudentIds);
+        }
 
         // Santri untuk form input agenda / evaluasi
         $students = collect();
-        if ($selectedClassId) {
-            $students = Student::with('user')
+        if (!empty($memberStudentIds)) {
+            $stQuery = Student::with(['user', 'class'])
+                ->whereIn('id', $memberStudentIds)
+                ->where(function($q) {
+                    $q->whereIn('student_status', ['active', 'Aktif'])->orWhereNull('student_status');
+                });
+
+            if ($selectedClassId && $selectedClassId !== 'all') {
+                $stQuery->where('class_id', $selectedClassId);
+            } elseif ($selectedGrade && $selectedGrade !== 'all') {
+                $gradeClassIds = $this->getClassIdsByGrade((int) $selectedGrade);
+                $stQuery->whereIn('class_id', $gradeClassIds);
+            }
+
+            $students = $stQuery->get()->sortBy(fn($s) => $s->user?->name ?? '');
+        } elseif ($selectedClassId && $selectedClassId !== 'all') {
+            // Fallback jika belum mengatur kelompok ekskul
+            $students = Student::with(['user', 'class'])
                 ->where('class_id', $selectedClassId)
                 ->where(function($q) {
                     $q->whereIn('student_status', ['active', 'Aktif'])->orWhereNull('student_status');
@@ -114,9 +150,13 @@ class ExtracurricularLearningController extends Controller
         return view('admin.extracurriculars.learning', compact(
             'extracurriculars',
             'classes',
+            'availableGrades',
             'activeYear',
             'selectedExtraId',
+            'selectedExtra',
+            'selectedGrade',
             'selectedClassId',
+            'totalEnrolledMembers',
             'currentTab',
             'students',
             'agendas',
@@ -298,5 +338,171 @@ class ExtracurricularLearningController extends Controller
             DB::rollBack();
             return back()->with('error', 'Gagal menyimpan penilaian: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Dapatkan daftar ID kelas berdasarkan tingkat (grade).
+     */
+    public function getClassIdsByGrade(int $grade): array
+    {
+        try {
+            return ClassModel::where(function ($q) use ($grade) {
+                $q->where('grade', $grade)
+                  ->orWhere('name', 'like', "{$grade} %")
+                  ->orWhere('name', 'like', "Kelas {$grade}%")
+                  ->orWhere('name', 'like', "{$grade}-%")
+                  ->orWhere('name', 'like', "{$grade}.%");
+            })->pluck('id')->toArray();
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Ambil data santri untuk Modal Atur Kelompok Ekstrakurikuler (AJAX)
+     */
+    public function getGroupStudents(Request $request)
+    {
+        ExtracurricularMember::ensureTableExists();
+
+        $extraId = (int) $request->get('extracurricular_id');
+        $extra = Extracurricular::find($extraId);
+        $grade = $request->get('grade'); // int or 'all'
+        $classId = $request->get('class_id');
+        $activeYear = AcademicYear::getActive();
+
+        $classQuery = ClassModel::query();
+        if ($grade && $grade !== 'all') {
+            $classIdsInGrade = $this->getClassIdsByGrade((int) $grade);
+            $classQuery->whereIn('id', $classIdsInGrade);
+        }
+        $classes = $classQuery->orderBy('grade')->orderBy('name')->get(['id', 'name', 'grade']);
+
+        $studentQuery = Student::with(['user', 'class'])
+            ->where(function ($q) {
+                $q->whereIn('student_status', ['active', 'Aktif'])->orWhereNull('student_status');
+            });
+
+        if ($classId && $classId !== 'all') {
+            $studentQuery->where('class_id', $classId);
+        } elseif ($grade && $grade !== 'all') {
+            $classIdsInGrade = $this->getClassIdsByGrade((int) $grade);
+            $studentQuery->whereIn('class_id', $classIdsInGrade);
+        }
+
+        $allStudents = $studentQuery->orderBy('nisn')->get();
+
+        // Anggota saat ini untuk ekskul ini
+        $currentMemberIds = ExtracurricularMember::where('extracurricular_id', $extraId)
+            ->when($activeYear, fn($q) => $q->where('academic_year_id', $activeYear->id))
+            ->pluck('student_id')
+            ->toArray();
+
+        // Ekskul lain yang diikuti santri untuk referensi pembina
+        $otherMemberships = ExtracurricularMember::with('extracurricular')
+            ->where('extracurricular_id', '!=', $extraId)
+            ->whereIn('student_id', $allStudents->pluck('id'))
+            ->when($activeYear, fn($q) => $q->where('academic_year_id', $activeYear->id))
+            ->get()
+            ->groupBy('student_id');
+
+        $studentsData = $allStudents->map(function ($st) use ($currentMemberIds, $otherMemberships) {
+            $isInGroup = in_array($st->id, $currentMemberIds);
+            $otherExtras = $otherMemberships->get($st->id, collect())
+                ->pluck('extracurricular.name')
+                ->filter()
+                ->unique()
+                ->values()
+                ->toArray();
+
+            return [
+                'id' => $st->id,
+                'name' => $st->user?->name ?? 'Santri',
+                'nisn' => $st->nisn ?? $st->nis ?? '-',
+                'class_id' => $st->class_id,
+                'class_name' => $st->class?->name ?? '-',
+                'grade' => $st->class?->level ?? '-',
+                'gender' => $st->gender ?? 'male',
+                'is_in_group' => $isInGroup,
+                'other_extras' => $otherExtras,
+            ];
+        });
+
+        return response()->json([
+            'extracurricular_id' => $extraId,
+            'extracurricular_name' => $extra?->name ?? 'Ekstrakurikuler',
+            'grade' => $grade,
+            'class_id' => $classId,
+            'classes' => $classes,
+            'students' => $studentsData,
+            'total_students' => $studentsData->count(),
+            'in_group_count' => $studentsData->where('is_in_group', true)->count(),
+            'all_in_group_count' => count($currentMemberIds),
+        ]);
+    }
+
+    /**
+     * Simpan Pengelompokan Santri Ekstrakurikuler (AJAX / POST)
+     */
+    public function saveGroup(Request $request)
+    {
+        ExtracurricularMember::ensureTableExists();
+
+        $extraId = (int) $request->input('extracurricular_id');
+        $extra = Extracurricular::findOrFail($extraId);
+        $activeYear = AcademicYear::getActive();
+
+        $studentIds = $request->input('student_ids', []);
+        if (!is_array($studentIds)) {
+            $studentIds = [];
+        }
+        $studentIds = array_map('intval', $studentIds);
+
+        $scopeGrade = $request->input('scope_grade'); // 'all' atau tingkat tertentu
+        $scopeClassId = $request->input('scope_class_id');
+
+        DB::transaction(function () use ($extraId, $studentIds, $scopeGrade, $scopeClassId, $activeYear) {
+            $query = ExtracurricularMember::where('extracurricular_id', $extraId)
+                ->when($activeYear, fn($q) => $q->where('academic_year_id', $activeYear->id));
+
+            if ($scopeClassId && $scopeClassId !== 'all') {
+                $classStudentIds = Student::where('class_id', $scopeClassId)->pluck('id')->toArray();
+                $query->whereIn('student_id', $classStudentIds)
+                      ->whereNotIn('student_id', $studentIds)
+                      ->delete();
+            } elseif ($scopeGrade && $scopeGrade !== 'all') {
+                $classIds = $this->getClassIdsByGrade((int) $scopeGrade);
+                $gradeStudentIds = Student::whereIn('class_id', $classIds)->pluck('id')->toArray();
+                $query->whereIn('student_id', $gradeStudentIds)
+                      ->whereNotIn('student_id', $studentIds)
+                      ->delete();
+            } else {
+                // Hapus santri yang di-uncheck
+                $query->whereNotIn('student_id', $studentIds)->delete();
+            }
+
+            // Daftarkan santri yang dipilih
+            foreach ($studentIds as $sid) {
+                ExtracurricularMember::firstOrCreate([
+                    'extracurricular_id' => $extraId,
+                    'student_id' => $sid,
+                    'academic_year_id' => $activeYear?->id,
+                ]);
+            }
+        });
+
+        $totalCount = ExtracurricularMember::where('extracurricular_id', $extraId)
+            ->when($activeYear, fn($q) => $q->where('academic_year_id', $activeYear->id))
+            ->count();
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Alhamdulillah! Susunan kelompok santri ekstrakurikuler {$extra->name} berhasil diperbarui ({$totalCount} santri).",
+                'total_count' => $totalCount,
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Alhamdulillah! Susunan kelompok santri ekstrakurikuler {$extra->name} berhasil diperbarui ({$totalCount} santri).");
     }
 }

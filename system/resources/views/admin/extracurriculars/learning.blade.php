@@ -7,6 +7,126 @@
     tab: '{{ $currentTab }}',
     setAllAttendance(status) {
         document.querySelectorAll('.attendance-radio-' + status).forEach(el => el.checked = true);
+    },
+
+    // ── Manajemen Kelompok Ekskul (Modal Interaktif) ──
+    isGroupModalOpen: false,
+    modalExtraId: {{ $selectedExtraId ?: 0 }},
+    modalExtraName: '{{ addslashes($selectedExtra?->name ?? "Ekstrakurikuler") }}',
+    modalGrade: 'all',
+    modalClassId: '',
+    searchQuery: '',
+    filterStatus: 'all', // 'all', 'in_group', 'not_in_group'
+    allGroupStudents: [],
+    modalClasses: [],
+    selectedStudentIds: [],
+    loadingGroupStudents: false,
+    savingGroup: false,
+
+    openGroupModal(extraId, extraName, grade) {
+        this.modalExtraId = extraId || this.modalExtraId;
+        this.modalExtraName = extraName || this.modalExtraName;
+        this.modalGrade = grade || 'all';
+        this.modalClassId = '';
+        this.searchQuery = '';
+        this.filterStatus = 'all';
+        this.isGroupModalOpen = true;
+        document.body.style.overflow = 'hidden';
+        this.fetchGroupStudents();
+    },
+    closeGroupModal() {
+        this.isGroupModalOpen = false;
+        document.body.style.overflow = '';
+    },
+    switchModalGrade(g) {
+        this.modalGrade = g;
+        this.modalClassId = '';
+        this.fetchGroupStudents();
+    },
+    async fetchGroupStudents() {
+        this.loadingGroupStudents = true;
+        try {
+            const url = `{{ route('admin.extracurriculars.learning.group-students') }}?extracurricular_id=${this.modalExtraId}&grade=${this.modalGrade}&class_id=${this.modalClassId}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            this.modalClasses = data.classes || [];
+            this.allGroupStudents = data.students || [];
+            this.selectedStudentIds = this.allGroupStudents
+                .filter(s => s.is_in_group)
+                .map(s => s.id);
+        } catch (err) {
+            console.error('Gagal memuat data kelompok santri ekskul:', err);
+        } finally {
+            this.loadingGroupStudents = false;
+        }
+    },
+    get filteredGroupStudents() {
+        let list = this.allGroupStudents;
+        if (this.searchQuery && this.searchQuery.trim() !== '') {
+            const q = this.searchQuery.toLowerCase();
+            list = list.filter(s => (s.name && s.name.toLowerCase().includes(q)) || (s.nisn && s.nisn.toLowerCase().includes(q)));
+        }
+        if (this.modalClassId && this.modalClassId !== '') {
+            list = list.filter(s => String(s.class_id) === String(this.modalClassId));
+        }
+        if (this.filterStatus === 'in_group') {
+            list = list.filter(s => this.selectedStudentIds.includes(s.id));
+        } else if (this.filterStatus === 'not_in_group') {
+            list = list.filter(s => !this.selectedStudentIds.includes(s.id));
+        }
+        return list;
+    },
+    toggleStudent(id) {
+        const idx = this.selectedStudentIds.indexOf(id);
+        if (idx > -1) {
+            this.selectedStudentIds.splice(idx, 1);
+        } else {
+            this.selectedStudentIds.push(id);
+        }
+    },
+    isStudentSelected(id) {
+        return this.selectedStudentIds.includes(id);
+    },
+    selectAllFiltered() {
+        this.filteredGroupStudents.forEach(s => {
+            if (!this.selectedStudentIds.includes(s.id)) {
+                this.selectedStudentIds.push(s.id);
+            }
+        });
+    },
+    deselectAllFiltered() {
+        const filteredIds = this.filteredGroupStudents.map(s => s.id);
+        this.selectedStudentIds = this.selectedStudentIds.filter(id => !filteredIds.includes(id));
+    },
+    async saveGroupArrangement() {
+        this.savingGroup = true;
+        try {
+            const res = await fetch('{{ route('admin.extracurriculars.learning.save-group') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    extracurricular_id: this.modalExtraId,
+                    student_ids: this.selectedStudentIds,
+                    scope_grade: this.modalGrade,
+                    scope_class_id: this.modalClassId
+                })
+            });
+            const result = await res.json();
+            if (result.success) {
+                window.location.href = `{{ route('admin.extracurriculars.learning.index') }}?tab=${this.tab}&extracurricular_id=${this.modalExtraId}&grade=${this.modalGrade}&class_id=${this.modalClassId}`;
+            } else {
+                alert('Gagal menyimpan susunan kelompok: ' + (result.message || 'Terjadi kesalahan'));
+            }
+        } catch (err) {
+            console.error('Error saat menyimpan kelompok:', err);
+            alert('Terjadi kesalahan jaringan.');
+        } finally {
+            this.savingGroup = false;
+        }
     }
 }">
     <!-- Header Page -->
@@ -82,16 +202,45 @@
 
     <!-- TAB 1: INPUT AGENDA & ABSENSI -->
     <div x-show="tab === 'agenda'" class="space-y-6">
+        <!-- Banner Info Kelompok & Tombol Atur Kelompok -->
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="p-3 bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-lg font-bold text-gray-900 dark:text-white">
+                            {{ $selectedExtra?->name ?? 'Pilih Ekstrakurikuler' }}
+                        </h2>
+                        @if($selectedExtra)
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                {{ $totalEnrolledMembers }} Santri di Kelompok Ini
+                            </span>
+                        @endif
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        Atur anggota santri ekskul lintas tingkat &amp; kelas sebagaimana di Halaqah Al-Qur'an.
+                    </p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button type="button" @click="openGroupModal({{ $selectedExtraId }}, '{{ addslashes($selectedExtra?->name ?? 'Ekstrakurikuler') }}', 'all')" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-sm transition-all flex items-center gap-2 cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                    <span>Atur Kelompok Santri</span>
+                </button>
+            </div>
+        </div>
+
         <!-- Form Filter Ekskul, Tingkat & Kelas -->
-        <form method="GET" action="{{ route('admin.extracurriculars.learning.index') }}" class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700"
-            x-data="{
-                selectedLevel: '{{ $classes->firstWhere('id', $selectedClassId)?->level ?? '' }}'
-            }">
+        <form method="GET" action="{{ route('admin.extracurriculars.learning.index') }}" class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
             <input type="hidden" name="tab" value="agenda">
             <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-2">Pilih Ekstrakurikuler</label>
-                    <select name="extracurricular_id" onchange="this.form.submit()" class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-emerald-500 focus:border-emerald-500">
+                    <select name="extracurricular_id" onchange="this.form.submit()" class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-emerald-500 focus:border-emerald-500 font-medium">
                         @foreach($extracurriculars as $ex)
                             <option value="{{ $ex->id }}" {{ $selectedExtraId == $ex->id ? 'selected' : '' }}>{{ $ex->name }} ({{ ucfirst($ex->category ?? 'Wajib') }})</option>
                         @endforeach
@@ -99,23 +248,24 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-2">Filter Tingkat</label>
-                    <select x-model="selectedLevel" class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-emerald-500 focus:border-emerald-500">
-                        <option value="">Semua Tingkat</option>
-                        @foreach($classes->pluck('level')->filter()->unique()->sort() as $lvl)
-                            <option value="{{ $lvl }}">Tingkat {{ $lvl }}</option>
+                    <select name="grade" onchange="this.form.submit()" class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-emerald-500 focus:border-emerald-500 font-medium">
+                        <option value="all">Semua Tingkat ({{ $totalEnrolledMembers }} Santri)</option>
+                        @foreach($availableGrades as $lvl)
+                            <option value="{{ $lvl }}" {{ (string)$selectedGrade === (string)$lvl ? 'selected' : '' }}>Tingkat {{ $lvl }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-2">Filter Berdasarkan Kelas</label>
-                    <select name="class_id" onchange="this.form.submit()" class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-emerald-500 focus:border-emerald-500">
+                    <select name="class_id" onchange="this.form.submit()" class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-emerald-500 focus:border-emerald-500 font-medium">
+                        <option value="all">Semua Kelas / Rombel</option>
                         @foreach($classes as $c)
-                            <option value="{{ $c->id }}" x-show="!selectedLevel || '{{ $c->level }}' === selectedLevel" {{ $selectedClassId == $c->id ? 'selected' : '' }}>{{ $c->name }} (Tingkat {{ $c->level }})</option>
+                            <option value="{{ $c->id }}" {{ (string)$selectedClassId === (string)$c->id ? 'selected' : '' }}>{{ $c->name }} (Tingkat {{ $c->level }})</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="flex items-end">
-                    <button type="submit" class="w-full px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl text-sm transition-colors shadow-sm flex items-center justify-center gap-2">
+                    <button type="submit" class="w-full px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl text-sm transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                         Muat Santri
                     </button>
@@ -237,8 +387,25 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="px-4 py-8 text-center text-gray-500">
-                                        Belum ada santri terdaftar pada kelas ini. Silakan pilih kelas lain.
+                                    <td colspan="7" class="px-4 py-12 text-center text-gray-500">
+                                        @if($totalEnrolledMembers === 0)
+                                            <div class="max-w-md mx-auto space-y-3">
+                                                <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400 mx-auto flex items-center justify-center">
+                                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                                                </div>
+                                                <h4 class="text-sm font-bold text-gray-900 dark:text-white">Kelompok Ekstrakurikuler {{ $selectedExtra?->name }} Belum Diatur</h4>
+                                                <p class="text-xs text-gray-500 dark:text-gray-400">Belum ada santri yang dimasukkan ke kelompok ekstrakurikuler ini. Silakan atur santri dengan filter tingkat, rombel kelas, dan pencarian nama.</p>
+                                                <button type="button" @click="openGroupModal({{ $selectedExtraId }}, '{{ addslashes($selectedExtra?->name ?? 'Ekstrakurikuler') }}', 'all')" class="mt-2 inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition cursor-pointer">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                                                    Atur Kelompok Santri Sekarang
+                                                </button>
+                                            </div>
+                                        @else
+                                            <div class="space-y-1">
+                                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">Tidak ada santri pada filter tingkat / kelas ini.</p>
+                                                <p class="text-xs text-gray-400">Silakan pilih 'Semua Tingkat' &amp; 'Semua Kelas', atau tambahkan santri melalui menu <button type="button" @click="openGroupModal({{ $selectedExtraId }}, '{{ addslashes($selectedExtra?->name ?? 'Ekstrakurikuler') }}', 'all')" class="text-emerald-600 font-bold hover:underline cursor-pointer">Atur Kelompok Santri</button>.</p>
+                                            </div>
+                                        @endif
                                     </td>
                                 </tr>
                             @endforelse
@@ -653,6 +820,225 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+    </div>
+
+    {{-- ========================================================================= --}}
+    {{-- MODAL INTUITIF: ATUR / KELOLA KELOMPOK SANTRI EKSTRAKURIKULER             --}}
+    {{-- ========================================================================= --}}
+    <div x-show="isGroupModalOpen"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-[9999] overflow-hidden bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+         style="display: none;"
+         x-cloak>
+        
+        <div @click.away="closeGroupModal()"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 translate-y-4 sm:scale-95"
+             x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+             x-transition:leave-end="opacity-0 translate-y-4 sm:scale-95"
+             class="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 w-full max-w-4xl h-[88dvh] sm:h-[85vh] max-h-[88dvh] flex flex-col overflow-hidden">
+            
+            {{-- Modal Header (Sticky at top) --}}
+            <div class="px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 bg-slate-50/80 dark:bg-slate-800/40 shrink-0 z-10">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="px-2 py-0.5 bg-emerald-600 text-white rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider">
+                            Kelompok Ekstrakurikuler
+                        </span>
+                        <h3 class="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
+                            Atur Anggota: <span x-text="modalExtraName"></span>
+                        </h3>
+                    </div>
+                    <p class="text-[11px] text-slate-500 mt-0.5 hidden sm:block">
+                        Pilih santri untuk kelompok ekstrakurikuler ini. Tersedia filter tingkat, kelas, dan pencarian santri.
+                    </p>
+                </div>
+                <button type="button" @click="closeGroupModal()"
+                        class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white flex items-center justify-center transition shrink-0 cursor-pointer"
+                        title="Tutup Modal">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            {{-- Modal Scrollable Body: Controls + Student Cards --}}
+            <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-slate-50/50 dark:bg-slate-900/50 divide-y divide-slate-100 dark:divide-slate-800/60"
+                 style="-webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y;">
+
+                {{-- Section 1: Modal Controls (Tingkat, Search, Filter Rombel, Status) --}}
+                <div class="p-3.5 sm:p-5 bg-white dark:bg-slate-900 space-y-3 sm:space-y-4">
+                    
+                    {{-- Baris 1: Selector Tingkat Kelas (Pill Buttons) --}}
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-[10px] sm:text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+                                PILIH TINGKAT KELAS:
+                            </span>
+                            <span class="text-[11px] sm:text-xs font-black text-emerald-700 dark:text-emerald-400">
+                                Sedang Mengatur: <span x-text="modalGrade === 'all' ? 'Semua Tingkat' : 'Tingkat ' + modalGrade"></span>
+                            </span>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5 sm:gap-2">
+                            <button type="button" @click="switchModalGrade('all')"
+                                    :class="modalGrade === 'all' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 ring-2 ring-emerald-500 font-black' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold'"
+                                    class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs transition cursor-pointer">
+                                <span>Semua Tingkat</span>
+                            </button>
+                            @foreach($availableGrades as $g)
+                            <button type="button" @click="switchModalGrade({{ $g }})"
+                                    :class="modalGrade === {{ $g }} ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 ring-2 ring-emerald-500 font-black' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold'"
+                                    class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs transition cursor-pointer">
+                                <span>Tingkat {{ $g }}</span>
+                            </button>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    {{-- Baris 2: Live Search, Filter Rombel Asal, & Bulk Actions --}}
+                    <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-2.5 pt-0.5">
+                        {{-- Search box --}}
+                        <div class="sm:col-span-5 relative">
+                            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                            <input type="text" x-model="searchQuery" placeholder="Cari nama santri atau NISN..."
+                                   class="w-full pl-9 pr-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none transition">
+                        </div>
+
+                        {{-- Filter Rombel Asal Kelas --}}
+                        <div class="sm:col-span-4">
+                            <select x-model="modalClassId" @change="fetchGroupStudents()"
+                                    class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500">
+                                <option value="">Semua Rombel Kelas</option>
+                                <template x-for="c in modalClasses" :key="c.id">
+                                    <option :value="c.id" x-text="c.name + ' (Tingkat ' + (c.grade || '-') + ')'"></option>
+                                </template>
+                            </select>
+                        </div>
+
+                        {{-- Bulk Actions --}}
+                        <div class="sm:col-span-3 flex items-center gap-1.5">
+                            <button type="button" @click="selectAllFiltered()"
+                                    class="flex-1 py-2 px-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl text-[11px] font-extrabold text-slate-700 dark:text-slate-300 transition text-center cursor-pointer">
+                                Pilih Semua
+                            </button>
+                            <button type="button" @click="deselectAllFiltered()"
+                                    class="flex-1 py-2 px-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl text-[11px] font-extrabold text-slate-700 dark:text-slate-300 transition text-center cursor-pointer">
+                                Batal Pilih
+                            </button>
+                        </div>
+                    </div>
+
+                    {{-- Baris 3: Quick Filter Status Pills & Selected Counter --}}
+                    <div class="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <button type="button" @click="filterStatus = 'all'"
+                                    :class="filterStatus === 'all' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'"
+                                    class="px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold transition cursor-pointer">
+                                Semua (<span x-text="allGroupStudents.length"></span>)
+                            </button>
+                            <button type="button" @click="filterStatus = 'in_group'"
+                                    :class="filterStatus === 'in_group' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'"
+                                    class="px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold transition cursor-pointer">
+                                ✓ Kelompok Ini (<span x-text="selectedStudentIds.length"></span>)
+                            </button>
+                            <button type="button" @click="filterStatus = 'not_in_group'"
+                                    :class="filterStatus === 'not_in_group' ? 'bg-amber-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'"
+                                    class="px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold transition cursor-pointer">
+                                Belum Terdaftar
+                            </button>
+                        </div>
+
+                        <div class="text-[11px] sm:text-xs font-black text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                            ✨ <span x-text="selectedStudentIds.length"></span> Santri Terpilih
+                        </div>
+                    </div>
+
+                </div>
+
+                {{-- Section 2: Daftar Kartu Santri --}}
+                <div class="p-3.5 sm:p-5">
+                    
+                    {{-- Loading Spinner --}}
+                    <div x-show="loadingGroupStudents" class="py-12 text-center text-slate-400 space-y-3">
+                        <svg class="animate-spin w-8 h-8 mx-auto text-emerald-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <p class="text-xs font-bold">Memuat daftar santri...</p>
+                    </div>
+
+                    {{-- Empty List State --}}
+                    <div x-show="!loadingGroupStudents && filteredGroupStudents.length === 0" class="py-12 text-center text-slate-400">
+                        <p class="text-xs font-bold">Tidak ada santri yang sesuai dengan filter pencarian.</p>
+                    </div>
+
+                    {{-- Grid Kartu Santri --}}
+                    <div x-show="!loadingGroupStudents && filteredGroupStudents.length > 0"
+                         class="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3">
+                        <template x-for="st in filteredGroupStudents" :key="st.id">
+                            <div @click="toggleStudent(st.id)"
+                                 :class="isStudentSelected(st.id) 
+                                    ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-500 shadow-sm shadow-emerald-500/10 ring-1 ring-emerald-500' 
+                                    : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700/80 hover:border-slate-300 dark:hover:border-slate-600'"
+                                 class="p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 select-none">
+                                
+                                <div class="flex items-center gap-2.5 min-w-0">
+                                    {{-- Avatar Initial / Gender --}}
+                                    <div :class="st.gender === 'female' ? 'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'"
+                                         class="w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 uppercase">
+                                        <span x-text="st.name.substring(0, 2)"></span>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <div class="text-xs font-bold text-slate-900 dark:text-white truncate" x-text="st.name"></div>
+                                        <div class="flex items-center gap-1.5 text-[10px] text-slate-500 mt-0.5 flex-wrap">
+                                            <span class="font-semibold text-slate-700 dark:text-slate-300" x-text="st.class_name"></span>
+                                            <span>•</span>
+                                            <span class="font-mono" x-text="'NISN: ' + st.nisn"></span>
+                                            <span x-show="st.grade" class="px-1.5 py-0.2 bg-slate-100 dark:bg-slate-700 rounded text-[9px] font-bold" x-text="'Tingkat ' + st.grade"></span>
+                                        </div>
+                                        {{-- Ekskul lain yang diikuti --}}
+                                        <template x-if="st.other_extras && st.other_extras.length > 0">
+                                            <div class="text-[9px] text-indigo-600 dark:text-indigo-400 font-semibold mt-1 truncate">
+                                                Ikut: <span x-text="st.other_extras.join(', ')"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                {{-- Checkbox Indicator --}}
+                                <div class="shrink-0 flex items-center">
+                                    <div :class="isStudentSelected(st.id) ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700'"
+                                         class="w-6 h-6 rounded-lg border-2 flex items-center justify-center transition">
+                                        <svg x-show="isStudentSelected(st.id)" class="w-4 h-4 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                                        </svg>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </template>
+                    </div>
+
+                </div>
+
+            </div>
+
+            {{-- Modal Footer (Sticky at bottom) --}}
+            <div class="px-4 py-3 sm:px-6 sm:py-3.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 bg-white dark:bg-slate-900 shrink-0">
+                <button type="button" @click="closeGroupModal()"
+                        class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 transition cursor-pointer">
+                    Batal
+                </button>
+                <button type="button" @click="saveGroupArrangement()" :disabled="savingGroup"
+                        class="px-5 py-2.5 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-600/30 transition flex items-center gap-2 cursor-pointer disabled:opacity-50">
+                    <svg x-show="savingGroup" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span>Simpan Kelompok (<span x-text="selectedStudentIds.length"></span> Santri)</span>
+                </button>
+            </div>
+
         </div>
     </div>
 </div>

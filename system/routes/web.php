@@ -463,6 +463,8 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::post('extracurriculars/learning/agenda/{id}/approve', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'approveAgenda'])->name('extracurriculars.learning.approve-agenda');
         Route::post('extracurriculars/learning/agenda/{id}/reject', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'rejectAgenda'])->name('extracurriculars.learning.reject-agenda');
         Route::post('extracurriculars/learning/save-evaluations', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'saveEvaluations'])->name('extracurriculars.learning.save-evaluations');
+        Route::get('extracurriculars/learning/group-students', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'getGroupStudents'])->name('extracurriculars.learning.group-students');
+        Route::post('extracurriculars/learning/save-group', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'saveGroup'])->name('extracurriculars.learning.save-group');
         
         // Manajemen Kategori Ekstrakurikuler (Tambah, Ubah, Hapus)
         Route::post('extracurriculars/categories', [\App\Http\Controllers\Admin\ExtracurricularController::class, 'storeCategory'])->name('extracurriculars.categories.store');

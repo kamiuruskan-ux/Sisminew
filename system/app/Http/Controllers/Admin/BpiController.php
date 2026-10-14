@@ -105,7 +105,7 @@ class BpiController extends Controller
             }
         }
 
-        $classes = ClassModel::orderBy('level')->orderBy('name')->get();
+        $classes = ClassModel::orderBy('grade')->orderBy('name')->get();
         $atps = BpiAtp::where('is_active', true)->orderBy('order')->orderBy('id')->get();
 
         return view('admin.bpi.index', compact(
