@@ -139,6 +139,15 @@ class DatabaseSchemaChecker
                     $table->timestamps();
                 });
                 $createdTables[] = 'quran_tasmi_exams';
+            } else {
+                Schema::table('quran_tasmi_exams', function (Blueprint $table) {
+                    if (!Schema::hasColumn('quran_tasmi_exams', 'examiner_signature')) {
+                        $table->string('examiner_signature', 255)->nullable()->after('notes');
+                    }
+                    if (!Schema::hasColumn('quran_tasmi_exams', 'principal_signature')) {
+                        $table->string('principal_signature', 255)->nullable()->after('notes');
+                    }
+                });
             }
 
             // 1d. Tabel Ujian Kenaikan Jilid Tahsin (quran_jilid_exams)
@@ -166,6 +175,15 @@ class DatabaseSchemaChecker
                     $table->index(['current_jilid', 'status']);
                 });
                 $createdTables[] = 'quran_jilid_exams';
+            } else {
+                Schema::table('quran_jilid_exams', function (Blueprint $table) {
+                    if (!Schema::hasColumn('quran_jilid_exams', 'examiner_signature')) {
+                        $table->string('examiner_signature', 255)->nullable()->after('notes');
+                    }
+                    if (!Schema::hasColumn('quran_jilid_exams', 'principal_signature')) {
+                        $table->string('principal_signature', 255)->nullable()->after('notes');
+                    }
+                });
             }
 
             // 2. Tabel quran_halaqah_members

@@ -538,6 +538,7 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::post('halaqah/jilid-exam', [\App\Http\Controllers\Admin\HalaqahController::class, 'storeJilidExam'])->name('halaqah.jilid-exam.store');
         Route::delete('halaqah/jilid-exam/{id}', [\App\Http\Controllers\Admin\HalaqahController::class, 'destroyJilidExam'])->name('halaqah.jilid-exam.destroy');
         Route::get('halaqah/jilid-exam/certificate/{id}', [\App\Http\Controllers\Admin\HalaqahController::class, 'printJilidCertificate'])->name('halaqah.jilid-exam.certificate');
+        Route::post('halaqah/certificate/upload-signature', [\App\Http\Controllers\Admin\HalaqahController::class, 'uploadCertificateSignature'])->name('halaqah.certificate.upload-signature');
 
         // Modul E-Raport Khusus Pembelajaran Al-Qur'an (Terpisah Sendiri)
         Route::get('quran-raport', [\App\Http\Controllers\Admin\QuranRaportController::class, 'index'])->name('quran-raport.index');
@@ -667,7 +668,10 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::get('teacher-attendances/scan', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'scanFace'])->name('teacher-attendances.scan');
         Route::get('teacher-attendances/register-face', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'registerFacePage'])->name('teacher-attendances.register-face-page');
         Route::get('teacher-attendances/export', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'export'])->name('teacher-attendances.export');
+        Route::get('teacher-attendances/export-briefing', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'exportBriefing'])->name('teacher-attendances.export-briefing');
         Route::get('teacher-attendances/recap', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'recap'])->name('teacher-attendances.recap');
+        Route::post('teacher-attendances/{id}/approve-dinas', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'approveDinas'])->name('teacher-attendances.approve-dinas');
+        Route::post('teacher-attendances/{id}/reject-dinas', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'rejectDinas'])->name('teacher-attendances.reject-dinas');
         Route::get('teacher-attendances', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'index'])->name('teacher-attendances.index');
 
         Route::post('teacher-attendances', [\App\Http\Controllers\Admin\TeacherAttendanceController::class, 'store'])->name('teacher-attendances.store');

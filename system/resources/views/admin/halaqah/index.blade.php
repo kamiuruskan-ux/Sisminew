@@ -77,18 +77,115 @@
     massJilid: 'Jilid 1',
     massStart: 1,
     massEnd: 10,
+    massSurah: '',
+    massAyatStart: 1,
+    massAyatEnd: 10,
     massCognitive: 90,
     massAdab: 85,
-    massNotes: 'Makhraj & kelancaran tajwid baik',
+    massNotes: '',
     applyTemplateToAll() {
-        document.querySelectorAll('.mass-program-select').forEach(el => el.value = this.massProgram);
+        const isTahfidzOrTilawah = this.massProgram === 'tahfidz' || this.massProgram === 'tilawah';
+
+        document.querySelectorAll('.mass-program-select').forEach(el => {
+            el.value = this.massProgram;
+            this.handleRowProgramChange(el);
+        });
         document.querySelectorAll('.mass-category-select').forEach(el => el.value = this.massCategory);
-        document.querySelectorAll('.mass-jilid-select').forEach(el => el.value = this.massJilid);
-        document.querySelectorAll('.mass-start-input').forEach(el => el.value = this.massStart);
-        document.querySelectorAll('.mass-end-input').forEach(el => el.value = this.massEnd);
+
+        if (isTahfidzOrTilawah) {
+            document.querySelectorAll('.mass-surah-select').forEach(el => el.value = this.massSurah);
+            document.querySelectorAll('.mass-start-input').forEach(el => el.value = this.massAyatStart);
+            document.querySelectorAll('.mass-end-input').forEach(el => el.value = this.massAyatEnd);
+        } else {
+            document.querySelectorAll('.mass-jilid-select').forEach(el => el.value = this.massJilid);
+            document.querySelectorAll('.mass-start-input').forEach(el => el.value = this.massStart);
+            document.querySelectorAll('.mass-end-input').forEach(el => el.value = this.massEnd);
+        }
+
         document.querySelectorAll('.mass-cognitive-input').forEach(el => el.value = this.massCognitive);
         document.querySelectorAll('.mass-adab-input').forEach(el => el.value = this.massAdab);
         document.querySelectorAll('.mass-notes-input').forEach(el => el.value = this.massNotes);
+    },
+    handleRowProgramChange(selectEl) {
+        const row = selectEl.closest('tr');
+        if (!row) return;
+        const prog = selectEl.value;
+        const jilidBox = row.querySelector('.mass-jilid-wrapper');
+        const surahBox = row.querySelector('.mass-surah-wrapper');
+        const rangeLabel = row.querySelector('.mass-range-label');
+
+        if (prog === 'tahsin') {
+            if (jilidBox) jilidBox.style.display = 'inline-block';
+            if (surahBox) surahBox.style.display = 'none';
+            if (rangeLabel) rangeLabel.innerText = 'hl.';
+        } else {
+            if (jilidBox) jilidBox.style.display = 'none';
+            if (surahBox) surahBox.style.display = 'block';
+            if (rangeLabel) rangeLabel.innerText = 'ayat';
+        }
+    },
+
+    // ── Monitoring Keaktifan Guru Modal ──
+    isTeacherDetailModalOpen: false,
+    selectedTeacherData: null,
+    teacherStudentSearch: '',
+    teacherStudentFilter: 'all',
+    openTeacherDetailModal(teacherRow) {
+        this.selectedTeacherData = teacherRow;
+        this.teacherStudentSearch = '';
+        this.teacherStudentFilter = 'all';
+        this.isTeacherDetailModalOpen = true;
+        document.body.style.overflow = 'hidden';
+    },
+    closeTeacherDetailModal() {
+        this.isTeacherDetailModalOpen = false;
+        document.body.style.overflow = '';
+    },
+    get filteredTeacherStudents() {
+        if (!this.selectedTeacherData || !this.selectedTeacherData.students_detail) return [];
+        let list = this.selectedTeacherData.students_detail;
+        if (this.teacherStudentFilter === 'done') {
+            list = list.filter(s => s.is_inputted);
+        } else if (this.teacherStudentFilter === 'pending') {
+            list = list.filter(s => !s.is_inputted);
+        }
+        if (this.teacherStudentSearch) {
+            const q = this.teacherStudentSearch.toLowerCase();
+            list = list.filter(s => (s.name && s.name.toLowerCase().includes(q)) || (s.nisn && s.nisn.includes(q)));
+        }
+        return list;
+    },
+
+    // ── Filter Ketercapaian Target & Modal Detail Kelas ──
+    targetGradeFilter: 'all',
+    isClassTargetModalOpen: false,
+    selectedClassTarget: null,
+    classStudentSearch: '',
+    classStudentFilter: 'all',
+    openClassTargetModal(cta) {
+        this.selectedClassTarget = cta;
+        this.classStudentSearch = '';
+        this.classStudentFilter = 'all';
+        this.isClassTargetModalOpen = true;
+        document.body.style.overflow = 'hidden';
+    },
+    closeClassTargetModal() {
+        this.isClassTargetModalOpen = false;
+        document.body.style.overflow = '';
+    },
+    get filteredClassStudents() {
+        if (!this.selectedClassTarget || !this.selectedClassTarget.students_detail) return [];
+        let list = this.selectedClassTarget.students_detail;
+        if (this.classStudentFilter === 'tuntas') {
+            list = list.filter(s => s.is_overall_tuntas);
+        } else if (this.classStudentFilter === 'belum') {
+            list = list.filter(s => !s.is_overall_tuntas);
+        }
+        if (this.classStudentSearch) {
+            const q = this.classStudentSearch.toLowerCase();
+            list = list.filter(s => (s.name && s.name.toLowerCase().includes(q)) || (s.nisn && s.nisn.includes(q)));
+        }
+        return list;
     },
 
     // ── Manajemen Kelompok Halaqah (Modal Interaktif) ──
@@ -244,84 +341,125 @@
     studentReportTab: 'inputted',
 }">
 
-    {{-- Top Bar Tabs (Input & Evaluasi | Laporan & Grafik | Rekap Kehadiran) --}}
-    <div class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900 p-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-        <div class="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-            <a href="{{ route('admin.halaqah.index', ['tab' => 'input', 'grade' => is_numeric($selectedGrade) ? $selectedGrade : 1, 'mode' => $mode, 'teacher_id' => $activeTeacherId]) }}"
-               class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'input' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                <span>Input Evaluasi</span>
-            </a>
+    {{-- Header & Navigasi Modul Halaqah Al-Qur'an (Layout Intuitif & Terstruktur) --}}
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs p-3 space-y-3">
+        {{-- Baris 1: Identitas & Action Buttons --}}
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2.5 border-b border-slate-100 dark:border-slate-800">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white flex items-center justify-center font-black shadow-xs shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                </div>
+                <div>
+                    <h2 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">MODUL HALAQAH AL-QUR'AN</h2>
+                    <p class="text-[10px] text-slate-400">Pembelajaran Tahsin, Tahfidz, Tilawah &amp; Rekap Mutaba'ah</p>
+                </div>
+            </div>
 
-            <a href="{{ route('admin.halaqah.index', array_filter(['tab' => 'history', 'grade' => $filterGrade !== 'all' ? $filterGrade : null, 'teacher_id' => ($isAdmin && $filterTeacherId !== 'all') ? $filterTeacherId : null])) }}"
-               class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'history' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                <span>History Mengajar</span>
-            </a>
+            <div class="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
+                {{-- Tombol Atur Kelompok Santri --}}
+                <button type="button" @click="openGroupModal({{ is_numeric($selectedGrade) ? $selectedGrade : 1 }})"
+                        class="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                    <span>Atur Kelompok</span>
+                </button>
 
-            <a href="{{ route('admin.halaqah.index', array_filter(['tab' => 'reports', 'grade' => $filterGrade !== 'all' ? $filterGrade : null, 'teacher_id' => ($isAdmin && $filterTeacherId !== 'all') ? $filterTeacherId : null])) }}"
-               class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'reports' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                <span>Laporan &amp; Grafik</span>
-            </a>
+                <a href="{{ route('admin.halaqah.export-excel', array_filter([
+                    'grade' => $filterGrade !== 'all' ? $filterGrade : null,
+                    'class_id' => $filterClassId !== 'all' ? $filterClassId : null,
+                    'teacher_id' => ($isAdmin && $filterTeacherId !== 'all') ? $filterTeacherId : ($isAdmin ? null : $activeTeacherId),
+                    'program' => $filterProgram !== 'all' ? $filterProgram : null,
+                    'jilid' => $filterJilid !== 'all' ? $filterJilid : null,
+                    'juz' => $filterJuz !== 'all' ? $filterJuz : null,
+                    'time_filter' => $timeFilter !== 'all' ? $timeFilter : null,
+                    'date' => $timeFilter === 'daily' ? $selectedDate : null,
+                    'month' => $timeFilter === 'monthly' ? $selectedMonth : null,
+                    'year' => $timeFilter === 'monthly' ? $selectedYear : null,
+                    'date_from' => $timeFilter === 'range' ? $dateFrom : null,
+                    'date_to' => $timeFilter === 'range' ? $dateTo : null,
+                    'search_student' => !empty($searchStudent) ? $searchStudent : null,
+                   ])) }}"
+                   class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-bold rounded-xl border border-emerald-200 dark:border-emerald-800 transition flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    <span>Export Excel</span>
+                </a>
 
-            <a href="{{ route('admin.halaqah.index', array_filter(['tab' => 'attendance', 'grade' => $filterGrade !== 'all' ? $filterGrade : null, 'teacher_id' => ($isAdmin && $filterTeacherId !== 'all') ? $filterTeacherId : null])) }}"
-               class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'attendance' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                <span>Presensi</span>
-            </a>
-
-            <a href="{{ route('admin.halaqah.index', ['tab' => 'target', 'grade' => is_numeric($selectedGrade) ? $selectedGrade : 1]) }}"
-               class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'target' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                <span>Target Capaian</span>
-            </a>
-
-            <a href="{{ route('admin.halaqah.index', ['tab' => 'tasmi']) }}"
-               class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'tasmi' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
-                <span>Ujian Tasmi' 1 Juz</span>
-            </a>
-
-            <a href="{{ route('admin.halaqah.index', ['tab' => 'jilid']) }}"
-               class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap {{ $tab === 'jilid' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-                <span>Ujian Kenaikan Jilid</span>
-            </a>
+                <a href="{{ route('admin.quran-raport.index') }}"
+                   class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                    <span>E-Raport Al-Qur'an</span>
+                </a>
+            </div>
         </div>
 
-        <div class="flex items-center gap-2 shrink-0">
-            {{-- Tombol Atur Kelompok Santri --}}
-            <button type="button" @click="openGroupModal({{ is_numeric($selectedGrade) ? $selectedGrade : 1 }})"
-                    class="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black shadow-xs transition flex items-center gap-1.5 cursor-pointer">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                <span>Atur Kelompok Halaqah</span>
-            </button>
+        {{-- Baris 2: 3 Kategori Menu Utama (Tidak Perlu Geser Jauh) --}}
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-2 text-xs">
+            
+            {{-- Kategori A: Bimbingan Harian (Col 4) --}}
+            <div class="md:col-span-4 bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl border border-slate-200/60 dark:border-slate-700/60 flex flex-col justify-between">
+                <span class="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider mb-1.5 flex items-center gap-1">
+                    <span>✏️</span> AKTIVITAS PEMBELAJARAN
+                </span>
+                <div class="grid grid-cols-2 gap-1.5">
+                    <a href="{{ route('admin.halaqah.index', ['tab' => 'input', 'grade' => is_numeric($selectedGrade) ? $selectedGrade : 1, 'mode' => $mode, 'teacher_id' => $activeTeacherId]) }}"
+                       class="px-2.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center {{ $tab === 'input' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80' }}">
+                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        <span class="truncate">Input Evaluasi</span>
+                    </a>
 
-            <a href="{{ route('admin.halaqah.export-excel', array_filter([
-                'grade' => $filterGrade !== 'all' ? $filterGrade : null,
-                'class_id' => $filterClassId !== 'all' ? $filterClassId : null,
-                'teacher_id' => ($isAdmin && $filterTeacherId !== 'all') ? $filterTeacherId : ($isAdmin ? null : $activeTeacherId),
-                'program' => $filterProgram !== 'all' ? $filterProgram : null,
-                'jilid' => $filterJilid !== 'all' ? $filterJilid : null,
-                'juz' => $filterJuz !== 'all' ? $filterJuz : null,
-                'time_filter' => $timeFilter !== 'all' ? $timeFilter : null,
-                'date' => $timeFilter === 'daily' ? $selectedDate : null,
-                'month' => $timeFilter === 'monthly' ? $selectedMonth : null,
-                'year' => $timeFilter === 'monthly' ? $selectedYear : null,
-                'date_from' => $timeFilter === 'range' ? $dateFrom : null,
-                'date_to' => $timeFilter === 'range' ? $dateTo : null,
-                'search_student' => !empty($searchStudent) ? $searchStudent : null,
-               ])) }}"
-               class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-bold rounded-xl border border-emerald-200 dark:border-emerald-800 transition flex items-center gap-1.5">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                <span>Export Excel</span>
-            </a>
-            <a href="{{ route('admin.quran-raport.index') }}"
-               class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-                <span>E-Raport Al-Qur'an</span>
-            </a>
+                    <a href="{{ route('admin.halaqah.index', array_filter(['tab' => 'history', 'grade' => $filterGrade !== 'all' ? $filterGrade : null, 'teacher_id' => ($isAdmin && $filterTeacherId !== 'all') ? $filterTeacherId : null])) }}"
+                       class="px-2.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center {{ $tab === 'history' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80' }}">
+                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span class="truncate">History Mengajar</span>
+                    </a>
+                </div>
+            </div>
+
+            {{-- Kategori B: Monitoring & Capaian (Col 5) --}}
+            <div class="md:col-span-5 bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl border border-slate-200/60 dark:border-slate-700/60 flex flex-col justify-between">
+                <span class="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider mb-1.5 flex items-center gap-1">
+                    <span>📊</span> MONITORING &amp; CAPAIAN
+                </span>
+                <div class="grid grid-cols-3 gap-1.5">
+                    <a href="{{ route('admin.halaqah.index', array_filter(['tab' => 'reports', 'grade' => $filterGrade !== 'all' ? $filterGrade : null, 'teacher_id' => ($isAdmin && $filterTeacherId !== 'all') ? $filterTeacherId : null])) }}"
+                       class="px-2 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 text-center {{ $tab === 'reports' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80' }}">
+                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        <span class="truncate">Laporan &amp; Grafik</span>
+                    </a>
+
+                    <a href="{{ route('admin.halaqah.index', array_filter(['tab' => 'attendance', 'grade' => $filterGrade !== 'all' ? $filterGrade : null, 'teacher_id' => ($isAdmin && $filterTeacherId !== 'all') ? $filterTeacherId : null])) }}"
+                       class="px-2 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 text-center {{ $tab === 'attendance' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80' }}">
+                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span class="truncate">Presensi</span>
+                    </a>
+
+                    <a href="{{ route('admin.halaqah.index', ['tab' => 'target', 'grade' => is_numeric($selectedGrade) ? $selectedGrade : 1]) }}"
+                       class="px-2 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 text-center {{ $tab === 'target' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80' }}">
+                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                        <span class="truncate">Target Capaian</span>
+                    </a>
+                </div>
+            </div>
+
+            {{-- Kategori C: Ujian & Kelulusan (Col 3) --}}
+            <div class="md:col-span-3 bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl border border-slate-200/60 dark:border-slate-700/60 flex flex-col justify-between">
+                <span class="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider mb-1.5 flex items-center gap-1">
+                    <span>🏆</span> UJIAN &amp; SERTIFIKASI
+                </span>
+                <div class="grid grid-cols-2 gap-1.5">
+                    <a href="{{ route('admin.halaqah.index', ['tab' => 'tasmi']) }}"
+                       class="px-2 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 text-center {{ $tab === 'tasmi' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80' }}">
+                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+                        <span class="truncate">Tasmi' 1 Juz</span>
+                    </a>
+
+                    <a href="{{ route('admin.halaqah.index', ['tab' => 'jilid']) }}"
+                       class="px-2 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 text-center {{ $tab === 'jilid' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80' }}">
+                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                        <span class="truncate">Ujian Jilid</span>
+                    </a>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -765,7 +903,7 @@
                         </button>
                     </div>
 
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5 text-xs">
                         <div>
                             <label class="block text-[10px] font-bold text-slate-400 mb-1">Tanggal</label>
                             <input type="date" name="assessment_date" value="{{ $selectedDate }}" required
@@ -779,16 +917,17 @@
                                 <option value="tilawah">TILAWAH</option>
                             </select>
                         </div>
-                        <div>
+                        {{-- Field Khusus TAHSIN: Jilid & Halaman --}}
+                        <div x-show="massProgram === 'tahsin'">
                             <label class="block text-[10px] font-bold text-slate-400 mb-1">Jilid / Level</label>
-                            <select x-model="massJilid" class="w-full px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg font-bold">
+                            <select x-model="massJilid" class="w-full px-2.5 py-1.5 border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 rounded-lg font-bold text-amber-700 dark:text-amber-400">
                                 <option value="Jilid 1">Jilid 1</option>
                                 <option value="Jilid 2">Jilid 2</option>
                                 <option value="Jilid 3">Jilid 3</option>
                                 <option value="Jilid 4">Jilid 4</option>
                             </select>
                         </div>
-                        <div>
+                        <div x-show="massProgram === 'tahsin'">
                             <label class="block text-[10px] font-bold text-slate-400 mb-1">Range Halaman</label>
                             <div class="flex items-center gap-1">
                                 <input type="number" x-model="massStart" class="w-1/2 px-2 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg font-bold text-center">
@@ -796,6 +935,26 @@
                                 <input type="number" x-model="massEnd" class="w-1/2 px-2 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg font-bold text-center">
                             </div>
                         </div>
+
+                        {{-- Field Khusus TAHFIDZ & TILAWAH: Pilihan Surah & Range Ayat --}}
+                        <div x-show="massProgram === 'tahfidz' || massProgram === 'tilawah'" class="lg:col-span-2">
+                            <label class="block text-[10px] font-bold text-teal-600 dark:text-teal-400 mb-1">Pilihan Surah (Tahfidz / Tilawah)</label>
+                            <select x-model="massSurah" class="w-full px-2.5 py-1.5 border border-teal-300 dark:border-teal-700 bg-white dark:bg-slate-800 rounded-lg font-bold text-teal-700 dark:text-teal-300 text-xs">
+                                <option value="">-- Pilih Surah Al-Qur'an --</option>
+                                @foreach($surahOptions ?? [] as $surah)
+                                    <option value="{{ $surah['name'] }}">{{ $surah['label'] }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div x-show="massProgram === 'tahfidz' || massProgram === 'tilawah'">
+                            <label class="block text-[10px] font-bold text-teal-600 dark:text-teal-400 mb-1">Range Ayat</label>
+                            <div class="flex items-center gap-1">
+                                <input type="number" x-model="massAyatStart" placeholder="1" class="w-1/2 px-2 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg font-bold text-center">
+                                <span>-</span>
+                                <input type="number" x-model="massAyatEnd" placeholder="10" class="w-1/2 px-2 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg font-bold text-center">
+                            </div>
+                        </div>
+
                         <div>
                             <label class="block text-[10px] font-bold text-slate-400 mb-1">Nilai Kognitif</label>
                             <input type="number" x-model="massCognitive" min="0" max="100" class="w-full px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg font-bold text-center">
@@ -808,7 +967,7 @@
                 </div>
 
                 {{-- Matriks Santri dalam Kelompok Halaqah --}}
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto" x-init="$nextTick(() => { document.querySelectorAll('.mass-program-select').forEach(el => handleRowProgramChange(el)); })">
                     <table class="w-full text-left text-xs border-collapse">
                         <thead>
                             <tr class="text-[11px] font-extrabold text-slate-500 uppercase border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/50">
@@ -816,7 +975,7 @@
                                 <th class="py-3 px-3">Kelas Asal</th>
                                 <th class="py-3 px-3">Kehadiran</th>
                                 <th class="py-3 px-3">Program &amp; Materi</th>
-                                <th class="py-3 px-3 text-center">Halaman / Range</th>
+                                <th class="py-3 px-3 text-center">Halaman / Ayat</th>
                                 <th class="py-3 px-3 text-center">Nilai Angka</th>
                                 <th class="py-3 px-3">Catatan Khusus</th>
                             </tr>
@@ -841,10 +1000,12 @@
                                         <option value="alpa">Alpa</option>
                                     </select>
                                 </td>
-                                <td class="py-3 px-3">
+                                <td class="py-3 px-3 min-w-[280px]">
                                     <div class="flex flex-col gap-1.5">
                                         <div class="flex items-center gap-1.5 flex-wrap">
-                                            <select name="items[{{ $st->id }}][program_type]" class="mass-program-select px-2 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold">
+                                            <select name="items[{{ $st->id }}][program_type]"
+                                                    @change="handleRowProgramChange($event.target)"
+                                                    class="mass-program-select px-2 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold">
                                                 <option value="tahsin">Tahsin</option>
                                                 <option value="tahfidz">Tahfidz</option>
                                                 <option value="tilawah">Tilawah</option>
@@ -853,37 +1014,41 @@
                                                 <option value="ziyadah">Ziyadah</option>
                                                 <option value="murojaah">Muroja'ah</option>
                                             </select>
-                                            <select name="items[{{ $st->id }}][jilid_level]" class="mass-jilid-select px-2 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold">
-                                                <option value="Jilid 1">Jilid 1</option>
-                                                <option value="Jilid 2">Jilid 2</option>
-                                                <option value="Jilid 3">Jilid 3</option>
-                                                <option value="Jilid 4">Jilid 4</option>
+                                            <div class="mass-jilid-wrapper">
+                                                <select name="items[{{ $st->id }}][jilid_level]" class="mass-jilid-select px-2 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-bold text-amber-600">
+                                                    <option value="Jilid 1">Jilid 1</option>
+                                                    <option value="Jilid 2">Jilid 2</option>
+                                                    <option value="Jilid 3">Jilid 3</option>
+                                                    <option value="Jilid 4">Jilid 4</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="mass-surah-wrapper" style="display: none;">
+                                            <select name="items[{{ $st->id }}][surah_name]" class="mass-surah-select w-full px-2.5 py-1.5 border border-teal-300 dark:border-teal-700 bg-teal-50/30 dark:bg-slate-800 rounded-lg text-xs font-bold text-teal-800 dark:text-teal-200">
+                                                <option value="">-- Pilihan Surah (Khusus Tahfidz / Tilawah) --</option>
+                                                @foreach($surahOptions ?? [] as $surah)
+                                                    <option value="{{ $surah['name'] }}">{{ $surah['label'] }}</option>
+                                                @endforeach
                                             </select>
                                         </div>
-                                        <select name="items[{{ $st->id }}][surah_name]" class="mass-surah-select w-full px-2 py-1 border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-800 rounded-lg text-[10px] font-bold">
-                                            <option value="">-- Pilihan Surah (Khusus Tahfidz / Tilawah) --</option>
-                                            @foreach($surahOptions ?? [] as $surah)
-                                                <option value="{{ $surah['name'] }}">{{ $surah['label'] }}</option>
-                                            @endforeach
-                                        </select>
                                     </div>
                                 </td>
-                                <td class="py-3 px-3 text-center">
+                                <td class="py-3 px-3 text-center whitespace-nowrap">
                                     <div class="inline-flex items-center gap-1">
-                                        <span class="text-slate-400">hl.</span>
+                                        <span class="mass-range-label text-slate-400 font-bold">hl.</span>
                                         <input type="number" name="items[{{ $st->id }}][page_start]" value="1" class="mass-start-input w-12 px-1.5 py-1 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-center font-bold">
                                         <span>-</span>
                                         <input type="number" name="items[{{ $st->id }}][page_end]" value="10" class="mass-end-input w-12 px-1.5 py-1 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-center font-bold">
                                     </div>
                                 </td>
-                                <td class="py-3 px-3 text-center">
+                                <td class="py-3 px-3 text-center whitespace-nowrap">
                                     <div class="inline-flex items-center gap-1.5">
                                         <input type="number" name="items[{{ $st->id }}][score_cognitive]" value="90" min="0" max="100" class="mass-cognitive-input w-14 px-2 py-1 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg font-black text-center text-emerald-600">
                                         <input type="number" name="items[{{ $st->id }}][score_adab]" value="85" min="0" max="100" placeholder="Adab" class="mass-adab-input w-12 px-1 py-1 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-[10px] text-center">
                                     </div>
                                 </td>
-                                <td class="py-3 px-3">
-                                    <input type="text" name="items[{{ $st->id }}][teacher_notes]" placeholder="Catatan khusus..." class="mass-notes-input w-full px-2 py-1 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-medium">
+                                <td class="py-3 px-3 min-w-[200px]">
+                                    <input type="text" name="items[{{ $st->id }}][teacher_notes]" value="" placeholder="Catatan khusus (opsional)..." class="mass-notes-input w-full px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs font-medium">
                                 </td>
                             </tr>
                             @endforeach
@@ -1616,20 +1781,18 @@
                                 @endif
                             </td>
                             <td class="py-3.5 px-4 text-center whitespace-nowrap">
-                                <a href="{{ route('admin.halaqah.index', array_filter([
-                                    'tab' => 'reports',
-                                    'grade' => $filterGrade !== 'all' ? $filterGrade : null,
-                                    'teacher_id' => $tObj->id,
-                                    'time_filter' => $timeFilter !== 'all' ? $timeFilter : null,
-                                    'date' => $timeFilter === 'daily' ? $selectedDate : null,
-                                    'month' => $timeFilter === 'monthly' ? $selectedMonth : null,
-                                    'year' => $timeFilter === 'monthly' ? $selectedYear : null,
-                                ])) }}"
-                                   class="px-2.5 py-1 rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 {{ $filterTeacherId == $tObj->id ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300' }}"
-                                   title="Filter laporan ke guru ini">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
-                                    <span>{{ $filterTeacherId == $tObj->id ? 'Sedang Aktif' : 'Lihat Data' }}</span>
-                                </a>
+                                <div class="flex items-center justify-center gap-1.5">
+                                    <button type="button"
+                                            @click="openTeacherDetailModal({{ json_encode($tRow) }})"
+                                            class="px-3 py-1.5 rounded-xl text-xs font-black transition flex items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer"
+                                            title="Lihat rincian bimbingan &amp; progres santri binaan guru ini">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        <span>Lihat Data</span>
+                                    </button>
+                                    @if($filterTeacherId == $tObj->id)
+                                        <span class="px-2 py-1 rounded-xl text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">Aktif</span>
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                         @empty
@@ -1653,13 +1816,18 @@
                     <h4 class="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                         <span>📊 GRAFIK SEBARAN PREDIKAT SANTRI</span>
                     </h4>
-                    <p class="text-[11px] text-slate-400">Tingkatan hasil evaluasi berdasarkan nilai standardisasi sekolah</p>
+                    <p class="text-[11px] text-slate-400">
+                        Tingkatan hasil evaluasi berdasarkan nilai terbaru per santri (Total: <strong class="text-emerald-600">{{ $predicateTotalStudents ?? 0 }} Santri</strong>)
+                    </p>
                 </div>
 
                 <div class="space-y-3 pt-2 text-xs">
+                    @php
+                        $baseTotal = ($predicateTotalStudents ?? 0) > 0 ? $predicateTotalStudents : ($totalSetoran > 0 ? $totalSetoran : 1);
+                    @endphp
                     @foreach($predicateDistribution as $pName => $pCount)
                     @php
-                        $pPct = $totalSetoran > 0 ? round(($pCount / $totalSetoran) * 100) : 0;
+                        $pPct = round(($pCount / $baseTotal) * 100);
                     @endphp
                     <div>
                         <div class="flex justify-between font-bold mb-1">
@@ -1712,9 +1880,9 @@
 
         {{-- KARTU KETERCAPAIAN TARGET KURIKULUM TAHSIN & TAHFIDZ PER KELAS --}}
         <div class="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center font-black shadow-md shadow-emerald-500/20">
+                    <div class="w-9 h-9 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center font-black shadow-md shadow-emerald-500/20 shrink-0">
                         🎯
                     </div>
                     <div>
@@ -1729,50 +1897,78 @@
                         </p>
                     </div>
                 </div>
+
+                {{-- Filter Per Tingkat Kelas --}}
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="text-[11px] font-bold text-slate-400 mr-1">Filter Tingkat:</span>
+                    <button type="button" @click="targetGradeFilter = 'all'"
+                            :class="targetGradeFilter === 'all' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'"
+                            class="px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer">
+                        Semua
+                    </button>
+                    @foreach([1, 2, 3, 4, 5, 6] as $grNum)
+                    <button type="button" @click="targetGradeFilter = '{{ $grNum }}'"
+                            :class="targetGradeFilter === '{{ $grNum }}' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'"
+                            class="px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer">
+                        Kelas {{ $grNum }}
+                    </button>
+                    @endforeach
+                </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pt-1">
                 @forelse($classTargetAchievements ?? [] as $cta)
-                <div class="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:border-emerald-300 dark:hover:border-emerald-700 transition space-y-3">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <span class="text-xs font-black text-slate-900 dark:text-white">{{ $cta['class_name'] }}</span>
-                            <p class="text-[10px] text-slate-400 font-semibold">{{ $cta['total_students'] }} Santri Terdaftar</p>
+                <div x-show="targetGradeFilter === 'all' || String(targetGradeFilter) === String('{{ $cta['grade'] }}')"
+                     class="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:border-emerald-300 dark:hover:border-emerald-700 transition space-y-3 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <span class="text-xs font-black text-slate-900 dark:text-white">{{ $cta['class_name'] }}</span>
+                                <p class="text-[10px] text-slate-400 font-semibold">{{ $cta['total_students'] }} Santri Terdaftar</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ $cta['overall_pct'] >= 75 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : ($cta['overall_pct'] >= 50 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300') }}">
+                                    {{ $cta['overall_pct'] }}% Tuntas
+                                </span>
+                            </div>
                         </div>
-                        <div class="text-right">
-                            <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ $cta['overall_pct'] >= 75 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : ($cta['overall_pct'] >= 50 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300') }}">
-                                {{ $cta['overall_pct'] }}% Tuntas
-                            </span>
+
+                        {{-- Progress Tahsin --}}
+                        <div class="space-y-1 mb-2.5">
+                            <div class="flex justify-between items-baseline text-[11px]">
+                                <span class="font-extrabold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                    📖 Tahsin
+                                    <span class="text-[10px] font-normal text-slate-400 truncate max-w-[130px]">({{ $cta['tahsin_target'] }})</span>
+                                </span>
+                                <span class="font-bold text-slate-700 dark:text-slate-300">{{ $cta['tahsin_achieved'] }}/{{ $cta['total_students'] }} ({{ $cta['tahsin_pct'] }}%)</span>
+                            </div>
+                            <div class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                                <div class="bg-amber-500 h-2 rounded-full transition-all duration-500" style="width: {{ $cta['tahsin_pct'] }}%"></div>
+                            </div>
+                        </div>
+
+                        {{-- Progress Tahfidz --}}
+                        <div class="space-y-1 mb-3">
+                            <div class="flex justify-between items-baseline text-[11px]">
+                                <span class="font-extrabold text-teal-600 dark:text-teal-400 flex items-center gap-1">
+                                    🌟 Tahfidz
+                                    <span class="text-[10px] font-normal text-slate-400 truncate max-w-[130px]">({{ $cta['tahfidz_target'] }})</span>
+                                </span>
+                                <span class="font-bold text-slate-700 dark:text-slate-300">{{ $cta['tahfidz_achieved'] }}/{{ $cta['total_students'] }} ({{ $cta['tahfidz_pct'] }}%)</span>
+                            </div>
+                            <div class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                                <div class="bg-teal-500 h-2 rounded-full transition-all duration-500" style="width: {{ $cta['tahfidz_pct'] }}%"></div>
+                            </div>
                         </div>
                     </div>
 
-                    {{-- Progress Tahsin --}}
-                    <div class="space-y-1">
-                        <div class="flex justify-between items-baseline text-[11px]">
-                            <span class="font-extrabold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                                📖 Tahsin
-                                <span class="text-[10px] font-normal text-slate-400 truncate max-w-[130px]">({{ $cta['tahsin_target'] }})</span>
-                            </span>
-                            <span class="font-bold text-slate-700 dark:text-slate-300">{{ $cta['tahsin_achieved'] }}/{{ $cta['total_students'] }} ({{ $cta['tahsin_pct'] }}%)</span>
-                        </div>
-                        <div class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                            <div class="bg-amber-500 h-2 rounded-full transition-all duration-500" style="width: {{ $cta['tahsin_pct'] }}%"></div>
-                        </div>
-                    </div>
-
-                    {{-- Progress Tahfidz --}}
-                    <div class="space-y-1">
-                        <div class="flex justify-between items-baseline text-[11px]">
-                            <span class="font-extrabold text-teal-600 dark:text-teal-400 flex items-center gap-1">
-                                🌟 Tahfidz
-                                <span class="text-[10px] font-normal text-slate-400 truncate max-w-[130px]">({{ $cta['tahfidz_target'] }})</span>
-                            </span>
-                            <span class="font-bold text-slate-700 dark:text-slate-300">{{ $cta['tahfidz_achieved'] }}/{{ $cta['total_students'] }} ({{ $cta['tahfidz_pct'] }}%)</span>
-                        </div>
-                        <div class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                            <div class="bg-teal-500 h-2 rounded-full transition-all duration-500" style="width: {{ $cta['tahfidz_pct'] }}%"></div>
-                        </div>
-                    </div>
+                    {{-- Tombol Buka Rincian Santri & Batas Bacaan --}}
+                    <button type="button"
+                            @click="openClassTargetModal({{ json_encode($cta) }})"
+                            class="w-full py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 dark:text-emerald-300 rounded-xl text-xs font-black border border-emerald-200 dark:border-emerald-800 transition flex items-center justify-center gap-1.5 cursor-pointer">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                        <span>Lihat Nama Santri &amp; Batas Bacaan</span>
+                    </button>
                 </div>
                 @empty
                 <div class="col-span-full py-8 text-center text-slate-400 text-xs">
@@ -3643,6 +3839,369 @@
                 </div>
 
             </div>
+        </div>
+    </div>
+
+    {{-- ========================================================================= --}}
+    {{-- MODAL 1: RINCIAN MONITORING & PROGRES SANTRI GURU PEMBIMBING --}}
+    {{-- ========================================================================= --}}
+    <div x-show="isTeacherDetailModalOpen"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5"
+         style="display: none;">
+        
+        <div @click.away="closeTeacherDetailModal()"
+             class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            
+            {{-- Modal Header --}}
+            <div class="p-5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-white/20 text-white flex items-center justify-center font-black text-sm uppercase shadow-xs">
+                        <span x-text="selectedTeacherData?.teacher?.name ? selectedTeacherData.teacher.name.substring(0, 2) : 'GP'"></span>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-base font-black truncate" x-text="selectedTeacherData?.teacher?.name ? 'Ust. ' + selectedTeacherData.teacher.name : 'Guru Pembimbing'"></h3>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-white/20 text-white"
+                                  x-text="(selectedTeacherData?.progress_pct || 0) + '% Tuntas'"></span>
+                        </div>
+                        <p class="text-xs text-emerald-100">
+                            <span x-text="selectedTeacherData?.teacher?.email || '-'"></span>
+                            <template x-if="selectedTeacherData?.teacher?.phone">
+                                <span x-text="' • WA: ' + selectedTeacherData.teacher.phone"></span>
+                            </template>
+                        </p>
+                    </div>
+                </div>
+                <button type="button" @click="closeTeacherDetailModal()"
+                        class="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            {{-- Stat Strip --}}
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 p-4 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800 shrink-0 text-center">
+                <div class="p-2.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                    <span class="text-[10px] font-bold text-slate-400 block uppercase">Santri Binaan</span>
+                    <span class="text-lg font-black text-slate-900 dark:text-white" x-text="selectedTeacherData?.assigned_count || 0"></span>
+                </div>
+                <div class="p-2.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                    <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 block uppercase">Sudah Diinput</span>
+                    <span class="text-lg font-black text-emerald-600" x-text="selectedTeacherData?.assigned_inputted_count || 0"></span>
+                </div>
+                <div class="p-2.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                    <span class="text-[10px] font-bold text-rose-500 block uppercase">Belum Diinput</span>
+                    <span class="text-lg font-black text-rose-500" x-text="selectedTeacherData?.assigned_pending_count || 0"></span>
+                </div>
+                <div class="p-2.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                    <span class="text-[10px] font-bold text-slate-400 block uppercase">Frekuensi Input</span>
+                    <span class="text-lg font-black text-teal-600" x-text="(selectedTeacherData?.total_inputs || 0) + 'x'"></span>
+                </div>
+            </div>
+
+            {{-- Filter & Search Toolbar --}}
+            <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+                <div class="flex items-center gap-1.5 flex-wrap w-full sm:w-auto">
+                    <button type="button" @click="teacherStudentFilter = 'all'"
+                            :class="teacherStudentFilter === 'all' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'"
+                            class="px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer">
+                        Semua Santri (<span x-text="selectedTeacherData?.assigned_count || 0"></span>)
+                    </button>
+                    <button type="button" @click="teacherStudentFilter = 'inputted'"
+                            :class="teacherStudentFilter === 'inputted' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'"
+                            class="px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer">
+                        Sudah Diinput (<span x-text="selectedTeacherData?.assigned_inputted_count || 0"></span>)
+                    </button>
+                    <button type="button" @click="teacherStudentFilter = 'pending'"
+                            :class="teacherStudentFilter === 'pending' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'"
+                            class="px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer">
+                        Belum Diinput (<span x-text="selectedTeacherData?.assigned_pending_count || 0"></span>)
+                    </button>
+                </div>
+
+                <div class="w-full sm:w-64">
+                    <input type="text" x-model="teacherStudentSearch" placeholder="Cari nama atau NISN santri..."
+                           class="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium">
+                </div>
+            </div>
+
+            {{-- Table Content --}}
+            <div class="p-4 overflow-y-auto flex-1">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="text-[10px] font-extrabold text-slate-400 uppercase border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40">
+                            <th class="py-2.5 px-3">No</th>
+                            <th class="py-2.5 px-3">Santri (Siswa)</th>
+                            <th class="py-2.5 px-3">Kelas</th>
+                            <th class="py-2.5 px-3 text-center">Status Evaluasi</th>
+                            <th class="py-2.5 px-3">Materi Terakhir</th>
+                            <th class="py-2.5 px-3 text-center">Nilai</th>
+                            <th class="py-2.5 px-3 text-right">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                        <template x-for="(st, sIdx) in filteredTeacherStudents" :key="st.id">
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                                <td class="py-2.5 px-3 text-slate-400 font-bold" x-text="sIdx + 1"></td>
+                                <td class="py-2.5 px-3 whitespace-nowrap">
+                                    <div class="font-bold text-slate-900 dark:text-white" x-text="st.name"></div>
+                                    <div class="text-[10px] text-slate-400" x-text="'NISN: ' + (st.nisn || '-')"></div>
+                                </td>
+                                <td class="py-2.5 px-3 whitespace-nowrap">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300" x-text="st.class_name"></span>
+                                </td>
+                                <td class="py-2.5 px-3 text-center whitespace-nowrap">
+                                    <template x-if="st.is_evaluated">
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                            ✓ Sudah Diinput
+                                        </span>
+                                    </template>
+                                    <template x-if="!st.is_evaluated">
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+                                            Belum Diinput
+                                        </span>
+                                    </template>
+                                </td>
+                                <td class="py-2.5 px-3 text-slate-700 dark:text-slate-300 font-medium">
+                                    <span x-text="st.last_material"></span>
+                                </td>
+                                <td class="py-2.5 px-3 text-center whitespace-nowrap">
+                                    <template x-if="st.is_evaluated">
+                                        <div>
+                                            <span class="font-black text-slate-900 dark:text-white" x-text="st.score_cognitive"></span>
+                                            <span class="text-[9px] text-slate-400 block" x-text="st.predicate"></span>
+                                        </div>
+                                    </template>
+                                    <template x-if="!st.is_evaluated">
+                                        <span class="text-slate-400">-</span>
+                                    </template>
+                                </td>
+                                <td class="py-2.5 px-3 text-right whitespace-nowrap">
+                                    <button type="button" @click="openStudentRecordModal(st.id)"
+                                            class="px-2 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-[11px] font-bold transition cursor-pointer">
+                                        Riwayat
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
+                        <template x-if="filteredTeacherStudents.length === 0">
+                            <tr>
+                                <td colspan="7" class="py-8 text-center text-slate-400">
+                                    Tidak ada data santri yang sesuai filter.
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
+            {{-- Modal Footer --}}
+            <div class="p-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0">
+                <template x-if="selectedTeacherData?.teacher?.id">
+                    <a :href="'{{ route('admin.halaqah.index') }}?tab=reports&teacher_id=' + selectedTeacherData.teacher.id"
+                       class="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-xl text-xs font-bold border border-emerald-200 dark:border-emerald-800 transition flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                        <span>Filter Halaman Laporan ke Guru Ini</span>
+                    </a>
+                </template>
+                <button type="button" @click="closeTeacherDetailModal()"
+                        class="px-4 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-black rounded-xl transition cursor-pointer">
+                    Tutup
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    {{-- ========================================================================= --}}
+    {{-- MODAL 2: RINCIAN KETERCAPAIAN TARGET KURIKULUM SANTRI PER KELAS --}}
+    {{-- ========================================================================= --}}
+    <div x-show="isClassTargetModalOpen"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5"
+         style="display: none;">
+        
+        <div @click.away="closeClassTargetModal()"
+             class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            
+            {{-- Modal Header --}}
+            <div class="p-5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-white/20 text-white flex items-center justify-center font-black text-base shadow-xs">
+                        🎯
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-base font-black" x-text="selectedClassTargetData?.class_name ? 'Target Capaian Rombel: ' + selectedClassTargetData.class_name : 'Target Rombel Kelas'"></h3>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-white/20 text-white"
+                                  x-text="(selectedClassTargetData?.overall_pct || 0) + '% Tuntas Keseluruhan'"></span>
+                        </div>
+                        <p class="text-xs text-emerald-100">
+                            Tingkat Kelas <span x-text="selectedClassTargetData?.grade || '-'"></span> • Total <span x-text="selectedClassTargetData?.total_students || 0"></span> Santri Terdaftar
+                        </p>
+                    </div>
+                </div>
+                <button type="button" @click="closeClassTargetModal()"
+                        class="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            {{-- Target Criteria Bar --}}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800 shrink-0">
+                <div class="p-3 bg-white dark:bg-slate-900 rounded-2xl border border-amber-200 dark:border-amber-900/60 flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-extrabold text-amber-600 uppercase block">Target Standar Tahsin</span>
+                        <div class="text-sm font-black text-slate-900 dark:text-white" x-text="selectedClassTargetData?.tahsin_target || '-'"></div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs font-black text-amber-600" x-text="(selectedClassTargetData?.tahsin_achieved || 0) + '/' + (selectedClassTargetData?.total_students || 0) + ' (' + (selectedClassTargetData?.tahsin_pct || 0) + '%)'"></span>
+                        <span class="text-[9px] text-slate-400 block font-semibold">Telah Memenuhi Target</span>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-white dark:bg-slate-900 rounded-2xl border border-teal-200 dark:border-teal-900/60 flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-extrabold text-teal-600 uppercase block">Target Standar Tahfidz</span>
+                        <div class="text-sm font-black text-slate-900 dark:text-white" x-text="selectedClassTargetData?.tahfidz_target || '-'"></div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs font-black text-teal-600" x-text="(selectedClassTargetData?.tahfidz_achieved || 0) + '/' + (selectedClassTargetData?.total_students || 0) + ' (' + (selectedClassTargetData?.tahfidz_pct || 0) + '%)'"></span>
+                        <span class="text-[9px] text-slate-400 block font-semibold">Telah Memenuhi Target</span>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Filter & Search Toolbar --}}
+            <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+                <div class="flex items-center gap-1.5 flex-wrap w-full sm:w-auto">
+                    <button type="button" @click="classStudentFilter = 'all'"
+                            :class="classStudentFilter === 'all' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'"
+                            class="px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer">
+                        Semua Santri (<span x-text="selectedClassTargetData?.total_students || 0"></span>)
+                    </button>
+                    <button type="button" @click="classStudentFilter = 'unachieved'"
+                            :class="classStudentFilter === 'unachieved' ? 'bg-rose-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'"
+                            class="px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer">
+                        Belum Tuntas Target
+                    </button>
+                    <button type="button" @click="classStudentFilter = 'tahsin_done'"
+                            :class="classStudentFilter === 'tahsin_done' ? 'bg-amber-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'"
+                            class="px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer">
+                        Tuntas Tahsin
+                    </button>
+                    <button type="button" @click="classStudentFilter = 'tahfidz_done'"
+                            :class="classStudentFilter === 'tahfidz_done' ? 'bg-teal-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'"
+                            class="px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer">
+                        Tuntas Tahfidz
+                    </button>
+                </div>
+
+                <div class="w-full sm:w-64">
+                    <input type="text" x-model="classStudentSearch" placeholder="Cari santri rombel ini..."
+                           class="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium">
+                </div>
+            </div>
+
+            {{-- Table of Students & Limit Read --}}
+            <div class="p-4 overflow-y-auto flex-1">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="text-[10px] font-extrabold text-slate-400 uppercase border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40">
+                            <th class="py-2.5 px-3">No</th>
+                            <th class="py-2.5 px-3">Santri (Siswa)</th>
+                            <th class="py-2.5 px-3">Guru Pembimbing</th>
+                            <th class="py-2.5 px-3">Capaian Tahsin Saat Ini</th>
+                            <th class="py-2.5 px-3">Capaian Tahfidz Saat Ini</th>
+                            <th class="py-2.5 px-3 text-center">Status Target</th>
+                            <th class="py-2.5 px-3 text-right">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                        <template x-for="(st, sIdx) in filteredClassStudents" :key="st.id">
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                                <td class="py-2.5 px-3 text-slate-400 font-bold" x-text="sIdx + 1"></td>
+                                <td class="py-2.5 px-3 whitespace-nowrap">
+                                    <div class="font-bold text-slate-900 dark:text-white" x-text="st.name"></div>
+                                    <div class="text-[10px] text-slate-400" x-text="'NISN: ' + (st.nisn || '-')"></div>
+                                </td>
+                                <td class="py-2.5 px-3 whitespace-nowrap text-slate-600 dark:text-slate-300 font-medium">
+                                    <span x-text="st.teacher_name ? 'Ust. ' + st.teacher_name : '-'"></span>
+                                </td>
+                                <td class="py-2.5 px-3">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="font-bold text-slate-800 dark:text-slate-200" x-text="st.tahsin_status"></span>
+                                        <template x-if="st.tahsin_achieved">
+                                            <span class="px-1.5 py-0.2 rounded text-[9px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">✓ Tuntas</span>
+                                        </template>
+                                        <template x-if="!st.tahsin_achieved">
+                                            <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">Progres</span>
+                                        </template>
+                                    </div>
+                                </td>
+                                <td class="py-2.5 px-3">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="font-bold text-slate-800 dark:text-slate-200" x-text="st.tahfidz_status"></span>
+                                        <template x-if="st.tahfidz_achieved">
+                                            <span class="px-1.5 py-0.2 rounded text-[9px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">✓ Tuntas</span>
+                                        </template>
+                                        <template x-if="!st.tahfidz_achieved">
+                                            <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-teal-50 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300">Progres</span>
+                                        </template>
+                                    </div>
+                                </td>
+                                <td class="py-2.5 px-3 text-center whitespace-nowrap">
+                                    <template x-if="st.is_fully_achieved">
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                            ✓ Tuntas Rombel
+                                        </span>
+                                    </template>
+                                    <template x-if="!st.is_fully_achieved">
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500">
+                                            Dalam Progres
+                                        </span>
+                                    </template>
+                                </td>
+                                <td class="py-2.5 px-3 text-right whitespace-nowrap">
+                                    <button type="button" @click="openStudentRecordModal(st.id)"
+                                            class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-[11px] font-bold transition cursor-pointer">
+                                        Riwayat
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
+                        <template x-if="filteredClassStudents.length === 0">
+                            <tr>
+                                <td colspan="7" class="py-8 text-center text-slate-400">
+                                    Tidak ada data santri yang cocok dengan filter kriteria ini.
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
+            {{-- Modal Footer --}}
+            <div class="p-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0">
+                <span class="text-[11px] text-slate-400 font-medium">
+                    Standarisasi Ketercapaian Mutaba'ah &amp; Kurikulum Halaqah Al-Qur'an
+                </span>
+                <button type="button" @click="closeClassTargetModal()"
+                        class="px-4 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-black rounded-xl transition cursor-pointer">
+                    Tutup
+                </button>
+            </div>
+
         </div>
     </div>
 

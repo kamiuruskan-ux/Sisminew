@@ -434,13 +434,23 @@ class TeacherAttendanceController extends Controller
     }
 
     /**
-     * Monthly Recap Laporan Presensi Per Guru
+     * Comprehensive Recap & Laporan Presensi Guru & Briefing Per Jabatan
      */
     public function recap(Request $request)
     {
         $user = auth()->user();
+        $tab = $request->input('tab', 'general'); // 'general' | 'briefing'
+        $briefingTab = $request->input('briefing_tab', 'recap'); // 'recap' | 'history'
+        $mode = $request->input('mode', 'monthly'); // 'today' | 'range' | 'monthly'
+
+        $todayDate = date('Y-m-d');
         $month = (int) $request->input('month', date('m'));
         $year = (int) $request->input('year', date('Y'));
+        $date = $request->input('date', $todayDate);
+        $dateFrom = $request->input('date_from', date('Y-m-01'));
+        $dateTo = $request->input('date_to', $todayDate);
+        $filterJabatan = $request->input('jabatan', 'all');
+        $search = trim($request->input('search', ''));
 
         // Jika guru/staf biasa, alihkan ke presensi mandiri pribadi mereka
         if (!$user->hasRole(['super-admin', 'admin', 'kepala-sekolah', 'operator'])) {
@@ -448,9 +458,254 @@ class TeacherAttendanceController extends Controller
                 ->with('error', 'Anda hanya dapat melihat riwayat dan rekapan presensi pribadi Anda.');
         }
 
-        $recapData = $this->reportService->getMonthlyRecap($month, $year);
+        // 1. STATISTIK UTAMA (PUSAT STATISTIK KEHADIRAN)
+        $totalEmployees = User::employees()->count();
+        $hadirHariIni = TeacherAttendance::whereDate('date', $todayDate)
+            ->where('verification_status', '!=', 'pending_approval')
+            ->where('verification_status', '!=', 'rejected')
+            ->whereIn('status', ['present', 'late', 'very_late'])
+            ->distinct('user_id')
+            ->count('user_id');
 
-        return view('admin.teacher-attendances.recap', compact('recapData', 'month', 'year'));
+        $halaqahAktif = \App\Models\Student::where('status', 'active')->count();
+
+        // Rata kedisiplinan bulan ini
+        $monthlyAllRecords = TeacherAttendance::whereYear('date', $year)
+            ->whereMonth('date', $month)
+            ->where('verification_status', '!=', 'pending_approval')
+            ->where('verification_status', '!=', 'rejected')
+            ->get();
+        $totalPresentOrLate = $monthlyAllRecords->whereIn('status', ['present', 'late', 'very_late'])->count();
+        $totalOnTime = $monthlyAllRecords->where('status', 'present')->count();
+        $rataKedisiplinan = $totalPresentOrLate > 0 ? round(($totalOnTime / $totalPresentOrLate) * 100) : 0;
+
+        // 2. DAFTAR FORMASI JABATAN
+        $jabatanList = User::employees()
+            ->whereNotNull('jabatan')
+            ->where('jabatan', '!=', '')
+            ->pluck('jabatan')
+            ->unique()
+            ->sort()
+            ->values();
+
+        // 3. DATA REKAP KEHADIRAN UMUM
+        $rawRecapData = $this->reportService->getMonthlyRecap($month, $year);
+
+        // Filter recap data by jabatan and search
+        $recapData = collect($rawRecapData)->filter(function ($row) use ($filterJabatan, $search) {
+            $t = $row['teacher'];
+            $teacherJabatan = $t->jabatan ?: ($t->roles->first()?->name ?? 'Guru');
+            
+            if ($filterJabatan !== 'all' && $teacherJabatan !== $filterJabatan) {
+                return false;
+            }
+
+            if (!empty($search)) {
+                $q = strtolower($search);
+                $nameMatch = str_contains(strtolower($t->name), $q);
+                $nipMatch = str_contains(strtolower($t->nip ?? ''), $q);
+                $jabatanMatch = str_contains(strtolower($teacherJabatan), $q);
+                if (!$nameMatch && !$nipMatch && !$jabatanMatch) {
+                    return false;
+                }
+            }
+
+            return true;
+        })->values();
+
+        // 4. DATA LAPORAN BRIEFING PER JABATAN
+        $briefingSession = \App\Models\BriefingSession::whereDate('date', $date)->first() 
+            ?? \App\Models\BriefingSession::today()->first();
+
+        $briefingAttendances = $briefingSession 
+            ? \App\Models\BriefingAttendance::where('session_id', $briefingSession->id)->get()->keyBy('user_id')
+            : collect();
+
+        // Group staff by jabatan
+        $allStaff = User::employees()->orderBy('name')->get();
+        $groupedByJabatan = $allStaff->groupBy(function ($u) {
+            return $u->jabatan ?: ($u->roles->first()?->name ?? 'Staf / Guru');
+        });
+
+        // Filter briefing jabatan if specific jabatan is selected
+        if ($filterJabatan !== 'all') {
+            $groupedByJabatan = $groupedByJabatan->filter(fn($staff, $jName) => $jName === $filterJabatan);
+        }
+
+        $briefingJabatanCards = $groupedByJabatan->map(function ($staffGroup, $jName) use ($briefingAttendances) {
+            $totalStaff = $staffGroup->count();
+            $attendedStaff = $staffGroup->filter(fn($u) => $briefingAttendances->has($u->id));
+            $attendedCount = $attendedStaff->count();
+            $partisipasiPct = $totalStaff > 0 ? round(($attendedCount / $totalStaff) * 100) : 0;
+
+            $staffDetails = $staffGroup->map(function ($u) use ($briefingAttendances) {
+                $bAtt = $briefingAttendances->get($u->id);
+                return [
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'nip' => $u->nip,
+                    'has_attended' => !empty($bAtt),
+                    'attended_time' => $bAtt ? substr($bAtt->attended_at, 0, 5) : null,
+                ];
+            });
+
+            return [
+                'jabatan' => $jName,
+                'total_staff' => $totalStaff,
+                'attended_count' => $attendedCount,
+                'partisipasi_pct' => $partisipasiPct,
+                'staff_list' => $staffDetails,
+            ];
+        })->sortByDesc('total_staff')->values();
+
+        // History materi briefing
+        $briefingHistory = \App\Models\BriefingSession::with(['creator'])
+            ->withCount('attendances')
+            ->orderByDesc('date')
+            ->orderByDesc('start_time')
+            ->take(20)
+            ->get();
+
+        // 5. PENDING DINAS LUAR UNTUK APPROVAL KEPALA SEKOLAH / ADMIN
+        $pendingDinasLuar = TeacherAttendance::with('user')
+            ->where(function ($q) {
+                $q->where('work_location', 'outstation')
+                  ->orWhere('work_location', 'dinas_luar');
+            })
+            ->where('verification_status', 'pending_approval')
+            ->orderByDesc('date')
+            ->get();
+
+        return view('admin.teacher-attendances.recap', compact(
+            'tab',
+            'briefingTab',
+            'mode',
+            'month',
+            'year',
+            'date',
+            'dateFrom',
+            'dateTo',
+            'filterJabatan',
+            'search',
+            'totalEmployees',
+            'hadirHariIni',
+            'halaqahAktif',
+            'rataKedisiplinan',
+            'jabatanList',
+            'recapData',
+            'briefingSession',
+            'briefingJabatanCards',
+            'briefingHistory',
+            'pendingDinasLuar'
+        ));
+    }
+
+    /**
+     * Approve Dinas Luar Attendance by Super Admin / Kepala Sekolah
+     */
+    public function approveDinas(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (!$user->hasRole(['super-admin', 'admin', 'kepala-sekolah'])) {
+            return back()->with('error', 'Hanya Kepala Sekolah atau Admin Utama yang berwenang menyetujui presensi dinas luar.');
+        }
+
+        $attendance = TeacherAttendance::findOrFail($id);
+        $attendance->verification_status = 'verified';
+        $apprNote = "[Disetujui oleh {$user->name} @ " . now()->setTimezone(config('app.timezone', 'Asia/Makassar'))->format('d/m/Y H:i') . "]";
+        $attendance->notes = $attendance->notes ? $attendance->notes . ' ' . $apprNote : $apprNote;
+        $attendance->save();
+
+        return back()->with('success', 'Presensi Dinas Luar pegawai ' . ($attendance->user->name ?? '') . ' berhasil disetujui & resmi tercatat.');
+    }
+
+    /**
+     * Reject Dinas Luar Attendance
+     */
+    public function rejectDinas(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (!$user->hasRole(['super-admin', 'admin', 'kepala-sekolah'])) {
+            return back()->with('error', 'Hanya Kepala Sekolah atau Admin Utama yang berwenang menolak presensi dinas luar.');
+        }
+
+        $attendance = TeacherAttendance::findOrFail($id);
+        $attendance->verification_status = 'rejected';
+        $attendance->status = 'absent';
+        $reason = $request->input('reason', 'Ditolak oleh Kepala Sekolah/Admin');
+        $rejNote = "[Ditolak: {$reason} oleh {$user->name} @ " . now()->setTimezone(config('app.timezone', 'Asia/Makassar'))->format('d/m/Y H:i') . "]";
+        $attendance->notes = $attendance->notes ? $attendance->notes . ' ' . $rejNote : $rejNote;
+        $attendance->save();
+
+        return back()->with('success', 'Presensi Dinas Luar pegawai ' . ($attendance->user->name ?? '') . ' berhasil ditolak.');
+    }
+
+    /**
+     * Export Briefing Attendance Report to Excel
+     */
+    public function exportBriefing(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user->hasRole(['super-admin', 'admin', 'kepala-sekolah', 'operator'])) {
+            abort(403, 'Anda tidak berwenang mengunduh berkas laporan briefing.');
+        }
+
+        $date = $request->input('date', date('Y-m-d'));
+        $briefingSession = \App\Models\BriefingSession::whereDate('date', $date)->first()
+            ?? \App\Models\BriefingSession::today()->first();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Laporan Briefing ' . $date);
+
+        // Header Title
+        $sheet->setCellValue('A1', 'LAPORAN REKAPITULASI PRESENSI BRIEFING HARIAN DEWAN GURU & STAF');
+        $sheet->setCellValue('A2', 'Tanggal: ' . $date . ' | Sesi: ' . ($briefingSession->title ?? 'Briefing Harian'));
+        $sheet->getStyle('A1:A2')->getFont()->setBold(true)->setSize(12);
+
+        $headers = ['A4' => 'No', 'B4' => 'Nama Guru / Pegawai', 'C4' => 'NIP', 'D4' => 'Formasi Jabatan', 'E4' => 'Status Kehadiran', 'F4' => 'Waktu Absen', 'G4' => 'Perangkat'];
+        foreach ($headers as $cell => $val) {
+            $sheet->setCellValue($cell, $val);
+        }
+        $sheet->getStyle('A4:G4')->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E293B']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        ]);
+
+        $attendees = $briefingSession 
+            ? \App\Models\BriefingAttendance::where('session_id', $briefingSession->id)->get()->keyBy('user_id')
+            : collect();
+
+        $allStaff = User::employees()->orderBy('jabatan')->orderBy('name')->get();
+        $row = 5;
+        $no = 1;
+        foreach ($allStaff as $st) {
+            $bAtt = $attendees->get($st->id);
+            $sheet->setCellValue('A' . $row, $no++);
+            $sheet->setCellValue('B' . $row, $st->name);
+            $sheet->setCellValue('C' . $row, $st->nip ?? '-');
+            $sheet->setCellValue('D' . $row, $st->jabatan ?: ($st->roles->first()?->name ?? 'Staf'));
+            $sheet->setCellValue('E' . $row, $bAtt ? 'Hadir' : 'Belum Hadir');
+            $sheet->setCellValue('F' . $row, $bAtt ? substr($bAtt->attended_at, 0, 5) : '-');
+            $sheet->setCellValue('G' . $row, $bAtt->device_info ?? '-');
+            if ($row % 2 === 0) {
+                $sheet->getStyle("A{$row}:G{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F8FAFC');
+            }
+            $row++;
+        }
+
+        foreach (range('A', 'G') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $filename = 'Laporan_Briefing_' . $date . '.xlsx';
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
+        $writer = new Xlsx($spreadsheet);
+        $writer->save('php://output');
+        exit;
     }
 
     /**

@@ -27,6 +27,8 @@ class QuranTasmiExam extends Model
         'status',
         'certificate_number',
         'notes',
+        'examiner_signature',
+        'principal_signature',
     ];
 
     protected $casts = [

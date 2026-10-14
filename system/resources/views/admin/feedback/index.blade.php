@@ -208,7 +208,6 @@
                                 <div class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                                     <span>Diposkan oleh:</span>
                                     <strong class="text-slate-700 dark:text-slate-300">{{ $fb->author_name }}</strong>
-                                    <span class="text-slate-400">({{ $fb->author_role }})</span>
                                 </div>
 
                                 <!-- Action Buttons (Accessible by Super Admin, Admin, Kepala Sekolah) -->

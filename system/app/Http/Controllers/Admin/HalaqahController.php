@@ -10,6 +10,7 @@ use App\Models\QuranHalaqahMember;
 use App\Models\QuranTarget;
 use App\Models\QuranTasmiExam;
 use App\Models\QuranJilidExam;
+use App\Models\Setting;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\DatabaseSchemaChecker;
@@ -18,6 +19,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -482,17 +484,26 @@ class HalaqahController extends Controller
         $murojaahCount = (clone $statsQuery)->where('record_category', 'murojaah')->count();
 
         $avgScore = round((clone $statsQuery)->avg('score_cognitive') ?? 0, 1);
-        $mumtazCount = (clone $statsQuery)->where('predicate', 'Mumtaz')->count();
-        $mumtazPercentage = $totalSetoran > 0 ? round(($mumtazCount / $totalSetoran) * 100) : 0;
         $reportUniqueStudentsCount = (clone $statsQuery)->distinct('student_id')->count('student_id');
 
-        // Predikat Sebaran
+        // Predikat Sebaran (dihitung per santri unik berdasarkan evaluasi terkini masing-masing santri)
+        $latestRecordIds = (clone $statsQuery)
+            ->select(DB::raw('MAX(id) as max_id'))
+            ->groupBy('student_id')
+            ->pluck('max_id');
+
+        $latestRecords = count($latestRecordIds) > 0 ? HalaqahRecord::whereIn('id', $latestRecordIds)->get() : collect();
+        $predicateTotalStudents = $latestRecords->count();
+
         $predicateDistribution = [
-            'Mumtaz' => (clone $statsQuery)->where('predicate', 'Mumtaz')->count(),
-            'Jayyid Jiddan' => (clone $statsQuery)->where('predicate', 'Jayyid Jiddan')->count(),
-            'Jayyid' => (clone $statsQuery)->where('predicate', 'Jayyid')->count(),
-            'Maqbul' => (clone $statsQuery)->where('predicate', 'Maqbul')->count(),
+            'Mumtaz' => $latestRecords->where('predicate', 'Mumtaz')->count(),
+            'Jayyid Jiddan' => $latestRecords->where('predicate', 'Jayyid Jiddan')->count(),
+            'Jayyid' => $latestRecords->where('predicate', 'Jayyid')->count(),
+            'Maqbul' => $latestRecords->where('predicate', 'Maqbul')->count(),
         ];
+
+        $mumtazCount = $predicateDistribution['Mumtaz'];
+        $mumtazPercentage = $predicateTotalStudents > 0 ? round(($mumtazCount / $predicateTotalStudents) * 100) : 0;
 
         // Sebaran Jilid Tahsin (Jilid 1 - 6 murni)
         $jilidStats = [];
@@ -577,6 +588,48 @@ class HalaqahController extends Controller
                     ? round(($assignedInputted / $assignedCount) * 100) 
                     : ($totalInputs > 0 ? 100 : 0);
 
+                $teacherStudentsDetail = [];
+                if ($assignedCount > 0) {
+                    $tStudents = Student::with(['user', 'class'])
+                        ->whereIn('id', $assignedStudentIds)
+                        ->get();
+
+                    $tStudentLastRecords = HalaqahRecord::where('teacher_id', $t->id)
+                        ->whereIn('student_id', $assignedStudentIds)
+                        ->orderBy('assessment_date', 'desc')
+                        ->orderBy('id', 'desc')
+                        ->get()
+                        ->unique('student_id')
+                        ->keyBy('student_id');
+
+                    foreach ($tStudents as $st) {
+                        $stRec = $tStudentLastRecords->get($st->id);
+                        $isInputted = in_array($st->id, $inputtedStudentIds);
+
+                        $materiText = '-';
+                        if ($stRec) {
+                            if ($stRec->program_type === 'tahsin') {
+                                $materiText = ($stRec->jilid_level ?: 'Tahsin') . ($stRec->page_start ? ' Hal. ' . $stRec->page_start . ($stRec->page_end ? '-' . $stRec->page_end : '') : '');
+                            } else {
+                                $materiText = ($stRec->surah_name ?: 'Tahfidz') . ($stRec->ayat_start ? ' Ayat ' . $stRec->ayat_start . ($stRec->ayat_end ? '-' . $stRec->ayat_end : '') : '');
+                            }
+                        }
+
+                        $teacherStudentsDetail[] = [
+                            'id' => $st->id,
+                            'name' => $st->user?->name ?? 'Santri',
+                            'nisn' => $st->nisn ?? $st->nis ?? '-',
+                            'class_name' => $st->class?->name ?? '-',
+                            'is_inputted' => $isInputted,
+                            'program_type' => $stRec?->program_type ?? '-',
+                            'materi' => $materiText,
+                            'score' => $stRec?->score_cognitive ?? null,
+                            'predicate' => $stRec?->predicate ?? null,
+                            'date' => $stRec?->assessment_date ? $stRec->assessment_date->format('d/m/Y') : null,
+                        ];
+                    }
+                }
+
                 $teacherMonitoringList->push([
                     'teacher' => $t,
                     'assigned_count' => $assignedCount,
@@ -588,6 +641,7 @@ class HalaqahController extends Controller
                     'last_input_date' => $lastRecord?->assessment_date,
                     'last_input_at' => $lastRecord?->created_at,
                     'is_active' => $totalInputs > 0,
+                    'students_detail' => $teacherStudentsDetail,
                 ]);
             }
 
@@ -784,7 +838,7 @@ class HalaqahController extends Controller
         // ── KETERCAPAIAN TARGET KURIKULUM PER KELAS ──
         $classTargetAchievements = [];
         $allTargets = QuranTarget::all();
-        $studentsByClass = Student::select('id', 'class_id')
+        $studentsByClass = Student::with('user')
             ->when(\Illuminate\Support\Facades\Schema::hasColumn('students', 'student_status'), function ($sq) {
                 $sq->where(function($q) {
                     $q->where('student_status', 'active')
@@ -851,38 +905,63 @@ class HalaqahController extends Controller
 
             $tahsinAchieved = 0;
             $tahfidzAchieved = 0;
+            $studentsDetail = [];
 
             if ($totalStudents > 0) {
                 foreach ($clsStudents as $st) {
                     // Check Tahsin
                     $stTahsin = $latestTahsinByStudent->get($st->id);
+                    $isTahsinTuntas = false;
+                    $tahsinText = 'Belum Ada Data';
+
                     if ($stTahsin) {
+                        $tahsinText = ($stTahsin->jilid_level ?: 'Tahsin') . ($stTahsin->page_end ? ' Hal. ' . $stTahsin->page_end : ($stTahsin->page_start ? ' Hal. ' . $stTahsin->page_start : ''));
                         $stJilidNum = (int) filter_var($stTahsin->jilid_level, FILTER_SANITIZE_NUMBER_INT);
                         if ($targetJilidNum > 0) {
                             if ($stJilidNum > $targetJilidNum) {
                                 $tahsinAchieved++;
+                                $isTahsinTuntas = true;
                             } elseif ($stJilidNum === $targetJilidNum) {
                                 $stPage = $stTahsin->page_end ?? ($stTahsin->page_start ?? 0);
                                 if (!$targetPageEnd || ($stPage >= $targetPageEnd)) {
                                     $tahsinAchieved++;
+                                    $isTahsinTuntas = true;
                                 }
                             }
                         } else {
                             $tahsinAchieved++;
+                            $isTahsinTuntas = true;
                         }
                     }
 
                     // Check Tahfidz
                     $stTahfidz = $latestTahfidzByStudent->get($st->id);
+                    $isTahfidzTuntas = false;
+                    $tahfidzText = 'Belum Ada Data';
+
                     if ($stTahfidz) {
+                        $tahfidzText = ($stTahfidz->juz_number ? 'Juz ' . $stTahfidz->juz_number : '') . ($stTahfidz->surah_name ? ' (' . $stTahfidz->surah_name . ')' : '');
                         if ($targetJuzNum > 0) {
                             if ($stTahfidz->juz_number == $targetJuzNum || $stTahfidz->juz_number > 0) {
                                 $tahfidzAchieved++;
+                                $isTahfidzTuntas = true;
                             }
                         } else {
                             $tahfidzAchieved++;
+                            $isTahfidzTuntas = true;
                         }
                     }
+
+                    $studentsDetail[] = [
+                        'id' => $st->id,
+                        'name' => $st->user?->name ?? 'Santri',
+                        'nisn' => $st->nisn ?? $st->nis ?? '-',
+                        'tahsin_text' => $tahsinText,
+                        'tahsin_tuntas' => $isTahsinTuntas,
+                        'tahfidz_text' => $tahfidzText,
+                        'tahfidz_tuntas' => $isTahfidzTuntas,
+                        'is_overall_tuntas' => ($isTahsinTuntas && $isTahfidzTuntas),
+                    ];
                 }
             }
 
@@ -902,6 +981,7 @@ class HalaqahController extends Controller
                 'tahfidz_achieved' => $tahfidzAchieved,
                 'tahfidz_pct' => $tahfidzPct,
                 'overall_pct' => $overallPct,
+                'students_detail' => $studentsDetail,
             ];
         }
 
@@ -975,6 +1055,7 @@ class HalaqahController extends Controller
             'mumtazPercentage',
             'reportUniqueStudentsCount',
             'predicateDistribution',
+            'predicateTotalStudents',
             'jilidStats',
             'juzStats',
             'surahDistribution',
@@ -1113,6 +1194,17 @@ class HalaqahController extends Controller
 
                 $predicate = HalaqahRecord::calculatePredicate($cognitive);
 
+                $ayatStart = in_array($programType, ['tahfidz', 'tilawah']) ? ($item['ayat_start'] ?? ($item['page_start'] ?? null)) : null;
+                $ayatEnd = in_array($programType, ['tahfidz', 'tilawah']) ? ($item['ayat_end'] ?? ($item['page_end'] ?? null)) : null;
+                $surahName = in_array($programType, ['tahfidz', 'tilawah']) ? ($item['surah_name'] ?? null) : null;
+                $juzNumber = null;
+                if (in_array($programType, ['tahfidz', 'tilawah'])) {
+                    $juzNumber = $item['juz_number'] ?? null;
+                    if (!$juzNumber && $surahName) {
+                        $juzNumber = \App\Helpers\QuranHelper::getJuzBySurahName($surahName) ?: 30;
+                    }
+                }
+
                 HalaqahRecord::create([
                     'student_id' => $student->id,
                     'teacher_id' => Auth::id(),
@@ -1127,10 +1219,10 @@ class HalaqahController extends Controller
                     'jilid_level' => $programType === 'tahsin' ? ($item['jilid_level'] ?? 'Jilid 1') : null,
                     'page_start' => $programType === 'tahsin' ? ($item['page_start'] ?? null) : null,
                     'page_end' => $programType === 'tahsin' ? ($item['page_end'] ?? null) : null,
-                    'surah_name' => in_array($programType, ['tahfidz', 'tilawah']) ? ($item['surah_name'] ?? null) : null,
-                    'ayat_start' => in_array($programType, ['tahfidz', 'tilawah']) ? ($item['ayat_start'] ?? null) : null,
-                    'ayat_end' => in_array($programType, ['tahfidz', 'tilawah']) ? ($item['ayat_end'] ?? null) : null,
-                    'juz_number' => in_array($programType, ['tahfidz', 'tilawah']) ? ($item['juz_number'] ?? 30) : null,
+                    'surah_name' => $surahName,
+                    'ayat_start' => $ayatStart,
+                    'ayat_end' => $ayatEnd,
+                    'juz_number' => $juzNumber,
                     'score_cognitive' => $cognitive,
                     'score_adab' => $adab,
                     'predicate' => $predicate,
@@ -1938,12 +2030,75 @@ class HalaqahController extends Controller
     }
 
     /**
+     * Helper menyiapkan seluruh data identitas sekolah, kepala sekolah, dan tanda tangan
+     */
+    private function getCertificateData($exam, string $type = 'tasmi'): array
+    {
+        // 1. Identitas Sekolah
+        $schoolName = Setting::get('school_name', 'SDIT AL-FAHMI');
+        $schoolLogoUrl = Setting::getLogoUrl();
+        $schoolAddress = Setting::get('school_address', '');
+
+        // 2. Kota Sekolah
+        $schoolCity = Setting::get('school_city') ?: Setting::get('raport_place') ?: config('app.school_city');
+        if (!$schoolCity || strtolower(trim($schoolCity)) === 'indonesia') {
+            $addr = $schoolAddress ?: '';
+            if (preg_match('/(?:Kota|Kabupaten|Kab\.)\s+([A-Za-z\s]+)/i', $addr, $m)) {
+                $schoolCity = trim(explode(',', $m[1])[0]);
+            } else {
+                $schoolCity = 'Palu'; // Default SDIT Al-Fahmi Palu
+            }
+        }
+
+        // 3. Kepala Sekolah
+        $principalName = Setting::get('school_principal_name') ?: Setting::get('school_principal');
+        if (!$principalName || $principalName === 'Kepala Sekolah') {
+            $kepsek = User::where('jabatan', 'like', '%Kepala Sekolah%')->first();
+            if ($kepsek) {
+                $principalName = $kepsek->name;
+            } else {
+                $principalName = 'Kepala Sekolah';
+            }
+        }
+        $principalTitle = Setting::get('school_principal_title', 'Kepala Sekolah');
+        $principalNip = trim((string) Setting::get('school_principal_nip', ''));
+
+        // 4. Tanda Tangan Kepala Sekolah
+        $principalSigPath = $exam->principal_signature
+            ?: Setting::get('syahadah_principal_signature')
+            ?: Setting::get('student_card_signature_path')
+            ?: Setting::get('raport_signature_path');
+        $principalSigUrl = $principalSigPath ? get_public_file_url($principalSigPath, 'img') : null;
+
+        // 5. Tanda Tangan Penguji
+        $examinerSigPath = $exam->examiner_signature
+            ?: Setting::get('syahadah_examiner_signature_' . ($exam->teacher_id ?? 'default'))
+            ?: Setting::get('syahadah_examiner_signature');
+        $examinerSigUrl = $examinerSigPath ? get_public_file_url($examinerSigPath, 'img') : null;
+
+        return compact(
+            'schoolName',
+            'schoolLogoUrl',
+            'schoolAddress',
+            'schoolCity',
+            'principalName',
+            'principalTitle',
+            'principalNip',
+            'principalSigPath',
+            'principalSigUrl',
+            'examinerSigPath',
+            'examinerSigUrl'
+        );
+    }
+
+    /**
      * Cetak Syahadah / Sertifikat Tasmi' 1 Juz
      */
     public function printCertificate($id)
     {
         $exam = QuranTasmiExam::with(['student.user', 'student.class', 'teacher'])->findOrFail($id);
-        return view('admin.halaqah.certificate', compact('exam'));
+        $certData = $this->getCertificateData($exam, 'tasmi');
+        return view('admin.halaqah.certificate', array_merge(['exam' => $exam, 'examType' => 'tasmi'], $certData));
     }
 
     /**
@@ -2022,6 +2177,100 @@ class HalaqahController extends Controller
     public function printJilidCertificate($id)
     {
         $exam = QuranJilidExam::with(['student.user', 'student.class', 'teacher'])->findOrFail($id);
-        return view('admin.halaqah.jilid-certificate', compact('exam'));
+        $certData = $this->getCertificateData($exam, 'jilid');
+        return view('admin.halaqah.jilid-certificate', array_merge(['exam' => $exam, 'examType' => 'jilid'], $certData));
+    }
+
+    /**
+     * Upload / Simpan Tanda Tangan Penguji atau Kepala Sekolah untuk Syahadah
+     */
+    public function uploadCertificateSignature(Request $request)
+    {
+        $request->validate([
+            'type' => 'required|in:principal,examiner',
+            'exam_type' => 'nullable|in:tasmi,jilid',
+            'exam_id' => 'nullable|integer',
+            'signature_file' => 'nullable|file|mimes:png,jpg,jpeg,webp,svg|max:2048',
+            'signature_base64' => 'nullable|string',
+            'save_as_default' => 'nullable',
+            'delete' => 'nullable',
+        ]);
+
+        $type = $request->type; // principal or examiner
+        $relPath = null;
+
+        if ($request->boolean('delete')) {
+            $relPath = null;
+        } elseif ($request->hasFile('signature_file')) {
+            $file = $request->file('signature_file');
+            $fileName = 'syahadah_' . $type . '_' . time() . '.' . $file->getClientOriginalExtension();
+            $saved = save_uploaded_public_file($file, 'img/signatures', $fileName);
+            $relPath = 'img/signatures/' . basename($saved);
+        } elseif ($request->filled('signature_base64')) {
+            $data = $request->signature_base64;
+            if (preg_match('/^data:image\/(\w+);base64,/', $data, $typeMatch)) {
+                $data = substr($data, strpos($data, ',') + 1);
+                $ext = strtolower($typeMatch[1]);
+                if (!in_array($ext, ['png', 'jpeg', 'jpg', 'webp'])) {
+                    $ext = 'png';
+                }
+                $data = base64_decode($data);
+                if ($data === false) {
+                    return response()->json(['success' => false, 'message' => 'Format gambar tanda tangan tidak valid.'], 422);
+                }
+                $fileName = 'syahadah_' . $type . '_' . time() . '.' . $ext;
+                $targetDir = public_path('img/signatures');
+                if (!File::isDirectory($targetDir)) {
+                    File::makeDirectory($targetDir, 0755, true, true);
+                }
+                File::put($targetDir . '/' . $fileName, $data);
+                $relPath = 'img/signatures/' . $fileName;
+            }
+        } else {
+            return response()->json(['success' => false, 'message' => 'Tidak ada file atau gambar tanda tangan yang disertakan.'], 422);
+        }
+
+        $saveDefault = $request->boolean('save_as_default') || !$request->filled('exam_id');
+
+        // Simpan ke Setting jika default
+        if ($saveDefault) {
+            if ($type === 'principal') {
+                Setting::set('syahadah_principal_signature', $relPath);
+                if (!Setting::get('student_card_signature_path') && $relPath) {
+                    Setting::set('student_card_signature_path', $relPath);
+                }
+            } else {
+                Setting::set('syahadah_examiner_signature', $relPath);
+            }
+        }
+
+        // Simpan ke model exam spesifik jika ada exam_id
+        if ($request->filled('exam_id')) {
+            $examModel = $request->exam_type === 'jilid'
+                ? QuranJilidExam::find($request->exam_id)
+                : QuranTasmiExam::find($request->exam_id);
+
+            if ($examModel) {
+                if ($type === 'principal') {
+                    $examModel->principal_signature = $relPath;
+                } else {
+                    $examModel->examiner_signature = $relPath;
+                    if ($examModel->teacher_id && $saveDefault) {
+                        Setting::set('syahadah_examiner_signature_' . $examModel->teacher_id, $relPath);
+                    }
+                }
+                $examModel->save();
+            }
+        }
+
+        $url = $relPath ? get_public_file_url($relPath, 'img') : null;
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Tanda tangan ' . ($type === 'principal' ? 'Kepala Sekolah' : 'Penguji') . ' berhasil ' . ($relPath ? 'disimpan' : 'dihapus') . '!',
+            'path' => $relPath,
+            'url' => $url,
+            'type' => $type,
+        ]);
     }
 }

@@ -286,7 +286,13 @@ class AttendanceService
         $attendance->device_info = $deviceName;
         $attendance->work_location = $workLoc;
         $attendance->session_name = $sessionName;
-        $attendance->verification_status = $params['verification_status'] ?? 'verified';
+
+        // Absensi Dinas Luar belum tercatat sampai diapprove oleh kepala sekolah atau admin utama
+        if ($workLoc === 'outstation' || $workLoc === 'dinas_luar') {
+            $attendance->verification_status = 'pending_approval';
+        } else {
+            $attendance->verification_status = $params['verification_status'] ?? 'verified';
+        }
 
         if (empty($attendance->recorded_by)) {
             $attendance->recorded_by = auth()->id() ?? $user->id;
@@ -326,7 +332,9 @@ class AttendanceService
             if ($photoName) {
                 $attendance->check_out_photo = $photoName;
             }
-            $actionMessage = ($workLoc === 'dinas_luar' ? 'Presensi PULANG (Dinas Luar)' : 'Presensi PULANG') . " berhasil dicatat ({$nowTime})";
+            $actionMessage = (($workLoc === 'dinas_luar' || $workLoc === 'outstation')
+                ? "Presensi PULANG (Dinas Luar) dikirim dan menunggu persetujuan Kepala Sekolah/Admin Utama ({$nowTime})"
+                : "Presensi PULANG berhasil dicatat ({$nowTime})");
 
         } else {
             // Default Morning Check In
@@ -339,7 +347,9 @@ class AttendanceService
             $lateDetails = $this->sessionService->calculateLateDetails($now);
             $attendance->status = $lateDetails['status'];
             $attendance->delay_minutes = $lateDetails['delay_minutes'];
-            $actionMessage = ($workLoc === 'dinas_luar' ? 'Presensi MASUK (Dinas Luar)' : 'Presensi MASUK') . " berhasil dicatat ({$nowTime})";
+            $actionMessage = (($workLoc === 'dinas_luar' || $workLoc === 'outstation')
+                ? "Presensi MASUK (Dinas Luar) dikirim dan menunggu persetujuan Kepala Sekolah/Admin Utama ({$nowTime})"
+                : "Presensi MASUK berhasil dicatat ({$nowTime})");
         }
 
         // Merge custom user notes

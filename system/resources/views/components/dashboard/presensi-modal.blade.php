@@ -28,6 +28,15 @@
     if (!empty($todayAttendance?->check_out)) {
         $checkOutTime = \Carbon\Carbon::parse($todayAttendance->check_out)->format('H:i');
     }
+
+    // Cek Sesi Briefing Hari Ini
+    $briefingSession = \App\Models\BriefingSession::today()->first();
+    $isBriefingOpen = ($briefingSession && $briefingSession->is_active && $briefingSession->isOpen());
+    $todayBriefingAttendance = $briefingSession
+        ? \App\Models\BriefingAttendance::where('session_id', $briefingSession->id)->where('user_id', $user->id)->first()
+        : null;
+    $hasAttendedBriefing = !empty($todayBriefingAttendance);
+    $attendedBriefingTime = $todayBriefingAttendance ? substr($todayBriefingAttendance->attended_at, 0, 5) : null;
 @endphp
 
 <!-- Ensure Required Modular Attendance Services are Loaded -->
@@ -211,6 +220,46 @@
             </template>
         </div>
 
+        <!-- Dynamic Briefing Attendance Banner & Action (muncul saat sesi briefing dibuka) -->
+        @if($isBriefingOpen)
+            <div class="p-3 rounded-2xl border transition-all duration-300 {{ $hasAttendedBriefing ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700/60' : 'bg-gradient-to-r from-indigo-500/10 via-blue-500/10 to-violet-500/10 border-indigo-300 dark:border-indigo-600/70 ring-2 ring-indigo-400/20 shadow-xs' }}">
+                <div class="flex items-center justify-between gap-2.5">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-600 text-white text-sm shadow-xs shrink-0">
+                            📢
+                        </span>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full {{ $hasAttendedBriefing ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 animate-pulse' }}">
+                                    {{ $hasAttendedBriefing ? '✓ Briefing Tercatat' : 'Sesi Briefing Terbuka' }}
+                                </span>
+                                <span class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Batas: {{ $briefingSession->end_time ?? '08:30' }} WITA</span>
+                            </div>
+                            <div class="text-xs font-bold text-slate-800 dark:text-slate-100 truncate mt-0.5" title="{{ $briefingSession->title ?? 'Briefing Rutin Harian' }}">
+                                {{ $briefingSession->title ?? 'Briefing Rutin Harian' }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="shrink-0">
+                        @if($hasAttendedBriefing)
+                            <span class="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-600 dark:text-emerald-400 font-mono bg-white dark:bg-emerald-950/80 px-2.5 py-1.5 rounded-xl border border-emerald-300 dark:border-emerald-700 shadow-2xs">
+                                ✓ {{ $attendedBriefingTime }} WITA
+                            </span>
+                        @else
+                            <button type="button" 
+                                    @click="attendBriefingFromModal()"
+                                    :disabled="briefingSubmitting"
+                                    class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 active:scale-95 text-white text-xs font-black shadow-md shadow-indigo-500/25 transition flex items-center gap-1.5 cursor-pointer">
+                                <span x-show="!briefingSubmitting">🎙️ Absen Briefing</span>
+                                <span x-show="briefingSubmitting" class="animate-spin text-xs">⏳</span>
+                            </button>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        @endif
+
         <!-- Session Selection Option (Dynamic based on completed attendance times) -->
         <div class="space-y-1.5">
             <div class="flex items-center justify-between">
@@ -334,6 +383,9 @@ function presensiGpsModalApp() {
         dinasNotes: '',
         selectedSessionType: 'check_in',
         submitting: false,
+        briefingSubmitting: false,
+        briefingAttended: {{ $hasAttendedBriefing ? 'true' : 'false' }},
+        briefingTime: '{{ $attendedBriefingTime ?? '' }}',
         feedbackMsg: '',
         feedbackSuccess: false,
         clockTimer: null,
@@ -586,6 +638,47 @@ function presensiGpsModalApp() {
                 this.feedbackMsg = 'Terjadi kendala jaringan saat mengirim data presensi.';
             } finally {
                 this.submitting = false;
+            }
+        },
+
+        async attendBriefingFromModal() {
+            if (this.briefingSubmitting || this.briefingAttended) return;
+            this.briefingSubmitting = true;
+            this.feedbackMsg = '';
+
+            try {
+                const res = await fetch('{{ route('admin.teacher-attendances.attend-briefing') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        latitude: this.userLat,
+                        longitude: this.userLong,
+                        device_info: navigator.userAgent
+                    })
+                });
+
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    this.feedbackSuccess = true;
+                    this.feedbackMsg = data.message || 'Presensi briefing berhasil!';
+                    this.briefingAttended = true;
+                    this.briefingTime = data.attended_at || '';
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1200);
+                } else {
+                    this.feedbackSuccess = false;
+                    this.feedbackMsg = data.message || 'Gagal mencatat presensi briefing.';
+                }
+            } catch (e) {
+                this.feedbackSuccess = false;
+                this.feedbackMsg = 'Terjadi kesalahan jaringan saat mengirim presensi briefing.';
+            } finally {
+                this.briefingSubmitting = false;
             }
         }
     };
