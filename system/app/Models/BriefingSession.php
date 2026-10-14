@@ -40,6 +40,22 @@ class BriefingSession extends Model
     }
 
     /**
+     * Scope untuk sesi hari ini
+     */
+    public function scopeToday($query)
+    {
+        return $query->whereDate('date', date('Y-m-d'));
+    }
+
+    /**
+     * Scope untuk sesi aktif
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    /**
      * Cek apakah sesi briefing saat ini aktif dan belum melewati batas waktu tutup
      */
     public function isOpen(): bool

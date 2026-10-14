@@ -30,7 +30,7 @@
     }
 
     // Cek Sesi Briefing Hari Ini
-    $briefingSession = \App\Models\BriefingSession::today()->first();
+    $briefingSession = \App\Models\BriefingSession::whereDate('date', date('Y-m-d'))->first();
     $isBriefingOpen = ($briefingSession && $briefingSession->is_active && $briefingSession->isOpen());
     $todayBriefingAttendance = $briefingSession
         ? \App\Models\BriefingAttendance::where('session_id', $briefingSession->id)->where('user_id', $user->id)->first()

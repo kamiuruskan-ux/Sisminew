@@ -4,373 +4,379 @@
 @section('page_title', "Halaqah Al-Qur'an")
 
 @section('content')
-<div class="space-y-6" x-data="{
-    activeTab: '{{ $tab }}',
-    evalMode: '{{ $mode }}',
-    programType: 'tahsin',
-    recordCategory: 'ziyadah',
-    tahsinType: 'jilid',
-    scoreCognitive: 90,
-    scoreAdab: 85,
-    selectedJuz: 30,
-    lastRecord: null,
-    isLoadingLastRecord: false,
-    fetchLastRecord(studentId) {
-        if (!studentId) {
-            this.lastRecord = null;
-            return;
-        }
-        this.isLoadingLastRecord = true;
-        fetch(`/admin/halaqah/last-record/${studentId}`)
-            .then(res => res.json())
-            .then(data => {
-                this.lastRecord = data;
-                this.isLoadingLastRecord = false;
-            })
-            .catch(() => {
-                this.isLoadingLastRecord = false;
-            });
-    },
-    applySmartAssist() {
-        if (!this.lastRecord) return;
-        const sug = this.lastRecord.suggested;
-        this.programType = sug.program_type || 'tahfidz';
-        this.recordCategory = sug.record_category || 'ziyadah';
-        if (this.programType === 'tahsin') {
-            const jilidSelect = document.querySelector('select[name=\'jilid_level\']');
-            if (jilidSelect && sug.jilid_level) jilidSelect.value = sug.jilid_level;
-            const pStart = document.querySelector('input[name=\'page_start\']');
-            const pEnd = document.querySelector('input[name=\'page_end\']');
-            if (pStart && sug.page_start) pStart.value = sug.page_start;
-            if (pEnd && sug.page_end) pEnd.value = sug.page_end;
-        } else {
-            const surahSelect = document.querySelector('select[name=\'surah_name\']');
-            if (surahSelect && sug.surah_name) {
-                surahSelect.value = sug.surah_name;
-                this.selectedJuz = sug.juz_number || 30;
+<script>
+function halaqahPageData() {
+    return {
+        activeTab: '{{ $tab }}',
+        evalMode: '{{ $mode }}',
+        programType: 'tahsin',
+        recordCategory: 'ziyadah',
+        tahsinType: 'jilid',
+        scoreCognitive: 90,
+        scoreAdab: 85,
+        selectedJuz: 30,
+        lastRecord: null,
+        isLoadingLastRecord: false,
+        fetchLastRecord(studentId) {
+            if (!studentId) {
+                this.lastRecord = null;
+                return;
             }
-            const aStart = document.querySelector('input[name=\'ayat_start\']');
-            const aEnd = document.querySelector('input[name=\'ayat_end\']');
-            if (aStart && sug.ayat_start) aStart.value = sug.ayat_start;
-            if (aEnd && sug.ayat_end) aEnd.value = sug.ayat_end;
-        }
-    },
-    onSurahChange(event) {
-        const sel = event.target;
-        const opt = sel.options[sel.selectedIndex];
-        if (opt && opt.dataset.juz) {
-            this.selectedJuz = parseInt(opt.dataset.juz);
-        }
-    },
-    get calculatedPredicate() {
-        let sc = parseFloat(this.scoreCognitive) || 0;
-        if (sc >= 90) return 'Mumtaz (90-100)';
-        if (sc >= 80) return 'Jayyid Jiddan (80-89)';
-        if (sc >= 70) return 'Jayyid (70-79)';
-        return 'Maqbul (< 70)';
-    },
-
-    // Template massal default
-    massProgram: 'tahsin',
-    massCategory: 'ziyadah',
-    massTahsinType: 'jilid',
-    massJilid: 'Jilid 1',
-    massStart: 1,
-    massEnd: 10,
-    massSurah: '',
-    massAyatStart: 1,
-    massAyatEnd: 10,
-    massCognitive: 90,
-    massAdab: 85,
-    massNotes: '',
-    applyTemplateToAll() {
-        const isTahfidzOrTilawah = this.massProgram === 'tahfidz' || this.massProgram === 'tilawah';
-
-        document.querySelectorAll('.mass-program-select').forEach(el => {
-            el.value = this.massProgram;
-            this.handleRowProgramChange(el);
-        });
-        document.querySelectorAll('.mass-category-select').forEach(el => el.value = this.massCategory);
-
-        if (isTahfidzOrTilawah) {
-            document.querySelectorAll('.mass-surah-select').forEach(el => el.value = this.massSurah);
-            document.querySelectorAll('.mass-start-input').forEach(el => el.value = this.massAyatStart);
-            document.querySelectorAll('.mass-end-input').forEach(el => el.value = this.massAyatEnd);
-        } else {
-            document.querySelectorAll('.mass-jilid-select').forEach(el => el.value = this.massJilid);
-            document.querySelectorAll('.mass-start-input').forEach(el => el.value = this.massStart);
-            document.querySelectorAll('.mass-end-input').forEach(el => el.value = this.massEnd);
-        }
-
-        document.querySelectorAll('.mass-cognitive-input').forEach(el => el.value = this.massCognitive);
-        document.querySelectorAll('.mass-adab-input').forEach(el => el.value = this.massAdab);
-        document.querySelectorAll('.mass-notes-input').forEach(el => el.value = this.massNotes);
-    },
-    handleRowProgramChange(selectEl) {
-        const row = selectEl.closest('tr');
-        if (!row) return;
-        const prog = selectEl.value;
-        const jilidBox = row.querySelector('.mass-jilid-wrapper');
-        const surahBox = row.querySelector('.mass-surah-wrapper');
-        const rangeLabel = row.querySelector('.mass-range-label');
-
-        if (prog === 'tahsin') {
-            if (jilidBox) jilidBox.style.display = 'inline-block';
-            if (surahBox) surahBox.style.display = 'none';
-            if (rangeLabel) rangeLabel.innerText = 'hl.';
-        } else {
-            if (jilidBox) jilidBox.style.display = 'none';
-            if (surahBox) surahBox.style.display = 'block';
-            if (rangeLabel) rangeLabel.innerText = 'ayat';
-        }
-    },
-
-    // ── Global Data Stores for Modals (Eliminate HTML quote breaking) ──
-    teacherMonitoringList: @json($teacherMonitoringList->values() ?? []),
-    classTargetAchievements: @json($classTargetAchievements ?? []),
-    gradeTargetAchievements: @json($gradeTargetAchievements ?? []),
-
-    // ── Monitoring Keaktifan Guru Modal ──
-    isTeacherDetailModalOpen: false,
-    selectedTeacherData: null,
-    teacherStudentSearch: '',
-    teacherStudentFilter: 'all',
-    openTeacherDetailModal(idxOrData) {
-        if (typeof idxOrData === 'number') {
-            this.selectedTeacherData = this.teacherMonitoringList[idxOrData] || null;
-        } else {
-            this.selectedTeacherData = idxOrData;
-        }
-        this.teacherStudentSearch = '';
-        this.teacherStudentFilter = 'all';
-        this.isTeacherDetailModalOpen = true;
-        document.body.style.overflow = 'hidden';
-    },
-    closeTeacherDetailModal() {
-        this.isTeacherDetailModalOpen = false;
-        document.body.style.overflow = '';
-    },
-    get filteredTeacherStudents() {
-        if (!this.selectedTeacherData || !this.selectedTeacherData.students_detail) return [];
-        let list = this.selectedTeacherData.students_detail;
-        if (this.teacherStudentFilter === 'done' || this.teacherStudentFilter === 'inputted') {
-            list = list.filter(s => s.is_inputted || s.is_evaluated);
-        } else if (this.teacherStudentFilter === 'pending') {
-            list = list.filter(s => !s.is_inputted && !s.is_evaluated);
-        }
-        if (this.teacherStudentSearch) {
-            const q = this.teacherStudentSearch.toLowerCase();
-            list = list.filter(s => (s.name && s.name.toLowerCase().includes(q)) || (s.nisn && s.nisn.includes(q)) || (s.class_name && s.class_name.toLowerCase().includes(q)));
-        }
-        return list;
-    },
-
-    // ── Filter Ketercapaian Target & Modal Detail Kelas / Tingkat ──
-    targetGradeFilter: 'all',
-    targetSectionView: 'all', // 'all', 'tingkat', 'rombel'
-    isClassTargetModalOpen: false,
-    selectedClassTarget: null,
-    selectedClassTargetData: null,
-    classStudentSearch: '',
-    classStudentFilter: 'all',
-    openClassTargetModal(typeOrData, index = null) {
-        if (typeof typeOrData === 'string' && index !== null) {
-            if (typeOrData === 'grade') {
-                this.selectedClassTarget = this.gradeTargetAchievements[index] || null;
-            } else {
-                this.selectedClassTarget = this.classTargetAchievements[index] || null;
-            }
-        } else if (typeof typeOrData === 'number') {
-            this.selectedClassTarget = this.classTargetAchievements[typeOrData] || null;
-        } else {
-            this.selectedClassTarget = typeOrData;
-        }
-        this.selectedClassTargetData = this.selectedClassTarget;
-        this.classStudentSearch = '';
-        this.classStudentFilter = 'all';
-        this.isClassTargetModalOpen = true;
-        document.body.style.overflow = 'hidden';
-    },
-    closeClassTargetModal() {
-        this.isClassTargetModalOpen = false;
-        document.body.style.overflow = '';
-    },
-    get filteredClassStudents() {
-        const target = this.selectedClassTarget || this.selectedClassTargetData;
-        if (!target || !target.students_detail) return [];
-        let list = target.students_detail;
-        if (this.classStudentFilter === 'tuntas' || this.classStudentFilter === 'achieved') {
-            list = list.filter(s => s.is_overall_tuntas || s.is_fully_achieved);
-        } else if (this.classStudentFilter === 'belum' || this.classStudentFilter === 'unachieved') {
-            list = list.filter(s => !s.is_overall_tuntas && !s.is_fully_achieved);
-        } else if (this.classStudentFilter === 'tahsin_done') {
-            list = list.filter(s => s.tahsin_achieved || s.tahsin_tuntas);
-        } else if (this.classStudentFilter === 'tahfidz_done') {
-            list = list.filter(s => s.tahfidz_achieved || s.tahfidz_tuntas);
-        }
-        if (this.classStudentSearch) {
-            const q = this.classStudentSearch.toLowerCase();
-            list = list.filter(s => (s.name && s.name.toLowerCase().includes(q)) || (s.nisn && s.nisn.includes(q)) || (s.class_name && s.class_name.toLowerCase().includes(q)));
-        }
-        return list;
-    },
-    openStudentRecordModal(stId) {
-        if (!stId) return;
-        window.location.href = '{{ route('admin.halaqah.index') }}?tab=history&filter_student_id=' + stId;
-    },
-
-    // ── Manajemen Kelompok Halaqah (Modal Interaktif) ──
-    isGroupModalOpen: false,
-    modalGrade: {{ $selectedGrade }},
-    modalTeacherId: {{ $activeTeacherId }},
-    modalTeacherName: '{{ addslashes($activeTeacher->name ?? "Guru Al-Qur\'an") }}',
-    allGroupStudents: [],
-    modalClasses: [],
-    selectedStudentIds: [],
-    loadingGroupStudents: false,
-    savingGroup: false,
-    searchQuery: '',
-    filterClassId: '',
-    filterStatus: 'all', // 'all', 'my_group', 'unassigned', 'other_group'
-
-    openGroupModal(grade) {
-        this.modalGrade = grade || this.modalGrade;
-        this.isGroupModalOpen = true;
-        document.body.style.overflow = 'hidden';
-        this.fetchGroupStudents();
-    },
-    closeGroupModal() {
-        this.isGroupModalOpen = false;
-        document.body.style.overflow = '';
-    },
-    switchModalGrade(g) {
-        this.modalGrade = g;
-        this.fetchGroupStudents();
-    },
-    switchModalTeacher(tid, tname) {
-        this.modalTeacherId = tid;
-        this.modalTeacherName = tname;
-        this.fetchGroupStudents();
-    },
-    async fetchGroupStudents() {
-        this.loadingGroupStudents = true;
-        try {
-            const url = `{{ route('admin.halaqah.group-students') }}?grade=${this.modalGrade}&teacher_id=${this.modalTeacherId}`;
-            const res = await fetch(url);
-            const data = await res.json();
-            this.modalClasses = data.classes || [];
-            this.allGroupStudents = data.students || [];
-            this.selectedStudentIds = this.allGroupStudents
-                .filter(s => s.is_in_my_group)
-                .map(s => s.id);
-        } catch (err) {
-            console.error('Gagal memuat data kelompok santri:', err);
-        } finally {
-            this.loadingGroupStudents = false;
-        }
-    },
-    get filteredGroupStudents() {
-        let list = this.allGroupStudents;
-        if (this.searchQuery.trim() !== '') {
-            const q = this.searchQuery.toLowerCase();
-            list = list.filter(s => s.name.toLowerCase().includes(q) || s.nisn.toLowerCase().includes(q));
-        }
-        if (this.filterClassId !== '') {
-            list = list.filter(s => String(s.class_id) === String(this.filterClassId));
-        }
-        if (this.filterStatus === 'my_group') {
-            list = list.filter(s => this.selectedStudentIds.includes(s.id));
-        } else if (this.filterStatus === 'unassigned') {
-            list = list.filter(s => !this.selectedStudentIds.includes(s.id) && !s.assigned_teacher_id);
-        } else if (this.filterStatus === 'other_group') {
-            list = list.filter(s => !this.selectedStudentIds.includes(s.id) && s.assigned_teacher_id && s.assigned_teacher_id !== this.modalTeacherId);
-        }
-        return list;
-    },
-    toggleStudent(id) {
-        const idx = this.selectedStudentIds.indexOf(id);
-        if (idx > -1) {
-            this.selectedStudentIds.splice(idx, 1);
-        } else {
-            this.selectedStudentIds.push(id);
-        }
-    },
-    isStudentSelected(id) {
-        return this.selectedStudentIds.includes(id);
-    },
-    selectAllFiltered() {
-        this.filteredGroupStudents.forEach(s => {
-            if (!this.selectedStudentIds.includes(s.id)) {
-                this.selectedStudentIds.push(s.id);
-            }
-        });
-    },
-    deselectAllFiltered() {
-        const filteredIds = this.filteredGroupStudents.map(s => s.id);
-        this.selectedStudentIds = this.selectedStudentIds.filter(id => !filteredIds.includes(id));
-    },
-    async saveGroupArrangement() {
-        this.savingGroup = true;
-        try {
-            const res = await fetch('{{ route('admin.halaqah.save-group') }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    grade: this.modalGrade,
-                    teacher_id: this.modalTeacherId,
-                    student_ids: this.selectedStudentIds
+            this.isLoadingLastRecord = true;
+            fetch(`/admin/halaqah/last-record/${studentId}`)
+                .then(res => res.json())
+                .then(data => {
+                    this.lastRecord = data;
+                    this.isLoadingLastRecord = false;
                 })
-            });
-            const result = await res.json();
-            if (result.success) {
-                // Refresh halaman untuk memuat santri kelompok yang baru disimpan
-                window.location.href = `{{ route('admin.halaqah.index') }}?tab={{ $tab }}&mode={{ $mode }}&grade=${this.modalGrade}&teacher_id=${this.modalTeacherId}`;
+                .catch(() => {
+                    this.isLoadingLastRecord = false;
+                });
+        },
+        applySmartAssist() {
+            if (!this.lastRecord) return;
+            const sug = this.lastRecord.suggested;
+            this.programType = sug.program_type || 'tahfidz';
+            this.recordCategory = sug.record_category || 'ziyadah';
+            if (this.programType === 'tahsin') {
+                const jilidSelect = document.querySelector('select[name=\'jilid_level\']');
+                if (jilidSelect && sug.jilid_level) jilidSelect.value = sug.jilid_level;
+                const pStart = document.querySelector('input[name=\'page_start\']');
+                const pEnd = document.querySelector('input[name=\'page_end\']');
+                if (pStart && sug.page_start) pStart.value = sug.page_start;
+                if (pEnd && sug.page_end) pEnd.value = sug.page_end;
             } else {
-                alert('Gagal menyimpan susunan kelompok: ' + (result.message || 'Terjadi kesalahan'));
-            }
-        } catch (err) {
-            console.error('Error saat menyimpan kelompok:', err);
-            alert('Terjadi kesalahan jaringan.');
-        } finally {
-            this.savingGroup = false;
-        }
-    },
-
-    // ── Modal Rincian Inputan Santri ──
-    isStudentRecordModalOpen: false,
-    loadingStudentRecord: false,
-    selectedStudentData: null,
-    selectedStudentRecords: [],
-    openStudentRecordModal(studentId) {
-        this.isStudentRecordModalOpen = true;
-        this.loadingStudentRecord = true;
-        this.selectedStudentData = null;
-        this.selectedStudentRecords = [];
-        document.body.style.overflow = 'hidden';
-        fetch(`{{ url('admin/halaqah/student-records') }}/${studentId}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    this.selectedStudentData = data.student;
-                    this.selectedStudentRecords = data.records;
+                const surahSelect = document.querySelector('select[name=\'surah_name\']');
+                if (surahSelect && sug.surah_name) {
+                    surahSelect.value = sug.surah_name;
+                    this.selectedJuz = sug.juz_number || 30;
                 }
-                this.loadingStudentRecord = false;
-            })
-            .catch(err => {
-                console.error('Gagal memuat rincian inputan santri:', err);
-                this.loadingStudentRecord = false;
+                const aStart = document.querySelector('input[name=\'ayat_start\']');
+                const aEnd = document.querySelector('input[name=\'ayat_end\']');
+                if (aStart && sug.ayat_start) aStart.value = sug.ayat_start;
+                if (aEnd && sug.ayat_end) aEnd.value = sug.ayat_end;
+            }
+        },
+        onSurahChange(event) {
+            const sel = event.target;
+            const opt = sel.options[sel.selectedIndex];
+            if (opt && opt.dataset.juz) {
+                this.selectedJuz = parseInt(opt.dataset.juz);
+            }
+        },
+        get calculatedPredicate() {
+            let sc = parseFloat(this.scoreCognitive) || 0;
+            if (sc >= 90) return 'Mumtaz (90-100)';
+            if (sc >= 80) return 'Jayyid Jiddan (80-89)';
+            if (sc >= 70) return 'Jayyid (70-79)';
+            return 'Maqbul (< 70)';
+        },
+
+        // Template massal default
+        massProgram: 'tahsin',
+        massCategory: 'ziyadah',
+        massTahsinType: 'jilid',
+        massJilid: 'Jilid 1',
+        massStart: 1,
+        massEnd: 10,
+        massSurah: '',
+        massAyatStart: 1,
+        massAyatEnd: 10,
+        massCognitive: 90,
+        massAdab: 85,
+        massNotes: '',
+        applyTemplateToAll() {
+            const isTahfidzOrTilawah = this.massProgram === 'tahfidz' || this.massProgram === 'tilawah';
+
+            document.querySelectorAll('.mass-program-select').forEach(el => {
+                el.value = this.massProgram;
+                this.handleRowProgramChange(el);
             });
-    },
-    closeStudentRecordModal() {
-        this.isStudentRecordModalOpen = false;
-        document.body.style.overflow = '';
-    },
-    studentReportTab: 'inputted',
-}">
+            document.querySelectorAll('.mass-category-select').forEach(el => el.value = this.massCategory);
+
+            if (isTahfidzOrTilawah) {
+                document.querySelectorAll('.mass-surah-select').forEach(el => el.value = this.massSurah);
+                document.querySelectorAll('.mass-start-input').forEach(el => el.value = this.massAyatStart);
+                document.querySelectorAll('.mass-end-input').forEach(el => el.value = this.massAyatEnd);
+            } else {
+                document.querySelectorAll('.mass-jilid-select').forEach(el => el.value = this.massJilid);
+                document.querySelectorAll('.mass-start-input').forEach(el => el.value = this.massStart);
+                document.querySelectorAll('.mass-end-input').forEach(el => el.value = this.massEnd);
+            }
+
+            document.querySelectorAll('.mass-cognitive-input').forEach(el => el.value = this.massCognitive);
+            document.querySelectorAll('.mass-adab-input').forEach(el => el.value = this.massAdab);
+            document.querySelectorAll('.mass-notes-input').forEach(el => el.value = this.massNotes);
+        },
+        handleRowProgramChange(selectEl) {
+            const row = selectEl.closest('tr');
+            if (!row) return;
+            const prog = selectEl.value;
+            const jilidBox = row.querySelector('.mass-jilid-wrapper');
+            const surahBox = row.querySelector('.mass-surah-wrapper');
+            const rangeLabel = row.querySelector('.mass-range-label');
+
+            if (prog === 'tahsin') {
+                if (jilidBox) jilidBox.style.display = 'inline-block';
+                if (surahBox) surahBox.style.display = 'none';
+                if (rangeLabel) rangeLabel.innerText = 'hl.';
+            } else {
+                if (jilidBox) jilidBox.style.display = 'none';
+                if (surahBox) surahBox.style.display = 'block';
+                if (rangeLabel) rangeLabel.innerText = 'ayat';
+            }
+        },
+
+        // ── Global Data Stores for Modals (Safely parsed in script) ──
+        teacherMonitoringList: @json($teacherMonitoringList->values() ?? []),
+        classTargetAchievements: @json($classTargetAchievements ?? []),
+        gradeTargetAchievements: @json($gradeTargetAchievements ?? []),
+
+        // ── Monitoring Keaktifan Guru Modal ──
+        isTeacherDetailModalOpen: false,
+        selectedTeacherData: null,
+        teacherStudentSearch: '',
+        teacherStudentFilter: 'all',
+        openTeacherDetailModal(idxOrData) {
+            if (typeof idxOrData === 'number') {
+                this.selectedTeacherData = this.teacherMonitoringList[idxOrData] || null;
+            } else {
+                this.selectedTeacherData = idxOrData;
+            }
+            this.teacherStudentSearch = '';
+            this.teacherStudentFilter = 'all';
+            this.isTeacherDetailModalOpen = true;
+            document.body.style.overflow = 'hidden';
+        },
+        closeTeacherDetailModal() {
+            this.isTeacherDetailModalOpen = false;
+            document.body.style.overflow = '';
+        },
+        get filteredTeacherStudents() {
+            if (!this.selectedTeacherData || !this.selectedTeacherData.students_detail) return [];
+            let list = this.selectedTeacherData.students_detail;
+            if (this.teacherStudentFilter === 'done' || this.teacherStudentFilter === 'inputted') {
+                list = list.filter(s => s.is_inputted || s.is_evaluated);
+            } else if (this.teacherStudentFilter === 'pending') {
+                list = list.filter(s => !s.is_inputted && !s.is_evaluated);
+            }
+            if (this.teacherStudentSearch) {
+                const q = this.teacherStudentSearch.toLowerCase();
+                list = list.filter(s => (s.name && s.name.toLowerCase().includes(q)) || (s.nisn && s.nisn.includes(q)) || (s.class_name && s.class_name.toLowerCase().includes(q)));
+            }
+            return list;
+        },
+
+        // ── Filter Ketercapaian Target & Modal Detail Kelas / Tingkat ──
+        targetGradeFilter: 'all',
+        targetSectionView: 'all', // 'all', 'tingkat', 'rombel'
+        isClassTargetModalOpen: false,
+        selectedClassTarget: null,
+        selectedClassTargetData: null,
+        classStudentSearch: '',
+        classStudentFilter: 'all',
+        openClassTargetModal(typeOrData, index = null) {
+            if (typeof typeOrData === 'string' && index !== null) {
+                if (typeOrData === 'grade') {
+                    this.selectedClassTarget = this.gradeTargetAchievements[index] || null;
+                } else {
+                    this.selectedClassTarget = this.classTargetAchievements[index] || null;
+                }
+            } else if (typeof typeOrData === 'number') {
+                this.selectedClassTarget = this.classTargetAchievements[typeOrData] || null;
+            } else {
+                this.selectedClassTarget = typeOrData;
+            }
+            this.selectedClassTargetData = this.selectedClassTarget;
+            this.classStudentSearch = '';
+            this.classStudentFilter = 'all';
+            this.isClassTargetModalOpen = true;
+            document.body.style.overflow = 'hidden';
+        },
+        closeClassTargetModal() {
+            this.isClassTargetModalOpen = false;
+            document.body.style.overflow = '';
+        },
+        get filteredClassStudents() {
+            const target = this.selectedClassTarget || this.selectedClassTargetData;
+            if (!target || !target.students_detail) return [];
+            let list = target.students_detail;
+            if (this.classStudentFilter === 'tuntas' || this.classStudentFilter === 'achieved') {
+                list = list.filter(s => s.is_overall_tuntas || s.is_fully_achieved);
+            } else if (this.classStudentFilter === 'belum' || this.classStudentFilter === 'unachieved') {
+                list = list.filter(s => !s.is_overall_tuntas && !s.is_fully_achieved);
+            } else if (this.classStudentFilter === 'tahsin_done') {
+                list = list.filter(s => s.tahsin_achieved || s.tahsin_tuntas);
+            } else if (this.classStudentFilter === 'tahfidz_done') {
+                list = list.filter(s => s.tahfidz_achieved || s.tahfidz_tuntas);
+            }
+            if (this.classStudentSearch) {
+                const q = this.classStudentSearch.toLowerCase();
+                list = list.filter(s => (s.name && s.name.toLowerCase().includes(q)) || (s.nisn && s.nisn.includes(q)) || (s.class_name && s.class_name.toLowerCase().includes(q)));
+            }
+            return list;
+        },
+        openStudentRecordModal(stId) {
+            if (!stId) return;
+            window.location.href = '{{ route('admin.halaqah.index') }}?tab=history&filter_student_id=' + stId;
+        },
+
+        // ── Manajemen Kelompok Halaqah (Modal Interaktif) ──
+        isGroupModalOpen: false,
+        modalGrade: {{ is_numeric($selectedGrade) ? $selectedGrade : 1 }},
+        modalTeacherId: {{ is_numeric($activeTeacherId) ? $activeTeacherId : 0 }},
+        modalTeacherName: '{{ addslashes($activeTeacher->name ?? "Guru Al-Qur\'an") }}',
+        allGroupStudents: [],
+        modalClasses: [],
+        selectedStudentIds: [],
+        loadingGroupStudents: false,
+        savingGroup: false,
+        searchQuery: '',
+        filterClassId: '',
+        filterStatus: 'all', // 'all', 'my_group', 'unassigned', 'other_group'
+
+        openGroupModal(grade) {
+            this.modalGrade = grade || this.modalGrade;
+            this.isGroupModalOpen = true;
+            document.body.style.overflow = 'hidden';
+            this.fetchGroupStudents();
+        },
+        closeGroupModal() {
+            this.isGroupModalOpen = false;
+            document.body.style.overflow = '';
+        },
+        switchModalGrade(g) {
+            this.modalGrade = g;
+            this.fetchGroupStudents();
+        },
+        switchModalTeacher(tid, tname) {
+            this.modalTeacherId = tid;
+            this.modalTeacherName = tname;
+            this.fetchGroupStudents();
+        },
+        async fetchGroupStudents() {
+            this.loadingGroupStudents = true;
+            try {
+                const url = `{{ route('admin.halaqah.group-students') }}?grade=${this.modalGrade}&teacher_id=${this.modalTeacherId}`;
+                const res = await fetch(url);
+                const data = await res.json();
+                this.modalClasses = data.classes || [];
+                this.allGroupStudents = data.students || [];
+                this.selectedStudentIds = this.allGroupStudents
+                    .filter(s => s.is_in_my_group)
+                    .map(s => s.id);
+            } catch (err) {
+                console.error('Gagal memuat data kelompok santri:', err);
+            } finally {
+                this.loadingGroupStudents = false;
+            }
+        },
+        get filteredGroupStudents() {
+            let list = this.allGroupStudents;
+            if (this.searchQuery.trim() !== '') {
+                const q = this.searchQuery.toLowerCase();
+                list = list.filter(s => s.name.toLowerCase().includes(q) || s.nisn.toLowerCase().includes(q));
+            }
+            if (this.filterClassId !== '') {
+                list = list.filter(s => String(s.class_id) === String(this.filterClassId));
+            }
+            if (this.filterStatus === 'my_group') {
+                list = list.filter(s => this.selectedStudentIds.includes(s.id));
+            } else if (this.filterStatus === 'unassigned') {
+                list = list.filter(s => !this.selectedStudentIds.includes(s.id) && !s.assigned_teacher_id);
+            } else if (this.filterStatus === 'other_group') {
+                list = list.filter(s => !this.selectedStudentIds.includes(s.id) && s.assigned_teacher_id && s.assigned_teacher_id !== this.modalTeacherId);
+            }
+            return list;
+        },
+        toggleStudent(id) {
+            const idx = this.selectedStudentIds.indexOf(id);
+            if (idx > -1) {
+                this.selectedStudentIds.splice(idx, 1);
+            } else {
+                this.selectedStudentIds.push(id);
+            }
+        },
+        isStudentSelected(id) {
+            return this.selectedStudentIds.includes(id);
+        },
+        selectAllFiltered() {
+            this.filteredGroupStudents.forEach(s => {
+                if (!this.selectedStudentIds.includes(s.id)) {
+                    this.selectedStudentIds.push(s.id);
+                }
+            });
+        },
+        deselectAllFiltered() {
+            const filteredIds = this.filteredGroupStudents.map(s => s.id);
+            this.selectedStudentIds = this.selectedStudentIds.filter(id => !filteredIds.includes(id));
+        },
+        async saveGroupArrangement() {
+            this.savingGroup = true;
+            try {
+                const res = await fetch('{{ route('admin.halaqah.save-group') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        grade: this.modalGrade,
+                        teacher_id: this.modalTeacherId,
+                        student_ids: this.selectedStudentIds
+                    })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    // Refresh halaman untuk memuat santri kelompok yang baru disimpan
+                    window.location.href = `{{ route('admin.halaqah.index') }}?tab={{ $tab }}&mode={{ $mode }}&grade=${this.modalGrade}&teacher_id=${this.modalTeacherId}`;
+                } else {
+                    alert('Gagal menyimpan susunan kelompok: ' + (result.message || 'Terjadi kesalahan'));
+                }
+            } catch (err) {
+                console.error('Error saat menyimpan kelompok:', err);
+                alert('Terjadi kesalahan jaringan.');
+            } finally {
+                this.savingGroup = false;
+            }
+        },
+
+        // ── Modal Rincian Inputan Santri ──
+        isStudentRecordModalOpen: false,
+        loadingStudentRecord: false,
+        selectedStudentData: null,
+        selectedStudentRecords: [],
+        openStudentRecordModal(studentId) {
+            this.isStudentRecordModalOpen = true;
+            this.loadingStudentRecord = true;
+            this.selectedStudentData = null;
+            this.selectedStudentRecords = [];
+            document.body.style.overflow = 'hidden';
+            fetch(`{{ url('admin/halaqah/student-records') }}/${studentId}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        this.selectedStudentData = data.student;
+                        this.selectedStudentRecords = data.records;
+                    }
+                    this.loadingStudentRecord = false;
+                })
+                .catch(err => {
+                    console.error('Gagal memuat rincian inputan santri:', err);
+                    this.loadingStudentRecord = false;
+                });
+        },
+        closeStudentRecordModal() {
+            this.isStudentRecordModalOpen = false;
+            document.body.style.overflow = '';
+        },
+        studentReportTab: 'inputted',
+    };
+}
+</script>
+
+<div class="space-y-6" x-data="halaqahPageData()">
 
     {{-- Header & Navigasi Modul Halaqah Al-Qur'an (Layout Intuitif & Terstruktur) --}}
     <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs p-3 space-y-3">
