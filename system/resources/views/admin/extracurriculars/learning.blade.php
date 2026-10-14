@@ -300,11 +300,7 @@
                     <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Judul / Tema Latihan</label>
                     <input type="text" name="activity_title" placeholder="Contoh: Pengenalan Tali-Temali & Sandi Kotak" required class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
-                <div class="md:col-span-2">
-                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Lokasi Latihan / Lapangan</label>
-                    <input type="text" name="location" value="Lapangan Utama Kampus" class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
-                </div>
-                <div class="md:col-span-2">
+                <div class="md:col-span-4">
                     <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Materi & Rincian Kegiatan</label>
                     <textarea name="material_taught" rows="2" placeholder="Tuliskan uraian materi, praktek fisik, atau teknik yang diajarkan..." required class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white"></textarea>
                 </div>
