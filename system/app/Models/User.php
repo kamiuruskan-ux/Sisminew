@@ -114,6 +114,12 @@ class User extends Authenticatable implements CanResetPassword
         return $this->hasMany(TeacherAttendance::class, 'user_id');
     }
 
+    public function subjectAssignments(): HasMany
+    {
+        TeacherSubjectAssignment::ensureTableExists();
+        return $this->hasMany(TeacherSubjectAssignment::class, 'teacher_id');
+    }
+
 
     public function hasRole(string|array $role): bool
     {
@@ -368,28 +374,91 @@ class User extends Authenticatable implements CanResetPassword
             $classIds = $classIds->merge($halaqahClassIds);
         } catch (\Throwable $e) {}
 
+        // 5. Penempatan Guru Bidang Studi (TeacherSubjectAssignment)
+        try {
+            TeacherSubjectAssignment::ensureTableExists();
+            $activeYear = AcademicYear::where('is_active', true)->first();
+            $assignmentClassIds = TeacherSubjectAssignment::where('teacher_id', $this->id)
+                ->when($activeYear, fn($q) => $q->where(function($sub) use ($activeYear) {
+                    $sub->where('academic_year_id', $activeYear->id)
+                        ->orWhereNull('academic_year_id');
+                }))
+                ->pluck('class_id');
+            $classIds = $classIds->merge($assignmentClassIds);
+        } catch (\Throwable $e) {}
+
         return $classIds->unique()->filter()->values()->toArray();
     }
 
-    public function getAssignedSubjects(): ?array
+    public function getAssignedSubjects($classId = null): ?array
     {
         if ($this->hasRole('super-admin') || $this->hasRole('admin') || $this->hasRole('kepala-sekolah')) {
             return null; // Bebas akses semua mapel
         }
 
-        try {
-            $subjects = Schedule::where('teacher', 'like', "%{$this->name}%")
-                ->orWhere('teacher', (string)$this->id)
-                ->pluck('subject')
-                ->unique()
-                ->filter()
-                ->values()
-                ->toArray();
+        $subjects = collect();
 
-            return $subjects;
-        } catch (\Throwable $e) {
-            return [];
+        // 1. Dari Jadwal (Schedule)
+        try {
+            $schedQuery = Schedule::where(function($q) {
+                $q->where('teacher', 'like', "%{$this->name}%")
+                  ->orWhere('teacher', (string)$this->id);
+            });
+            if ($classId) {
+                $schedQuery->where('class_id', $classId);
+            }
+            $subjects = $subjects->merge($schedQuery->pluck('subject'));
+        } catch (\Throwable $e) {}
+
+        // 2. Dari Penugasan Guru Bidang Studi (TeacherSubjectAssignment)
+        try {
+            TeacherSubjectAssignment::ensureTableExists();
+            $activeYear = AcademicYear::where('is_active', true)->first();
+            $assignQuery = TeacherSubjectAssignment::where('teacher_id', $this->id)
+                ->when($activeYear, fn($q) => $q->where(function($sub) use ($activeYear) {
+                    $sub->where('academic_year_id', $activeYear->id)
+                        ->orWhereNull('academic_year_id');
+                }));
+            if ($classId) {
+                $assignQuery->where('class_id', $classId);
+            }
+            $subjects = $subjects->merge($assignQuery->pluck('subject'));
+        } catch (\Throwable $e) {}
+
+        return $subjects->unique()->filter()->values()->toArray();
+    }
+
+    /**
+     * Memeriksa apakah guru berhak mengajar mapel tertentu di kelas tertentu pada tahun ajaran aktif
+     */
+    public function canTeachSubjectInClass($classId, $subject): bool
+    {
+        if ($this->hasRole('super-admin') || $this->hasRole('admin') || $this->hasRole('kepala-sekolah')) {
+            return true;
         }
+
+        TeacherSubjectAssignment::ensureTableExists();
+        $activeYear = AcademicYear::where('is_active', true)->first();
+
+        $assigned = TeacherSubjectAssignment::where('teacher_id', $this->id)
+            ->where('class_id', $classId)
+            ->where('subject', $subject)
+            ->when($activeYear, fn($q) => $q->where(function($sub) use ($activeYear) {
+                $sub->where('academic_year_id', $activeYear->id)
+                    ->orWhereNull('academic_year_id');
+            }))
+            ->exists();
+
+        if ($assigned) return true;
+
+        $sched = Schedule::where('class_id', $classId)
+            ->where('subject', $subject)
+            ->where(function($q) {
+                $q->where('teacher', 'like', "%{$this->name}%")
+                  ->orWhere('teacher', (string)$this->id);
+            })->exists();
+
+        return $sched;
     }
 
     public function getMasaKerjaAttribute(): string

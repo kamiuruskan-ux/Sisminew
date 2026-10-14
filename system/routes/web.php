@@ -536,6 +536,10 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::post('grades/store-agenda', [GradeController::class, 'storeAgenda'])->name('grades.store-agenda');
         Route::post('grades/save-raport-grades', [GradeController::class, 'saveRaportGrades'])->name('grades.save-raport-grades');
         Route::delete('grades/agenda/{id}', [GradeController::class, 'destroyAgenda'])->name('grades.destroy-agenda');
+        Route::get('grades/assignments', [GradeController::class, 'assignments'])->name('grades.assignments');
+        Route::post('grades/assignments', [GradeController::class, 'storeAssignment'])->name('grades.assignments.store');
+        Route::delete('grades/assignments/{id}', [GradeController::class, 'destroyAssignment'])->name('grades.assignments.destroy');
+        Route::get('grades/history', [GradeController::class, 'getGradeHistory'])->name('grades.history');
         Route::get('grades/{grade}', [GradeController::class, 'show'])->name('grades.show');
 
         // Cetak Raport Siswa & Leger Nilai

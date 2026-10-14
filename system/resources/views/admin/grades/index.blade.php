@@ -66,6 +66,16 @@
             </div>
 
             <div class="flex items-center gap-2 flex-wrap">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 rounded-xl text-xs font-bold border border-blue-200 dark:border-blue-900/50">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    <span>T.A: {{ $activeYear?->name ?? 'Default' }} {{ $activeYear?->semester ? '(Sem ' . $activeYear->semester . ')' : '' }}</span>
+                </span>
+                @if(auth()->user()->hasRole(['super-admin', 'admin', 'kepala-sekolah']))
+                    <a href="{{ route('admin.grades.assignments') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl font-bold text-xs border border-slate-200 dark:border-slate-700 transition">
+                        <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                        <span>Penempatan Guru</span>
+                    </a>
+                @endif
                 <a href="{{ route('admin.raport.index') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow-sm transition">
                     <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                     <span>Cetak Raport</span>
@@ -651,14 +661,32 @@
                             @foreach($studentsInClass as $idx => $st)
                             @php
                                 $stGrades = $existingGrades->get($st->id, collect());
-                                $curDaily = $stGrades->where('type', 'daily')->avg('score');
+                                $curDailyObj = $stGrades->where('type', 'daily')->first();
+                                $hasSavedDaily = $curDailyObj !== null;
+                                $savedDaily = $hasSavedDaily ? (float) $curDailyObj->score : null;
+
+                                // Nilai Otomatis dari Rerata Agenda Mengajar (score_cognitive)
+                                $autoData = $autoDailyScores->get($st->id);
+                                $autoScore = $autoData ? (float) $autoData->avg_score : null;
+                                $totalAgendaCount = $autoData ? (int) $autoData->total_agenda : 0;
+
+                                // Jika belum ada nilai tersimpan manual, otomatis terisi dari rerata agenda
+                                $initDaily = $hasSavedDaily ? $savedDaily : $autoScore;
+                                $isAutoValue = (!$hasSavedDaily && $autoScore !== null);
+
                                 $curMid = $stGrades->where('type', 'mid_term')->first()?->score;
                                 $curFinal = $stGrades->whereIn('type', ['final_term', 'exam'])->first()?->score;
                                 $curNotes = $stGrades->first()?->notes ?? '';
+
+                                // Histori perubahan nilai
+                                $stHistories = $gradeHistories->get($st->id, collect());
+                                $dailyHistoriesCount = $stHistories->where('type', 'daily')->count();
+                                $midHistoriesCount = $stHistories->where('type', 'mid_term')->count();
+                                $finalHistoriesCount = $stHistories->where('type', 'final_term')->count();
                             @endphp
                             <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors"
                                 x-data="{
-                                    daily: '{{ $curDaily !== null ? round($curDaily, 1) : '' }}',
+                                    daily: '{{ $initDaily !== null ? round($initDaily, 1) : '' }}',
                                     mid: '{{ $curMid !== null ? round($curMid, 1) : '' }}',
                                     final: '{{ $curFinal !== null ? round($curFinal, 1) : '' }}',
                                     wDaily: {{ $wDaily }},
@@ -688,31 +716,67 @@
                                 <td class="py-3 px-4 text-center font-bold text-slate-400">{{ $idx + 1 }}</td>
                                 <td class="py-3 px-4">
                                     <div class="font-bold text-slate-900 dark:text-white">{{ $st->user?->name ?? 'Santri' }}</div>
-                                    <div class="text-[10px] text-slate-400 font-mono">NISN: {{ $st->nisn ?? $st->nis ?? '-' }}</div>
+                                    <div class="flex items-center gap-2 mt-0.5">
+                                        <span class="text-[10px] text-slate-400 font-mono">NISN: {{ $st->nisn ?? $st->nis ?? '-' }}</span>
+                                        @if($stHistories->count() > 0)
+                                            <button type="button" onclick="openGradeHistory({{ $st->id }}, '{{ addslashes($st->user?->name ?? 'Santri') }}', '{{ addslashes($selectedSubject) }}', '')" class="text-[10px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5 font-bold cursor-pointer" title="Lihat seluruh riwayat perubahan nilai">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                <span>{{ $stHistories->count() }} log edit</span>
+                                            </button>
+                                        @endif
+                                    </div>
                                 </td>
                                 {{-- Input Nilai Harian --}}
                                 <td class="py-2.5 px-3 text-center bg-amber-50/20 dark:bg-amber-950/10">
-                                    <input type="number" step="0.1" min="0" max="100"
-                                           x-model="daily"
-                                           name="grades[{{ $st->id }}][daily]"
-                                           placeholder="0-100"
-                                           class="w-24 text-center py-1.5 px-2 bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 rounded-xl font-mono font-bold text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500">
+                                    <div class="flex flex-col items-center gap-1">
+                                        <input type="number" step="0.1" min="0" max="100"
+                                               x-model="daily"
+                                               name="grades[{{ $st->id }}][daily]"
+                                               placeholder="0-100"
+                                               class="w-24 text-center py-1.5 px-2 bg-white dark:bg-slate-800 border {{ $isAutoValue ? 'border-sky-400 dark:border-sky-600 ring-1 ring-sky-300 dark:ring-sky-700' : 'border-amber-300 dark:border-amber-700' }} rounded-xl font-mono font-bold text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500">
+                                        
+                                        @if($isAutoValue)
+                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300 cursor-help" title="Otomatis dihitung dari {{ $totalAgendaCount }} agenda harian pada tahun ajaran aktif">
+                                                ⚡ Otomatis ({{ $totalAgendaCount }} Agenda)
+                                            </span>
+                                        @elseif($dailyHistoriesCount > 0)
+                                            <button type="button" onclick="openGradeHistory({{ $st->id }}, '{{ addslashes($st->user?->name ?? 'Santri') }}', '{{ addslashes($selectedSubject) }}', 'daily')" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-950 dark:text-amber-300 dark:hover:bg-amber-900 transition cursor-pointer" title="Lihat histori perubahan nilai harian">
+                                                🕒 {{ $dailyHistoriesCount }}x Diedit
+                                            </button>
+                                        @else
+                                            <span class="text-[9px] text-slate-400 font-medium">Formatif</span>
+                                        @endif
+                                    </div>
                                 </td>
                                 {{-- Input Nilai PTS --}}
                                 <td class="py-2.5 px-3 text-center bg-sky-50/20 dark:bg-sky-950/10">
-                                    <input type="number" step="0.1" min="0" max="100"
-                                           x-model="mid"
-                                           name="grades[{{ $st->id }}][mid_term]"
-                                           placeholder="0-100"
-                                           class="w-24 text-center py-1.5 px-2 bg-white dark:bg-slate-800 border border-sky-300 dark:border-sky-700 rounded-xl font-mono font-bold text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500">
+                                    <div class="flex flex-col items-center gap-1">
+                                        <input type="number" step="0.1" min="0" max="100"
+                                               x-model="mid"
+                                               name="grades[{{ $st->id }}][mid_term]"
+                                               placeholder="0-100"
+                                               class="w-24 text-center py-1.5 px-2 bg-white dark:bg-slate-800 border border-sky-300 dark:border-sky-700 rounded-xl font-mono font-bold text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500">
+                                        @if($midHistoriesCount > 0)
+                                            <button type="button" onclick="openGradeHistory({{ $st->id }}, '{{ addslashes($st->user?->name ?? 'Santri') }}', '{{ addslashes($selectedSubject) }}', 'mid_term')" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-100 hover:bg-sky-200 text-sky-800 dark:bg-sky-950 dark:text-sky-300 dark:hover:bg-sky-900 transition cursor-pointer" title="Lihat histori perubahan nilai PTS">
+                                                🕒 {{ $midHistoriesCount }}x Diedit
+                                            </button>
+                                        @endif
+                                    </div>
                                 </td>
                                 {{-- Input Nilai PAS --}}
                                 <td class="py-2.5 px-3 text-center bg-indigo-50/20 dark:bg-indigo-950/10">
-                                    <input type="number" step="0.1" min="0" max="100"
-                                           x-model="final"
-                                           name="grades[{{ $st->id }}][final_term]"
-                                           placeholder="0-100"
-                                           class="w-24 text-center py-1.5 px-2 bg-white dark:bg-slate-800 border border-indigo-300 dark:border-indigo-700 rounded-xl font-mono font-bold text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500">
+                                    <div class="flex flex-col items-center gap-1">
+                                        <input type="number" step="0.1" min="0" max="100"
+                                               x-model="final"
+                                               name="grades[{{ $st->id }}][final_term]"
+                                               placeholder="0-100"
+                                               class="w-24 text-center py-1.5 px-2 bg-white dark:bg-slate-800 border border-indigo-300 dark:border-indigo-700 rounded-xl font-mono font-bold text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500">
+                                        @if($finalHistoriesCount > 0)
+                                            <button type="button" onclick="openGradeHistory({{ $st->id }}, '{{ addslashes($st->user?->name ?? 'Santri') }}', '{{ addslashes($selectedSubject) }}', 'final_term')" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-100 hover:bg-indigo-200 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 dark:hover:bg-indigo-900 transition cursor-pointer" title="Lihat histori perubahan nilai PAS">
+                                                🕒 {{ $finalHistoriesCount }}x Diedit
+                                            </button>
+                                        @endif
+                                    </div>
                                 </td>
                                 {{-- Live Calculated Nilai Akhir --}}
                                 <td class="py-3 px-3 text-center font-mono font-black text-sm bg-emerald-50/30 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-300" x-text="finalScore"></td>
@@ -923,9 +987,119 @@
     </div>
 </div>
 
+{{-- MODAL RIWAYAT PERUBAHAN NILAI (GRADE HISTORY AUDIT LOG) --}}
+<div id="gradeHistoryModal" class="fixed inset-0 z-50 overflow-y-auto hidden bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in fade-in zoom-in-95 duration-150" onclick="event.stopPropagation()">
+        <div class="flex justify-between items-center px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="p-1 rounded bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </span>
+                    <h3 class="text-sm font-black text-slate-900 dark:text-white">Riwayat Pengeditan Nilai Santri</h3>
+                </div>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1" id="historyModalSubtitle">
+                    Memuat data santri...
+                </p>
+            </div>
+            <button onclick="closeModal('gradeHistoryModal')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <div class="p-6">
+            <div id="historyLoading" class="py-12 text-center space-y-3">
+                <div class="w-8 h-8 rounded-full border-2 border-amber-500 border-t-transparent animate-spin mx-auto"></div>
+                <p class="text-xs text-slate-400">Mengambil jejak audit perubahan nilai...</p>
+            </div>
+
+            <div id="historyEmpty" class="py-10 text-center hidden">
+                <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto mb-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                </div>
+                <p class="text-xs font-bold text-slate-700 dark:text-slate-300">Belum ada riwayat pengeditan</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">Nilai belum pernah diubah secara manual setelah tersimpan.</p>
+            </div>
+
+            <div id="historyContent" class="overflow-x-auto max-h-80 overflow-y-auto hidden border border-slate-100 dark:border-slate-800 rounded-2xl">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 dark:bg-slate-800/80 text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider border-b border-slate-100 dark:border-slate-800">
+                            <th class="py-2.5 px-3">Waktu</th>
+                            <th class="py-2.5 px-3">Jenis Nilai</th>
+                            <th class="py-2.5 px-3 text-center">Perubahan Skor</th>
+                            <th class="py-2.5 px-3">Diubah Oleh</th>
+                            <th class="py-2.5 px-3">Keterangan</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody" class="divide-y divide-slate-100 dark:divide-slate-800/60">
+                        <!-- Rendered by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-4 flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <span class="text-[11px] flex items-center gap-1">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    Audit trail terlindungi dan mengikuti aturan tahun ajaran aktif.
+                </span>
+                <button type="button" onclick="closeModal('gradeHistoryModal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 font-bold rounded-xl text-slate-700 dark:text-slate-300 transition">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 function openModal(id) { document.getElementById(id).classList.remove('hidden'); document.body.style.overflow = 'hidden'; }
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); document.body.style.overflow = ''; }
+
+function openGradeHistory(studentId, studentName, subject, type) {
+    document.getElementById('historyModalSubtitle').innerText = `${studentName} • Mata Pelajaran: ${subject}`;
+    document.getElementById('historyLoading').classList.remove('hidden');
+    document.getElementById('historyEmpty').classList.add('hidden');
+    document.getElementById('historyContent').classList.add('hidden');
+    document.getElementById('historyTableBody').innerHTML = '';
+
+    openModal('gradeHistoryModal');
+
+    const url = `{{ route('admin.grades.history') }}?student_id=${studentId}&subject=${encodeURIComponent(subject)}&type=${type || ''}`;
+    fetch(url, { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(res => {
+            document.getElementById('historyLoading').classList.add('hidden');
+            if (res.success && res.histories && res.histories.length > 0) {
+                let html = '';
+                res.histories.forEach(item => {
+                    const oldSc = item.old_score !== '-' ? `<span class="line-through text-slate-400">${item.old_score}</span>` : '<span class="text-slate-400">Baru</span>';
+                    const newSc = `<span class="font-bold text-emerald-600 dark:text-emerald-400">${item.new_score}</span>`;
+                    html += `
+                        <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                            <td class="py-2.5 px-3 text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">${item.date}</td>
+                            <td class="py-2.5 px-3">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">${item.type_label}</span>
+                            </td>
+                            <td class="py-2.5 px-3 text-center whitespace-nowrap text-xs">
+                                ${oldSc} <span class="text-slate-400 mx-1">→</span> ${newSc}
+                            </td>
+                            <td class="py-2.5 px-3 text-[11px] font-semibold text-slate-700 dark:text-slate-300">${item.user_name}</td>
+                            <td class="py-2.5 px-3 text-[11px] text-slate-500 dark:text-slate-400">${item.notes}</td>
+                        </tr>
+                    `;
+                });
+                document.getElementById('historyTableBody').innerHTML = html;
+                document.getElementById('historyContent').classList.remove('hidden');
+            } else {
+                document.getElementById('historyEmpty').classList.remove('hidden');
+            }
+        })
+        .catch(err => {
+            document.getElementById('historyLoading').classList.add('hidden');
+            document.getElementById('historyEmpty').classList.remove('hidden');
+        });
+}
+
 function openEditModal(data) {
     document.getElementById('editForm').action = '{{ url('admin/grades') }}/' + data.id;
     document.getElementById('edit_student_id').value = data.student_id;
@@ -954,7 +1128,12 @@ function openEditModal(data) {
     openModal('editModal');
 }
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') { closeModal('createModal'); closeModal('editModal'); closeModal('importExcelModal'); }
+    if (e.key === 'Escape') { 
+        closeModal('createModal'); 
+        closeModal('editModal'); 
+        closeModal('importExcelModal'); 
+        closeModal('gradeHistoryModal');
+    }
 });
 </script>
 @endsection

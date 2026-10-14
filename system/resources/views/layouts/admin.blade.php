@@ -891,10 +891,45 @@
                             </div>
                         </div>
 
+                        <!-- Standalone Menu Pembelajaran Bidang Studi -->
+                        @if(auth()->user()->hasPermission('view-grades|view-learning') || auth()->user()->hasRole(['guru', 'teacher', 'super-admin', 'admin', 'kepala-sekolah']))
+                        @php
+                            $isBidangStudiActive = request()->routeIs('admin.grades.*');
+                        @endphp
+                        <div x-data="{ open: {{ $isBidangStudiActive ? 'true' : 'false' }} }">
+                            <button type="button" @click="open = !open" 
+                                     class="nav-link w-full flex items-center justify-between transition-colors {{ $isBidangStudiActive ? 'text-primary dark:text-blue-400 font-bold' : '' }}">
+                                <div class="flex items-center">
+                                    <svg class="nav-icon text-blue-500 dark:text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                                        <line x1="9" y1="7" x2="15" y2="7"></line>
+                                        <line x1="9" y1="11" x2="15" y2="11"></line>
+                                    </svg>
+                                    <span>Pembelajaran Bidang Studi</span>
+                                </div>
+                                <svg class="w-4 h-4 transition-transform duration-200 shrink-0 text-slate-400" :class="{ 'rotate-90': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                            </button>
+
+                            <div x-show="open" x-collapse class="pl-4 space-y-1 mt-1 border-l-2 border-slate-200 dark:border-slate-800 ml-4">
+                                <a href="{{ route('admin.grades.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.grades.index') ? 'nav-link-active' : '' }}">
+                                    <span>Agenda &amp; Penilaian Siswa</span>
+                                    <span class="px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 font-bold text-[9px] rounded">Mapel</span>
+                                </a>
+                                @if(auth()->user()->hasRole(['super-admin', 'admin', 'kepala-sekolah']))
+                                    <a href="{{ route('admin.grades.assignments') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.grades.assignments*') ? 'nav-link-active' : '' }}">
+                                        <span class="font-bold text-blue-600 dark:text-blue-400">Penempatan Guru Mapel</span>
+                                        <span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-extrabold text-[9px] rounded">Plotting</span>
+                                    </a>
+                                @endif
+                            </div>
+                        </div>
+                        @endif
+
                         <!-- Dropdown Menu E-Raport & Penilaian -->
                         @if(auth()->user()->hasPermission('view-raport|view-grades|view-quran-raport|manage-raport-settings|view-learning'))
                         @php
-                            $isRaportActive = request()->routeIs('admin.raport.*') || request()->routeIs('admin.grades.*') || request()->routeIs('admin.quran-raport.*');
+                            $isRaportActive = request()->routeIs('admin.raport.*') || request()->routeIs('admin.quran-raport.*');
                         @endphp
                         <div x-data="{ open: {{ $isRaportActive ? 'true' : 'false' }} }">
                             <button type="button" @click="open = !open" 
@@ -913,12 +948,6 @@
                             </button>
 
                             <div x-show="open" x-collapse class="pl-4 space-y-1 mt-1 border-l-2 border-slate-200 dark:border-slate-800 ml-4">
-                                @if(auth()->user()->hasPermission('view-grades|view-learning'))
-                                    <a href="{{ route('admin.grades.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.grades.*') ? 'nav-link-active' : '' }}">
-                                        <span>Agenda &amp; Penilaian Mapel</span>
-                                        <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-bold text-[9px] rounded">Harian/PTS/PAS</span>
-                                    </a>
-                                @endif
                                 @if(auth()->user()->hasPermission('view-raport|view-learning'))
                                     <a href="{{ route('admin.raport.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.raport.index') || request()->routeIs('admin.raport.print*') ? 'nav-link-active' : '' }}">
                                         <span>Raport Mapel Umum</span>
