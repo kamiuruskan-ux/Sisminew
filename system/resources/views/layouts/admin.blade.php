@@ -859,6 +859,34 @@
                             </a>
                         @endif
 
+                        <!-- Standalone Menu Bina Pribadi Islam (BPI) -->
+                        @php
+                            $isBpiActive = request()->routeIs('admin.bpi.*');
+                        @endphp
+                        <div x-data="{ open: {{ $isBpiActive ? 'true' : 'false' }} }">
+                            <button type="button" @click="open = !open" 
+                                     class="nav-link w-full flex items-center justify-between transition-colors {{ $isBpiActive ? 'text-[#3C50E0] dark:text-teal-400 font-bold' : '' }}">
+                                <div class="flex items-center">
+                                    <svg class="nav-icon text-teal-500 dark:text-teal-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                                    </svg>
+                                    <span>Bina Pribadi Islam (BPI)</span>
+                                </div>
+                                <svg class="w-4 h-4 transition-transform duration-200 shrink-0 text-slate-400" :class="{ 'rotate-90': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                            </button>
+
+                            <div x-show="open" x-collapse class="pl-4 space-y-1 mt-1 border-l-2 border-slate-200 dark:border-slate-800 ml-4">
+                                <a href="{{ route('admin.bpi.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.bpi.index') ? 'nav-link-active' : '' }}">
+                                    <span>Agenda &amp; Absensi BPI</span>
+                                    <span class="px-1.5 py-0.5 bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300 font-extrabold text-[9px] rounded">Halaqah</span>
+                                </a>
+                                <a href="{{ route('admin.bpi.raport-list') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.bpi.raport*') ? 'nav-link-active' : '' }}">
+                                    <span class="font-bold text-teal-600 dark:text-teal-400">Raport Khusus BPI</span>
+                                    <span class="px-1.5 py-0.5 bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300 font-extrabold text-[9px] rounded">Cetak</span>
+                                </a>
+                            </div>
+                        </div>
+
                         <!-- Dropdown Menu E-Raport & Penilaian -->
                         @if(auth()->user()->hasPermission('view-raport|view-grades|view-quran-raport|manage-raport-settings|view-learning'))
                         @php
@@ -866,7 +894,7 @@
                         @endphp
                         <div x-data="{ open: {{ $isRaportActive ? 'true' : 'false' }} }">
                             <button type="button" @click="open = !open" 
-                                    class="nav-link w-full flex items-center justify-between transition-colors {{ $isRaportActive ? 'text-primary dark:text-indigo-400 font-bold' : '' }}">
+                                     class="nav-link w-full flex items-center justify-between transition-colors {{ $isRaportActive ? 'text-primary dark:text-indigo-400 font-bold' : '' }}">
                                 <div class="flex items-center">
                                     <svg class="nav-icon text-amber-500 dark:text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -884,7 +912,7 @@
                                 @if(auth()->user()->hasPermission('view-grades|view-learning'))
                                     <a href="{{ route('admin.grades.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.grades.*') ? 'nav-link-active' : '' }}">
                                         <span>Agenda &amp; Penilaian Mapel</span>
-                                        <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-bold text-[9px] rounded">Guru</span>
+                                        <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-bold text-[9px] rounded">Harian/PTS/PAS</span>
                                     </a>
                                 @endif
                                 @if(auth()->user()->hasPermission('view-raport|view-learning'))
@@ -893,6 +921,14 @@
                                         <span class="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-extrabold text-[9px] rounded">A4/PDF</span>
                                     </a>
                                 @endif
+                                <a href="{{ route('admin.bpi.raport-list') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.bpi.raport*') ? 'nav-link-active' : '' }}">
+                                    <span class="font-bold text-teal-600 dark:text-teal-400">Raport Khusus BPI</span>
+                                    <span class="px-1.5 py-0.5 bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300 font-extrabold text-[9px] rounded">Tarbiyah</span>
+                                </a>
+                                <a href="{{ route('admin.extracurriculars.learning.index', ['tab' => 'evaluation']) }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.extracurriculars.learning.*') && request('tab') == 'evaluation' ? 'nav-link-active' : '' }}">
+                                    <span>Penilaian Rapor Ekskul</span>
+                                    <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[9px] rounded">Ekskul</span>
+                                </a>
                                 @if(auth()->user()->hasRole(['guru-quran', 'super-admin', 'admin', 'kepala-sekolah']))
                                     <a href="{{ route('admin.quran-raport.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.quran-raport.index') || request()->routeIs('admin.quran-raport.print') ? 'nav-link-active' : '' }}">
                                         <span class="font-bold text-emerald-600 dark:text-emerald-400">Raport Al-Qur'an</span>
@@ -1016,19 +1052,51 @@
                             </div>
                         @endif
 
-                        <!-- Ekstrakurikuler Siswa -->
-                        @if(auth()->user()->hasPermission('manage-extracurriculars|view-content'))
-                            <a href="{{ route('admin.extracurriculars.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.extracurriculars.*') ? 'nav-link-active' : '' }}">
-                                <svg class="nav-icon text-sky-500 dark:text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <polygon points="12 8 8 12 12 16 16 12 12 8"></polygon>
-                                </svg>
-                                <span class="flex items-center justify-between w-full">
-                                    <span>Ekstrakurikuler Siswa</span>
-                                    <span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">Kegiatan</span>
-                                </span>
-                            </a>
+                        <!-- Ekstrakurikuler Siswa (Pembelajaran, Absensi & Nilai) -->
+                        @if(auth()->user()->hasPermission('manage-extracurriculars|view-content') || auth()->user()->hasRole('super-admin|admin|guru|kepala-sekolah'))
+                            @php
+                                $isExtraActive = request()->routeIs('admin.extracurriculars.*');
+                            @endphp
+                            <div x-data="{ open: {{ $isExtraActive ? 'true' : 'false' }} }">
+                                <button type="button" @click="open = !open" 
+                                        class="nav-link w-full flex items-center justify-between transition-colors {{ $isExtraActive ? 'text-[#3C50E0] dark:text-sky-400 font-bold' : '' }}">
+                                    <div class="flex items-center">
+                                        <svg class="nav-icon text-sky-500 dark:text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <circle cx="12" cy="12" r="10"></circle>
+                                            <polygon points="12 8 8 12 12 16 16 12 12 8"></polygon>
+                                        </svg>
+                                        <span>Ekstrakurikuler</span>
+                                    </div>
+                                    <svg class="w-4 h-4 transition-transform duration-200 shrink-0 text-slate-400" :class="{ 'rotate-90': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                </button>
+                                <div x-show="open" x-collapse class="pl-4 space-y-1 mt-1 border-l-2 border-slate-200 dark:border-slate-800 ml-4">
+                                    <a href="{{ route('admin.extracurriculars.learning.index') }}" class="nav-link text-xs flex items-center justify-between {{ request()->routeIs('admin.extracurriculars.learning.*') ? 'nav-link-active' : '' }}">
+                                        <span>Pembelajaran &amp; Nilai</span>
+                                        <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[9px] rounded">Absen</span>
+                                    </a>
+                                    <a href="{{ route('admin.extracurriculars.index') }}" class="nav-link text-xs {{ request()->routeIs('admin.extracurriculars.index') || request()->routeIs('admin.extracurriculars.create') || request()->routeIs('admin.extracurriculars.edit') ? 'nav-link-active' : '' }}">
+                                        <span>Master Jenis Ekskul</span>
+                                    </a>
+                                </div>
+                            </div>
                         @endif
+
+                        <!-- Kalender & Absen Kegiatan Sekolah -->
+                        <a href="{{ route('activity-calendar.index') }}" 
+                           class="nav-link text-xs {{ request()->routeIs('activity-calendar.*') ? 'nav-link-active font-bold text-[#3C50E0]' : '' }}">
+                            <div class="flex items-center justify-between w-full">
+                                <div class="flex items-center">
+                                    <svg class="nav-icon text-amber-500 dark:text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                                    </svg>
+                                    <span>Kalender &amp; Absen Kegiatan</span>
+                                </div>
+                                <span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">Kegiatan</span>
+                            </div>
+                        </a>
                     </div>
                 </div>
                 @endif

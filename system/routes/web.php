@@ -509,6 +509,7 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::post('grades/import/excel', [GradeController::class, 'importExcel'])->name('grades.import.excel');
         Route::get('grades', [GradeController::class, 'index'])->name('grades.index');
         Route::post('grades/store-agenda', [GradeController::class, 'storeAgenda'])->name('grades.store-agenda');
+        Route::post('grades/save-raport-grades', [GradeController::class, 'saveRaportGrades'])->name('grades.save-raport-grades');
         Route::delete('grades/agenda/{id}', [GradeController::class, 'destroyAgenda'])->name('grades.destroy-agenda');
         Route::get('grades/{grade}', [GradeController::class, 'show'])->name('grades.show');
 
@@ -519,6 +520,30 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::get('raport/print', [\App\Http\Controllers\Admin\RaportController::class, 'print'])->name('raport.print');
         Route::post('raport/print-bulk', [\App\Http\Controllers\Admin\RaportController::class, 'print'])->name('raport.print-bulk');
         Route::get('raport/export-leger', [\App\Http\Controllers\Admin\RaportController::class, 'exportLeger'])->name('raport.export-leger');
+
+        // Modul Kalender & Absen Kegiatan Sekolah
+        Route::get('activity-calendar', [\App\Http\Controllers\Admin\ActivityCalendarController::class, 'index'])->name('activity-calendar.index');
+        Route::post('activity-calendar', [\App\Http\Controllers\Admin\ActivityCalendarController::class, 'store'])->name('activity-calendar.store');
+        Route::put('activity-calendar/{id}', [\App\Http\Controllers\Admin\ActivityCalendarController::class, 'update'])->name('activity-calendar.update');
+        Route::delete('activity-calendar/{id}', [\App\Http\Controllers\Admin\ActivityCalendarController::class, 'destroy'])->name('activity-calendar.destroy');
+        Route::post('activity-calendar/save-attendance', [\App\Http\Controllers\Admin\ActivityCalendarController::class, 'saveAttendance'])->name('activity-calendar.save-attendance');
+        Route::get('activity-calendar/{id}/export-attendance', [\App\Http\Controllers\Admin\ActivityCalendarController::class, 'exportAttendance'])->name('activity-calendar.export-attendance');
+
+        // Modul Pembelajaran & Nilai Ekstrakurikuler
+        Route::get('extracurriculars/learning', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'index'])->name('extracurriculars.learning.index');
+        Route::post('extracurriculars/learning/store-agenda', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'storeAgenda'])->name('extracurriculars.learning.store-agenda');
+        Route::delete('extracurriculars/learning/agenda/{id}', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'destroyAgenda'])->name('extracurriculars.learning.destroy-agenda');
+        Route::post('extracurriculars/learning/save-evaluations', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'saveEvaluations'])->name('extracurriculars.learning.save-evaluations');
+        Route::resource('extracurriculars', \App\Http\Controllers\Admin\ExtracurricularController::class);
+
+        // Modul Pembelajaran Bina Pribadi Islam (BPI) & Raport Khusus BPI
+        Route::get('bpi', [\App\Http\Controllers\Admin\BpiController::class, 'index'])->name('bpi.index');
+        Route::post('bpi/store-agenda', [\App\Http\Controllers\Admin\BpiController::class, 'storeAgenda'])->name('bpi.store-agenda');
+        Route::delete('bpi/agenda/{id}', [\App\Http\Controllers\Admin\BpiController::class, 'destroyAgenda'])->name('bpi.destroy-agenda');
+        Route::post('bpi/store-group', [\App\Http\Controllers\Admin\BpiController::class, 'storeGroup'])->name('bpi.store-group');
+        Route::post('bpi/save-report', [\App\Http\Controllers\Admin\BpiController::class, 'saveReport'])->name('bpi.save-report');
+        Route::get('bpi/raport-list', [\App\Http\Controllers\Admin\BpiController::class, 'raportList'])->name('bpi.raport-list');
+        Route::get('bpi/raport-print/{studentId}', [\App\Http\Controllers\Admin\BpiController::class, 'printRaport'])->name('bpi.print-raport');
 
         // Modul Halaqah Al-Qur'an (Tahsin & Tahfidz Harian/Massal/Laporan/Grafik)
         Route::get('halaqah', [\App\Http\Controllers\Admin\HalaqahController::class, 'index'])->name('halaqah.index');

@@ -489,24 +489,45 @@ class RaportController extends Controller
             'absent' => $attendances->where('status', 'absent')->count(),
         ];
 
-        // Ekstrakurikuler Wajib & Pilihan Khas SDIT
-        $extracurriculars = [
-            [
-                'name' => 'Kepanduan Pramuka SIT',
-                'predicate' => 'A (Sangat Baik)',
-                'description' => 'Disiplin, mandiri, dan berjiwa kepemimpinan dalam kegiatan kepanduan islami.',
-            ],
-            [
-                'name' => 'Olahraga Sunnah (Panahan / Futsal)',
-                'predicate' => 'A (Sangat Baik)',
-                'description' => 'Menunjukkan sportivitas, fokus, ketangkasan, dan kerjasama tim yang baik.',
-            ],
-            [
-                'name' => 'Khat & Seni Kaligrafi Islam',
-                'predicate' => 'B (Baik)',
-                'description' => 'Mampu menulis kaidah khat hijaiyah dengan rapi, teliti, dan tekun.',
-            ],
-        ];
+        // Ekstrakurikuler Wajib & Pilihan Khas SDIT (Dinamis dari input nilai ekskul)
+        $dbExtracurriculars = \App\Models\ExtracurricularEvaluation::with('extracurricular')
+            ->where('student_id', $student->id)
+            ->where('academic_year_id', $activeYear?->id)
+            ->get();
+
+        if ($dbExtracurriculars->isNotEmpty()) {
+            $extracurriculars = $dbExtracurriculars->map(function($ev) {
+                $predLabel = match(strtoupper($ev->predicate)) {
+                    'A' => 'A (Sangat Baik)',
+                    'B' => 'B (Baik)',
+                    'C' => 'C (Cukup)',
+                    default => $ev->predicate,
+                };
+                return [
+                    'name' => $ev->extracurricular?->name ?? 'Ekstrakurikuler',
+                    'predicate' => $predLabel,
+                    'description' => $ev->description ?? 'Aktif dan disiplin dalam kegiatan ekstrakurikuler.',
+                ];
+            })->toArray();
+        } else {
+            $extracurriculars = [
+                [
+                    'name' => 'Kepanduan Pramuka SIT',
+                    'predicate' => 'A (Sangat Baik)',
+                    'description' => 'Disiplin, mandiri, dan berjiwa kepemimpinan dalam kegiatan kepanduan islami.',
+                ],
+                [
+                    'name' => 'Olahraga Sunnah (Panahan / Futsal)',
+                    'predicate' => 'A (Sangat Baik)',
+                    'description' => 'Menunjukkan sportivitas, fokus, ketangkasan, dan kerjasama tim yang baik.',
+                ],
+                [
+                    'name' => 'Khat & Seni Kaligrafi Islam',
+                    'predicate' => 'B (Baik)',
+                    'description' => 'Mampu menulis kaidah khat hijaiyah dengan rapi, teliti, dan tekun.',
+                ],
+            ];
+        }
 
         // Dimensi Perkembangan Karakter Islami (P5 & Profil Santri SIT)
         $characterDevelopment = [

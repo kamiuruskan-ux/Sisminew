@@ -90,6 +90,11 @@
                 <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                 <span>RERATA NILAI RAPOR SISWA</span>
             </a>
+            <a href="{{ route('admin.grades.index', ['tab' => 'raport_input', 'class_id' => $selectedClassId, 'subject' => $selectedSubject]) }}"
+               class="inline-flex items-center gap-2 px-4 py-2.5 font-black text-xs rounded-t-xl transition-all border-b-2 {{ ($tab === 'raport_input') ? 'border-emerald-600 text-white bg-emerald-600 dark:bg-emerald-700 shadow-xs' : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-50 dark:bg-slate-800/40' }}">
+                <svg class="w-4 h-4 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                <span>INPUT NILAI RAPOR (HARIAN, PTS &amp; PAS)</span>
+            </a>
         </div>
     </div>
 
@@ -545,6 +550,207 @@
                 {{ $grades->appends(['tab' => 'summary'])->links() }}
             </div>
         </div>
+    </div>
+    @endif
+
+    {{-- ========================================== --}}
+    {{-- TAB 4: INPUT NILAI RAPOR (HARIAN, PTS & PAS) --}}
+    {{-- ========================================== --}}
+    @if($tab === 'raport_input')
+    <div class="space-y-5">
+        {{-- Selector Bar Kelas & Mapel --}}
+        <div class="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
+                <div class="w-full sm:w-auto">
+                    <label class="block text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Pilih Rombel / Kelas</label>
+                    <select onchange="window.location.href='{{ route('admin.grades.index') }}?tab=raport_input&subject={{ urlencode($selectedSubject) }}&class_id=' + this.value"
+                            class="h-10 w-full sm:w-56 px-3.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600">
+                        @foreach($classes as $c)
+                            <option value="{{ $c->id }}" {{ $selectedClassId == $c->id ? 'selected' : '' }}>
+                                🏫 {{ $c->name }} ({{ $c->students_count ?? $c->students->count() }} Siswa)
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="w-full sm:w-auto">
+                    <label class="block text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Mata Pelajaran</label>
+                    <select onchange="window.location.href='{{ route('admin.grades.index') }}?tab=raport_input&class_id={{ $selectedClassId }}&subject=' + encodeURIComponent(this.value)"
+                            class="h-10 w-full sm:w-64 px-3.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600">
+                        @foreach($teacherSubjects as $subj)
+                            @php $sName = is_object($subj) ? $subj->name : $subj; @endphp
+                            <option value="{{ $sName }}" {{ $selectedSubject == $sName ? 'selected' : '' }}>
+                                📚 {{ $sName }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+
+            {{-- Weight Formula Badge --}}
+            <div class="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-800 text-xs shrink-0">
+                <div class="flex items-center gap-1.5 font-black text-emerald-800 dark:text-emerald-300 text-[11px] uppercase tracking-wider">
+                    <span>⚖️</span>
+                    <span>Bobot Nilai Akhir Rapor:</span>
+                </div>
+                <div class="mt-1 text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
+                    <span class="font-bold">Harian: {{ $wDaily }}%</span> (x{{ round($wDaily / 25, 1) }}) • 
+                    <span class="font-bold">PTS / UTS: {{ $wMid }}%</span> (x{{ round($wMid / 25, 1) }}) • 
+                    <span class="font-bold">PAS / UAS: {{ $wFinal }}%</span> (x{{ round($wFinal / 25, 1) }})
+                </div>
+            </div>
+        </div>
+
+        {{-- Form Matriks Input Nilai --}}
+        @if($studentsInClass->isNotEmpty())
+        <form method="POST" action="{{ route('admin.grades.save-raport-grades') }}" class="space-y-4">
+            @csrf
+            <input type="hidden" name="class_id" value="{{ $selectedClassId }}">
+            <input type="hidden" name="subject" value="{{ $selectedSubject }}">
+
+            <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
+                <div class="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-800/30">
+                    <div>
+                        <h3 class="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                            <span>📝</span>
+                            <span>Matriks Input Nilai Rapor — {{ $selectedSubject }} (Kelas {{ $selectedClass->name ?? '' }})</span>
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-0.5">
+                            Ketikkan nilai santri di bawah. Nilai Akhir &amp; Predikat terhitung otomatis secara live. Klik simpan setelah selesai.
+                        </p>
+                    </div>
+
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs shadow-md shadow-emerald-600/25 transition flex items-center gap-2 cursor-pointer shrink-0">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <span>SIMPAN SEMUA NILAI RAPOR</span>
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100/70 dark:bg-slate-800 text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider border-b border-slate-200 dark:border-slate-700">
+                                <th class="py-3 px-4 w-12 text-center">No</th>
+                                <th class="py-3 px-4 min-w-[180px]">Nama Siswa</th>
+                                <th class="py-3 px-3 text-center w-36 bg-amber-50/50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300">
+                                    Harian / Formatif ({{ $wDaily }}%)
+                                </th>
+                                <th class="py-3 px-3 text-center w-36 bg-sky-50/50 dark:bg-sky-950/20 text-sky-800 dark:text-sky-300">
+                                    PTS / UTS ({{ $wMid }}%)
+                                </th>
+                                <th class="py-3 px-3 text-center w-36 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-800 dark:text-indigo-300">
+                                    PAS / UAS ({{ $wFinal }}%)
+                                </th>
+                                <th class="py-3 px-3 text-center w-28 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-300">
+                                    Nilai Akhir
+                                </th>
+                                <th class="py-3 px-3 text-center w-32">Predikat</th>
+                                <th class="py-3 px-4 min-w-[200px]">Catatan Perkembangan</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                            @foreach($studentsInClass as $idx => $st)
+                            @php
+                                $stGrades = $existingGrades->get($st->id, collect());
+                                $curDaily = $stGrades->where('type', 'daily')->avg('score');
+                                $curMid = $stGrades->where('type', 'mid_term')->first()?->score;
+                                $curFinal = $stGrades->whereIn('type', ['final_term', 'exam'])->first()?->score;
+                                $curNotes = $stGrades->first()?->notes ?? '';
+                            @endphp
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors"
+                                x-data="{
+                                    daily: '{{ $curDaily !== null ? round($curDaily, 1) : '' }}',
+                                    mid: '{{ $curMid !== null ? round($curMid, 1) : '' }}',
+                                    final: '{{ $curFinal !== null ? round($curFinal, 1) : '' }}',
+                                    wDaily: {{ $wDaily }},
+                                    wMid: {{ $wMid }},
+                                    wFinal: {{ $wFinal }},
+                                    get finalScore() {
+                                        let d = parseFloat(this.daily);
+                                        let m = parseFloat(this.mid);
+                                        let f = parseFloat(this.final);
+                                        let sumW = 0;
+                                        let total = 0;
+                                        if (!isNaN(d)) { total += d * this.wDaily; sumW += this.wDaily; }
+                                        if (!isNaN(m)) { total += m * this.wMid; sumW += this.wMid; }
+                                        if (!isNaN(f)) { total += f * this.wFinal; sumW += this.wFinal; }
+                                        if (sumW === 0) return '-';
+                                        return (total / sumW).toFixed(1);
+                                    },
+                                    get predicate() {
+                                        let sc = parseFloat(this.finalScore);
+                                        if (isNaN(sc)) return '-';
+                                        if (sc >= 90) return 'A (Sangat Baik)';
+                                        if (sc >= 80) return 'B (Baik)';
+                                        if (sc >= 70) return 'C (Cukup)';
+                                        return 'D (Perlu Bimbingan)';
+                                    }
+                                }">
+                                <td class="py-3 px-4 text-center font-bold text-slate-400">{{ $idx + 1 }}</td>
+                                <td class="py-3 px-4">
+                                    <div class="font-bold text-slate-900 dark:text-white">{{ $st->user?->name ?? 'Santri' }}</div>
+                                    <div class="text-[10px] text-slate-400 font-mono">NISN: {{ $st->nisn ?? $st->nis ?? '-' }}</div>
+                                </td>
+                                {{-- Input Nilai Harian --}}
+                                <td class="py-2.5 px-3 text-center bg-amber-50/20 dark:bg-amber-950/10">
+                                    <input type="number" step="0.1" min="0" max="100"
+                                           x-model="daily"
+                                           name="grades[{{ $st->id }}][daily]"
+                                           placeholder="0-100"
+                                           class="w-24 text-center py-1.5 px-2 bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 rounded-xl font-mono font-bold text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500">
+                                </td>
+                                {{-- Input Nilai PTS --}}
+                                <td class="py-2.5 px-3 text-center bg-sky-50/20 dark:bg-sky-950/10">
+                                    <input type="number" step="0.1" min="0" max="100"
+                                           x-model="mid"
+                                           name="grades[{{ $st->id }}][mid_term]"
+                                           placeholder="0-100"
+                                           class="w-24 text-center py-1.5 px-2 bg-white dark:bg-slate-800 border border-sky-300 dark:border-sky-700 rounded-xl font-mono font-bold text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500">
+                                </td>
+                                {{-- Input Nilai PAS --}}
+                                <td class="py-2.5 px-3 text-center bg-indigo-50/20 dark:bg-indigo-950/10">
+                                    <input type="number" step="0.1" min="0" max="100"
+                                           x-model="final"
+                                           name="grades[{{ $st->id }}][final_term]"
+                                           placeholder="0-100"
+                                           class="w-24 text-center py-1.5 px-2 bg-white dark:bg-slate-800 border border-indigo-300 dark:border-indigo-700 rounded-xl font-mono font-bold text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500">
+                                </td>
+                                {{-- Live Calculated Nilai Akhir --}}
+                                <td class="py-3 px-3 text-center font-mono font-black text-sm bg-emerald-50/30 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-300" x-text="finalScore"></td>
+                                {{-- Live Calculated Predikat --}}
+                                <td class="py-3 px-3 text-center whitespace-nowrap">
+                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-black"
+                                          :class="predicate.startsWith('A') ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : (predicate.startsWith('B') ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' : (predicate.startsWith('C') ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'))"
+                                          x-text="predicate"></span>
+                                </td>
+                                {{-- Catatan --}}
+                                <td class="py-2 px-4">
+                                    <input type="text" name="grades[{{ $st->id }}][notes]"
+                                           value="{{ $curNotes }}"
+                                           placeholder="Catatan kemajuan santri..."
+                                           class="w-full py-1.5 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white">
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-800/30">
+                    <span class="text-xs text-slate-400">
+                        Formula Nilai Akhir terhubung langsung dan disinkronkan ke halaman Cetak Raport Mapel Siswa.
+                    </span>
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs shadow-md shadow-emerald-600/25 transition flex items-center gap-2 cursor-pointer">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <span>SIMPAN SEMUA NILAI RAPOR</span>
+                    </button>
+                </div>
+            </div>
+        </form>
+        @else
+        <div class="tailadmin-card p-12 text-center text-slate-400">
+            Pilih kelas yang memiliki santri terdaftar untuk memulai input nilai rapor.
+        </div>
+        @endif
     </div>
     @endif
 </div>

@@ -103,6 +103,20 @@ class GradeController extends Controller
         $types = ['daily', 'mid_term', 'final_term', 'exam'];
         $subjects = $allSubjects;
 
+        // Data Nilai Rapor (Harian, PTS, PAS) untuk Tab Input Nilai Rapor
+        $existingGrades = collect();
+        if ($selectedClassId && $selectedSubject) {
+            $existingGrades = Grade::where('class_id', $selectedClassId)
+                ->where('subject', $selectedSubject)
+                ->get()
+                ->groupBy('student_id');
+        }
+
+        $wDaily = (float) \App\Models\Setting::get('raport_weight_daily', 50);
+        $wMid = (float) \App\Models\Setting::get('raport_weight_mid', 25);
+        $wFinal = (float) \App\Models\Setting::get('raport_weight_final', 25);
+        $totalWeight = ($wDaily + $wMid + $wFinal) ?: 100;
+
         return view('admin.grades.index', compact(
             'tab',
             'classes',
@@ -115,8 +129,105 @@ class GradeController extends Controller
             'grades',
             'students',
             'types',
-            'subjects'
+            'subjects',
+            'existingGrades',
+            'wDaily',
+            'wMid',
+            'wFinal',
+            'totalWeight'
         ));
+    }
+
+    /**
+     * Simpan Nilai Harian, Nilai PTS, dan Nilai PAS Siswa Sekaligus
+     */
+    public function saveRaportGrades(Request $request)
+    {
+        $user = auth()->user();
+        $allowedClassIds = $user->getAssignedClassIds();
+        if ($allowedClassIds !== null && !in_array($request->class_id, $allowedClassIds)) {
+            abort(403, 'Anda tidak memiliki hak akses menginput nilai untuk kelas ini.');
+        }
+
+        $validated = $request->validate([
+            'class_id' => 'required|exists:classes,id',
+            'subject' => 'required|string|max:150',
+            'grades' => 'required|array',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $classId = $validated['class_id'];
+            $subject = $validated['subject'];
+            $today = date('Y-m-d');
+
+            foreach ($validated['grades'] as $studentId => $item) {
+                // 1. Nilai Harian (Daily / Formatif)
+                if (isset($item['daily']) && $item['daily'] !== '' && is_numeric($item['daily'])) {
+                    Grade::updateOrCreate(
+                        [
+                            'student_id' => $studentId,
+                            'class_id' => $classId,
+                            'subject' => $subject,
+                            'type' => 'daily',
+                        ],
+                        [
+                            'score' => (float) $item['daily'],
+                            'notes' => $item['notes'] ?? 'Nilai Harian / Formatif',
+                            'recorded_by' => $user->id,
+                            'date' => $today,
+                        ]
+                    );
+                }
+
+                // 2. Nilai PTS / UTS (Mid Term)
+                if (isset($item['mid_term']) && $item['mid_term'] !== '' && is_numeric($item['mid_term'])) {
+                    Grade::updateOrCreate(
+                        [
+                            'student_id' => $studentId,
+                            'class_id' => $classId,
+                            'subject' => $subject,
+                            'type' => 'mid_term',
+                        ],
+                        [
+                            'score' => (float) $item['mid_term'],
+                            'notes' => $item['notes'] ?? 'Penilaian Tengah Semester (PTS)',
+                            'recorded_by' => $user->id,
+                            'date' => $today,
+                        ]
+                    );
+                }
+
+                // 3. Nilai PAS / UAS (Final Term)
+                if (isset($item['final_term']) && $item['final_term'] !== '' && is_numeric($item['final_term'])) {
+                    Grade::updateOrCreate(
+                        [
+                            'student_id' => $studentId,
+                            'class_id' => $classId,
+                            'subject' => $subject,
+                            'type' => 'final_term',
+                        ],
+                        [
+                            'score' => (float) $item['final_term'],
+                            'notes' => $item['notes'] ?? 'Penilaian Akhir Semester (PAS)',
+                            'recorded_by' => $user->id,
+                            'date' => $today,
+                        ]
+                    );
+                }
+            }
+
+            DB::commit();
+
+            return redirect()->route('admin.grades.index', [
+                'tab' => 'raport_input',
+                'class_id' => $classId,
+                'subject' => $subject,
+            ])->with('success', 'Nilai Harian, PTS, dan PAS siswa berhasil disimpan dan dikalkulasi ke rapor!');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal menyimpan nilai rapor: ' . $e->getMessage())->withInput();
+        }
     }
 
     /**
