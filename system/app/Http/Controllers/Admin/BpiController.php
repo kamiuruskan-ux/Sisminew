@@ -103,6 +103,8 @@ class BpiController extends Controller
             }
         }
 
+        $classes = ClassModel::orderBy('level')->orderBy('name')->get();
+
         return view('admin.bpi.index', compact(
             'groups',
             'selectedGroup',
@@ -113,7 +115,8 @@ class BpiController extends Controller
             'mentors',
             'agendas',
             'reports',
-            'activeYear'
+            'activeYear',
+            'classes'
         ));
     }
 
@@ -157,6 +160,8 @@ class BpiController extends Controller
                 'tilawah_surah' => $validated['tilawah_surah'] ?? 'Tilawah Bersama',
                 'mutabaah_notes' => $validated['mutabaah_notes'] ?? null,
                 'general_notes' => $validated['general_notes'] ?? null,
+                'status' => 'submitted',
+                'submitted_at' => now(),
             ]);
 
             foreach ($validated['students'] as $studentId => $item) {
@@ -179,11 +184,53 @@ class BpiController extends Controller
             return redirect()->route('admin.bpi.index', [
                 'tab' => 'history',
                 'bpi_group_id' => $validated['bpi_group_id']
-            ])->with('success', 'Agenda & mutaba\'ah halaqah BPI berhasil disimpan!');
+            ])->with('success', 'Agenda & mutaba\'ah halaqah BPI berhasil diajukan untuk disetujui Kepala Sekolah!');
         } catch (\Throwable $e) {
             DB::rollBack();
             return back()->with('error', 'Gagal menyimpan agenda BPI: ' . $e->getMessage())->withInput();
         }
+    }
+
+    /**
+     * Setujui Agenda BPI oleh Kepala Sekolah
+     */
+    public function approveAgenda(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (!$user->hasRole(['super-admin', 'admin', 'kepala-sekolah'])) {
+            abort(403, 'Hanya Kepala Sekolah dan Administrator yang berhak menyetujui laporan BPI.');
+        }
+
+        $agenda = BpiAgenda::findOrFail($id);
+        $agenda->update([
+            'status' => 'approved',
+            'approved_by' => $user->id,
+            'approved_at' => now(),
+            'approval_notes' => $request->input('approval_notes'),
+        ]);
+
+        return back()->with('success', 'Laporan agenda halaqah BPI berhasil disetujui (Approved).');
+    }
+
+    /**
+     * Minta Revisi / Tolak Agenda BPI oleh Kepala Sekolah
+     */
+    public function rejectAgenda(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (!$user->hasRole(['super-admin', 'admin', 'kepala-sekolah'])) {
+            abort(403, 'Hanya Kepala Sekolah dan Administrator yang berhak mengelola persetujuan.');
+        }
+
+        $agenda = BpiAgenda::findOrFail($id);
+        $agenda->update([
+            'status' => 'rejected',
+            'approved_by' => $user->id,
+            'approved_at' => now(),
+            'approval_notes' => $request->input('approval_notes') ?? 'Mohon periksa kembali materi/mutaba\'ah santri.',
+        ]);
+
+        return back()->with('success', 'Laporan agenda BPI dikembalikan untuk revisi.');
     }
 
     public function destroyAgenda($id)

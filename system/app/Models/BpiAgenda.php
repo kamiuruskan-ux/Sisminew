@@ -24,11 +24,18 @@ class BpiAgenda extends Model
         'tilawah_surah',
         'mutabaah_notes',
         'general_notes',
+        'status', // submitted, approved, rejected
+        'submitted_at',
+        'approved_by',
+        'approved_at',
+        'approval_notes',
     ];
 
     protected $casts = [
         'date' => 'date',
         'meeting_number' => 'integer',
+        'submitted_at' => 'datetime',
+        'approved_at' => 'datetime',
     ];
 
     public function group(): BelongsTo
@@ -39,6 +46,11 @@ class BpiAgenda extends Model
     public function mentor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'mentor_id');
+    }
+
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 
     public function academicYear(): BelongsTo

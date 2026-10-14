@@ -24,11 +24,18 @@ class ExtracurricularAgenda extends Model
         'material_taught',
         'location',
         'notes',
+        'status', // submitted, approved, rejected
+        'submitted_at',
+        'approved_by',
+        'approved_at',
+        'approval_notes',
     ];
 
     protected $casts = [
         'date' => 'date',
         'meeting_number' => 'integer',
+        'submitted_at' => 'datetime',
+        'approved_at' => 'datetime',
     ];
 
     protected static function booted()
@@ -51,11 +58,26 @@ class ExtracurricularAgenda extends Model
                     $table->text('material_taught');
                     $table->string('location', 150)->nullable();
                     $table->text('notes')->nullable();
+                    $table->string('status', 20)->default('submitted'); // submitted, approved, rejected
+                    $table->timestamp('submitted_at')->nullable();
+                    $table->unsignedBigInteger('approved_by')->nullable();
+                    $table->timestamp('approved_at')->nullable();
+                    $table->text('approval_notes')->nullable();
                     $table->timestamps();
 
                     $table->index(['extracurricular_id', 'date']);
                     $table->index(['coach_id', 'date']);
                 });
+            } else {
+                if (!Schema::hasColumn('extracurricular_agendas', 'status')) {
+                    Schema::table('extracurricular_agendas', function ($table) {
+                        $table->string('status', 20)->default('submitted')->after('notes');
+                        $table->timestamp('submitted_at')->nullable()->after('status');
+                        $table->unsignedBigInteger('approved_by')->nullable()->after('submitted_at');
+                        $table->timestamp('approved_at')->nullable()->after('approved_by');
+                        $table->text('approval_notes')->nullable()->after('approved_at');
+                    });
+                }
             }
 
             if (!Schema::hasTable('extracurricular_agenda_students')) {
@@ -104,6 +126,11 @@ class ExtracurricularAgenda extends Model
     public function coach(): BelongsTo
     {
         return $this->belongsTo(User::class, 'coach_id');
+    }
+
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 
     public function academicYear(): BelongsTo

@@ -460,6 +460,8 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::get('extracurriculars/learning', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'index'])->name('extracurriculars.learning.index');
         Route::post('extracurriculars/learning/store-agenda', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'storeAgenda'])->name('extracurriculars.learning.store-agenda');
         Route::delete('extracurriculars/learning/agenda/{id}', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'destroyAgenda'])->name('extracurriculars.learning.destroy-agenda');
+        Route::post('extracurriculars/learning/agenda/{id}/approve', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'approveAgenda'])->name('extracurriculars.learning.approve-agenda');
+        Route::post('extracurriculars/learning/agenda/{id}/reject', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'rejectAgenda'])->name('extracurriculars.learning.reject-agenda');
         Route::post('extracurriculars/learning/save-evaluations', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'saveEvaluations'])->name('extracurriculars.learning.save-evaluations');
         
         Route::resource('extracurriculars', \App\Http\Controllers\Admin\ExtracurricularController::class)->except(['show']);
@@ -540,6 +542,8 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::get('bpi', [\App\Http\Controllers\Admin\BpiController::class, 'index'])->name('bpi.index');
         Route::post('bpi/store-agenda', [\App\Http\Controllers\Admin\BpiController::class, 'storeAgenda'])->name('bpi.store-agenda');
         Route::delete('bpi/agenda/{id}', [\App\Http\Controllers\Admin\BpiController::class, 'destroyAgenda'])->name('bpi.destroy-agenda');
+        Route::post('bpi/agenda/{id}/approve', [\App\Http\Controllers\Admin\BpiController::class, 'approveAgenda'])->name('bpi.approve-agenda');
+        Route::post('bpi/agenda/{id}/reject', [\App\Http\Controllers\Admin\BpiController::class, 'rejectAgenda'])->name('bpi.reject-agenda');
         Route::post('bpi/store-group', [\App\Http\Controllers\Admin\BpiController::class, 'storeGroup'])->name('bpi.store-group');
         Route::post('bpi/save-report', [\App\Http\Controllers\Admin\BpiController::class, 'saveReport'])->name('bpi.save-report');
         Route::get('bpi/raport-list', [\App\Http\Controllers\Admin\BpiController::class, 'raportList'])->name('bpi.raport-list');

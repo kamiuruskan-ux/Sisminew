@@ -80,11 +80,26 @@ class BpiGroup extends Model
                     $table->string('tilawah_surah', 150)->nullable(); // Surah / Ayat yang dibaca bersama
                     $table->text('mutabaah_notes')->nullable(); // Catatan Evaluasi Ibadah Yaumiyah
                     $table->text('general_notes')->nullable();
+                    $table->string('status', 20)->default('submitted'); // submitted, approved, rejected
+                    $table->timestamp('submitted_at')->nullable();
+                    $table->unsignedBigInteger('approved_by')->nullable();
+                    $table->timestamp('approved_at')->nullable();
+                    $table->text('approval_notes')->nullable();
                     $table->timestamps();
 
                     $table->index(['bpi_group_id', 'date']);
                     $table->index(['mentor_id', 'date']);
                 });
+            } else {
+                if (!Schema::hasColumn('bpi_agendas', 'status')) {
+                    Schema::table('bpi_agendas', function ($table) {
+                        $table->string('status', 20)->default('submitted')->after('general_notes');
+                        $table->timestamp('submitted_at')->nullable()->after('status');
+                        $table->unsignedBigInteger('approved_by')->nullable()->after('submitted_at');
+                        $table->timestamp('approved_at')->nullable()->after('approved_by');
+                        $table->text('approval_notes')->nullable()->after('approved_at');
+                    });
+                }
             }
 
             if (!Schema::hasTable('bpi_attendances')) {

@@ -72,6 +72,45 @@ class ExtracurricularLearningController extends Controller
             }
         }
 
+        // Data Rekapitulasi Pembina Ekskul (Khusus Admin & Kepala Sekolah)
+        $coaches = User::whereIn('id', ExtracurricularAgenda::pluck('coach_id'))
+            ->orWhereHas('roles', fn($q) => $q->whereIn('slug', ['guru', 'teacher']))
+            ->distinct()
+            ->get();
+
+        $coachSummaries = $coaches->map(function($coach) use ($activeYear) {
+            $agendas = ExtracurricularAgenda::with(['extracurricular', 'students'])
+                ->where('coach_id', $coach->id)
+                ->when($activeYear, fn($q) => $q->where('academic_year_id', $activeYear->id))
+                ->get();
+
+            $totalMeetings = $agendas->count();
+            if ($totalMeetings === 0) return null;
+
+            $approvedMeetings = $agendas->where('status', 'approved')->count();
+            $pendingMeetings = $agendas->where('status', 'submitted')->count();
+            $rejectedMeetings = $agendas->where('status', 'rejected')->count();
+            $extraNames = $agendas->pluck('extracurricular.name')->filter()->unique()->implode(', ');
+
+            $allStudents = $agendas->flatMap->students;
+            $attendedCount = $allStudents->where('attendance_status', 'hadir')->count();
+            $avgSkill = $allStudents->avg('score_skill') ?? 0;
+            $avgAttitude = $allStudents->avg('score_attitude') ?? 0;
+
+            return (object)[
+                'coach' => $coach,
+                'extra_names' => $extraNames ?: 'Ekstrakurikuler',
+                'total_meetings' => $totalMeetings,
+                'approved_meetings' => $approvedMeetings,
+                'pending_meetings' => $pendingMeetings,
+                'rejected_meetings' => $rejectedMeetings,
+                'attended_count' => $attendedCount,
+                'avg_skill' => round($avgSkill, 1),
+                'avg_attitude' => round($avgAttitude, 1),
+                'latest_teaching' => $agendas->sortByDesc('date')->first()?->date,
+            ];
+        })->filter()->sortByDesc('total_meetings')->values();
+
         return view('admin.extracurriculars.learning', compact(
             'extracurriculars',
             'classes',
@@ -81,7 +120,8 @@ class ExtracurricularLearningController extends Controller
             'currentTab',
             'students',
             'agendas',
-            'evaluations'
+            'evaluations',
+            'coachSummaries'
         ));
     }
 
@@ -123,6 +163,8 @@ class ExtracurricularLearningController extends Controller
                 'material_taught' => $validated['material_taught'],
                 'location' => $validated['location'] ?? 'Area Kampus Sekolah',
                 'notes' => $validated['notes'] ?? null,
+                'status' => 'submitted',
+                'submitted_at' => now(),
             ]);
 
             foreach ($validated['students'] as $studentId => $item) {
@@ -145,11 +187,53 @@ class ExtracurricularLearningController extends Controller
             return redirect()->route('admin.extracurriculars.learning.index', [
                 'tab' => 'history',
                 'extracurricular_id' => $validated['extracurricular_id']
-            ])->with('success', 'Agenda pembelajaran & absensi ekstrakurikuler berhasil disimpan!');
+            ])->with('success', 'Agenda pembelajaran & absensi ekstrakurikuler berhasil diajukan untuk disetujui Kepala Sekolah!');
         } catch (\Throwable $e) {
             DB::rollBack();
             return back()->with('error', 'Gagal menyimpan agenda ekstrakurikuler: ' . $e->getMessage())->withInput();
         }
+    }
+
+    /**
+     * Setujui Agenda Pembelajaran oleh Kepala Sekolah
+     */
+    public function approveAgenda(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (!$user->hasRole(['super-admin', 'admin', 'kepala-sekolah'])) {
+            abort(403, 'Hanya Kepala Sekolah dan Administrator yang berhak menyetujui laporan pembelajaran.');
+        }
+
+        $agenda = ExtracurricularAgenda::findOrFail($id);
+        $agenda->update([
+            'status' => 'approved',
+            'approved_by' => $user->id,
+            'approved_at' => now(),
+            'approval_notes' => $request->input('approval_notes'),
+        ]);
+
+        return back()->with('success', 'Laporan agenda ekskul berhasil disetujui (Approved).');
+    }
+
+    /**
+     * Minta Revisi / Tolak Agenda Pembelajaran oleh Kepala Sekolah
+     */
+    public function rejectAgenda(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (!$user->hasRole(['super-admin', 'admin', 'kepala-sekolah'])) {
+            abort(403, 'Hanya Kepala Sekolah dan Administrator yang berhak mengelola persetujuan.');
+        }
+
+        $agenda = ExtracurricularAgenda::findOrFail($id);
+        $agenda->update([
+            'status' => 'rejected',
+            'approved_by' => $user->id,
+            'approved_at' => now(),
+            'approval_notes' => $request->input('approval_notes') ?? 'Mohon periksa kembali materi/absensi latihan.',
+        ]);
+
+        return back()->with('success', 'Laporan agenda ekskul dikembalikan untuk revisi.');
     }
 
     public function destroyAgenda($id)

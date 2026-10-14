@@ -254,6 +254,7 @@
                             <th class="px-4 py-3">Kelompok & Murabbi</th>
                             <th class="px-4 py-3">Materi & Tilawah</th>
                             <th class="px-4 py-3 text-center">Rekap Kehadiran</th>
+                            <th class="px-4 py-3 text-center">Status Approval Kepsek</th>
                             <th class="px-4 py-3 text-center">Aksi</th>
                         </tr>
                     </thead>
@@ -275,27 +276,72 @@
                                 </td>
                                 <td class="px-4 py-3 text-center">
                                     <div class="flex items-center justify-center gap-1.5 text-xs">
-                                        <span class="px-2 py-0.5 rounded bg-teal-100 text-teal-700 font-bold">H: {{ $counts['hadir'] }}</span>
-                                        <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-700 font-bold">S: {{ $counts['sakit'] }}</span>
-                                        <span class="px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-bold">I: {{ $counts['izin'] }}</span>
-                                        <span class="px-2 py-0.5 rounded bg-rose-100 text-rose-700 font-bold">A: {{ $counts['alpa'] }}</span>
+                                        <span class="px-2 py-0.5 rounded bg-teal-100 text-teal-700 font-bold" title="Hadir">H: {{ $counts['hadir'] }}</span>
+                                        <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-700 font-bold" title="Sakit">S: {{ $counts['sakit'] }}</span>
+                                        <span class="px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-bold" title="Izin">I: {{ $counts['izin'] }}</span>
+                                        <span class="px-2 py-0.5 rounded bg-rose-100 text-rose-700 font-bold" title="Alpa">A: {{ $counts['alpa'] }}</span>
                                     </div>
                                 </td>
                                 <td class="px-4 py-3 text-center">
-                                    <form action="{{ route('admin.bpi.destroy-agenda', $ag->id) }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus agenda BPI ini?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="p-1.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors" title="Hapus Agenda">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                        </button>
-                                    </form>
+                                    @if(($ag->status ?? 'submitted') === 'approved')
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                            Disetujui Kepsek
+                                        </span>
+                                        @if($ag->approver)
+                                            <div class="text-[10px] text-gray-400 mt-0.5">Oleh: {{ $ag->approver->name }}</div>
+                                        @endif
+                                    @elseif(($ag->status ?? '') === 'rejected')
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                            Perlu Revisi
+                                        </span>
+                                        @if($ag->approval_notes)
+                                            <div class="text-[10px] text-rose-500 mt-0.5 italic">"{{ $ag->approval_notes }}"</div>
+                                        @endif
+                                    @else
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                            <svg class="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                            Menunggu Approval
+                                        </span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <div class="flex items-center justify-center gap-2">
+                                        @if(auth()->user()->hasRole(['super-admin', 'admin', 'kepala-sekolah']))
+                                            @if(($ag->status ?? 'submitted') !== 'approved')
+                                                <form action="{{ route('admin.bpi.approve-agenda', $ag->id) }}" method="POST" class="inline">
+                                                    @csrf
+                                                    <button type="submit" class="px-2 py-1 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors flex items-center gap-1" title="Setujui Laporan">
+                                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                                        Approve
+                                                    </button>
+                                                </form>
+                                                <form action="{{ route('admin.bpi.reject-agenda', $ag->id) }}" method="POST" class="inline" onsubmit="var note = prompt('Catatan perbaikan / alasan penolakan:'); if(note === null) return false; this.querySelector('input[name=approval_notes]').value = note; return true;">
+                                                    @csrf
+                                                    <input type="hidden" name="approval_notes" value="">
+                                                    <button type="submit" class="px-2 py-1 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors" title="Minta Revisi">
+                                                        Revisi
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        @endif
+
+                                        <form action="{{ route('admin.bpi.destroy-agenda', $ag->id) }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus agenda BPI ini?')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="p-1.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors" title="Hapus Agenda">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                                <td colspan="6" class="px-4 py-8 text-center text-gray-500">
                                     Belum ada catatan riwayat pertemuan BPI.
                                 </td>
                             </tr>
@@ -470,27 +516,40 @@
 
     <!-- MODAL TAMBAH KELOMPOK BPI -->
     <div x-show="showGroupModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" style="display: none;">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl border border-gray-100 dark:border-gray-700 max-h-[90vh] overflow-y-auto">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl border border-gray-100 dark:border-gray-700 max-h-[92vh] overflow-y-auto">
             <div class="flex items-center justify-between pb-3 border-b border-gray-200 dark:border-gray-700">
-                <h3 class="text-base font-bold text-gray-900 dark:text-white">Tambah Kelompok Halaqah BPI</h3>
-                <button type="button" @click="showGroupModal = false" class="text-gray-400 hover:text-gray-600">&times;</button>
+                <div class="flex items-center gap-2">
+                    <div class="p-2 bg-teal-50 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400 rounded-lg">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-gray-900 dark:text-white">Tambah Kelompok Halaqah BPI</h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Tentukan murabbi dan pilih santri binaan</p>
+                    </div>
+                </div>
+                <button type="button" @click="showGroupModal = false" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
             </div>
 
             <form action="{{ route('admin.bpi.store-group') }}" method="POST" class="space-y-4">
                 @csrf
-                <div>
-                    <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Nama Kelompok BPI</label>
-                    <input type="text" name="name" placeholder="Contoh: Kelompok Umar bin Khattab 1" required class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Nama Kelompok BPI</label>
+                        <input type="text" name="name" placeholder="Contoh: Kelompok Umar bin Khattab 1" required class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Guru Pembina / Murabbi</label>
+                        <select name="mentor_id" required class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                            @foreach($mentors as $m)
+                                <option value="{{ $m->id }}">{{ $m->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Guru Pembina / Murabbi</label>
-                    <select name="mentor_id" required class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
-                        @foreach($mentors as $m)
-                            <option value="{{ $m->id }}">{{ $m->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
+
+                <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Kategori Kelompok</label>
                         <select name="gender" class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
@@ -501,25 +560,119 @@
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Tingkat / Jenjang</label>
-                        <input type="text" name="level" placeholder="Contoh: Kelas 7" class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <input type="text" name="level" placeholder="Contoh: Kelas 7 atau Semua Tingkat" class="w-full text-sm rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
                     </div>
                 </div>
 
-                <div>
-                    <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Pilih Anggota Santri</label>
-                    <div class="border border-gray-200 dark:border-gray-700 rounded-xl p-3 max-h-48 overflow-y-auto space-y-1.5">
+                <!-- Pemilihan Anggota dengan Filter Kelas, Tingkat, & Pencarian Nama -->
+                <div x-data="{
+                    searchStudent: '',
+                    selectedLevel: '',
+                    selectedClass: '',
+                    matchStudent(name, level, classId) {
+                        if (this.searchStudent && !name.toLowerCase().includes(this.searchStudent.toLowerCase())) return false;
+                        if (this.selectedLevel && String(level) !== String(this.selectedLevel)) return false;
+                        if (this.selectedClass && String(classId) !== String(this.selectedClass)) return false;
+                        return true;
+                    },
+                    selectAllVisible() {
+                        const checkboxes = this.$el.querySelectorAll('.student-checkbox');
+                        checkboxes.forEach(cb => {
+                            const row = cb.closest('.student-row');
+                            if (row && row.style.display !== 'none') {
+                                cb.checked = true;
+                            }
+                        });
+                    },
+                    deselectAllVisible() {
+                        const checkboxes = this.$el.querySelectorAll('.student-checkbox');
+                        checkboxes.forEach(cb => {
+                            const row = cb.closest('.student-row');
+                            if (row && row.style.display !== 'none') {
+                                cb.checked = false;
+                            }
+                        });
+                    }
+                }" class="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-bold text-gray-800 dark:text-gray-200">
+                            Pilih Anggota Santri Bina Pribadi Islam
+                        </label>
+                        <div class="flex items-center gap-2 text-xs">
+                            <button type="button" @click="selectAllVisible()" class="text-teal-600 dark:text-teal-400 font-semibold hover:underline flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                Pilih Semua (Sesuai Filter)
+                            </button>
+                            <span class="text-gray-300">|</span>
+                            <button type="button" @click="deselectAllVisible()" class="text-rose-500 font-semibold hover:underline">
+                                Batal Pilih
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Filter Bar: Tingkat, Kelas, & Search Nama -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Filter Tingkat</label>
+                            <select x-model="selectedLevel" class="w-full text-xs py-1.5 px-2.5 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-teal-500 focus:border-teal-500">
+                                <option value="">Semua Tingkat</option>
+                                @foreach($classes->pluck('level')->filter()->unique()->sort() as $lvl)
+                                    <option value="{{ $lvl }}">Tingkat {{ $lvl }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Filter Kelas</label>
+                            <select x-model="selectedClass" class="w-full text-xs py-1.5 px-2.5 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-teal-500 focus:border-teal-500">
+                                <option value="">Semua Kelas</option>
+                                @foreach($classes as $c)
+                                    <option value="{{ $c->id }}" x-show="!selectedLevel || '{{ $c->level }}' === selectedLevel">{{ $c->name }} (Tingkat {{ $c->level }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Cari Nama Santri</label>
+                            <div class="relative">
+                                <input type="text" x-model="searchStudent" placeholder="Ketik nama santri..." class="w-full text-xs py-1.5 pl-8 pr-2.5 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-teal-500 focus:border-teal-500">
+                                <svg class="w-4 h-4 text-gray-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Checklist Santri -->
+                    <div class="border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 max-h-56 overflow-y-auto space-y-1 divide-y divide-gray-100 dark:divide-gray-700/50">
                         @foreach($allStudents as $st)
-                            <label class="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 p-1 rounded">
-                                <input type="checkbox" name="student_ids[]" value="{{ $st->id }}" class="rounded text-teal-600 focus:ring-teal-500">
-                                <span>{{ $st->user?->name ?? 'Santri' }} ({{ $st->class?->name ?? '-' }})</span>
+                            @php
+                                $stName = addslashes($st->user?->name ?? 'Santri');
+                                $stLevel = $st->class?->level ?? '';
+                                $stClassId = $st->class_id ?? '';
+                            @endphp
+                            <label x-show="matchStudent('{{ $stName }}', '{{ $stLevel }}', '{{ $stClassId }}')" class="student-row flex items-center justify-between text-xs text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 p-2 rounded-lg transition-colors">
+                                <div class="flex items-center gap-2.5">
+                                    <input type="checkbox" name="student_ids[]" value="{{ $st->id }}" class="student-checkbox rounded text-teal-600 focus:ring-teal-500">
+                                    <span class="font-medium text-gray-800 dark:text-gray-200">{{ $st->user?->name ?? 'Santri' }}</span>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="px-2 py-0.5 text-[11px] font-semibold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-md">
+                                        {{ $st->class?->name ?? 'Tanpa Kelas' }}
+                                    </span>
+                                    @if($st->class?->level)
+                                        <span class="px-1.5 py-0.5 text-[10px] font-bold bg-teal-50 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 rounded">
+                                            Tingkat {{ $st->class->level }}
+                                        </span>
+                                    @endif
+                                </div>
                             </label>
                         @endforeach
                     </div>
                 </div>
 
                 <div class="flex justify-end gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
-                    <button type="button" @click="showGroupModal = false" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-xl text-sm">Batal</button>
-                    <button type="submit" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-sm">Simpan Kelompok</button>
+                    <button type="button" @click="showGroupModal = false" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-xl text-sm font-medium transition-colors">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-sm shadow-sm transition-all flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        Simpan Kelompok BPI
+                    </button>
                 </div>
             </form>
         </div>
