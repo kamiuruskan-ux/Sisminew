@@ -18,10 +18,53 @@ class Setting extends Model
     {
         try {
             $setting = self::where('key', $key)->first();
-            return $setting ? $setting->value : $default;
+            if ($setting && $setting->value !== null && $setting->value !== '') {
+                return $setting->value;
+            }
+
+            // Fallback alias untuk kepala sekolah / pimpinan
+            if (in_array($key, ['headmaster_name', 'principal_name', 'raport_principal_name', 'school_principal'])) {
+                $alias = self::where('key', 'school_principal_name')->value('value');
+                if ($alias) return $alias;
+            } elseif (in_array($key, ['headmaster_nip', 'principal_nip', 'raport_principal_nip'])) {
+                $alias = self::where('key', 'school_principal_nip')->value('value');
+                if ($alias) return $alias;
+            } elseif (in_array($key, ['headmaster_title', 'principal_title', 'raport_principal_title'])) {
+                $alias = self::where('key', 'school_principal_title')->value('value');
+                if ($alias) return $alias;
+            }
+
+            return $default;
         } catch (\Throwable $e) {
             return $default;
         }
+    }
+
+    public static function getPrincipalName(?string $default = null): ?string
+    {
+        return self::get('school_principal_name')
+            ?: self::get('headmaster_name')
+            ?: self::get('raport_principal_name')
+            ?: self::get('principal_name')
+            ?: self::get('school_principal')
+            ?: $default;
+    }
+
+    public static function getPrincipalNip(?string $default = null): ?string
+    {
+        return self::get('school_principal_nip')
+            ?: self::get('headmaster_nip')
+            ?: self::get('raport_principal_nip')
+            ?: self::get('principal_nip')
+            ?: $default;
+    }
+
+    public static function getPrincipalTitle(?string $default = 'Kepala Sekolah'): string
+    {
+        return self::get('school_principal_title')
+            ?: self::get('quran_raport_principal_title')
+            ?: self::get('principal_title')
+            ?: $default;
     }
 
     public static function set(string $key, $value): void

@@ -295,8 +295,8 @@ class KajianPekananController extends Controller
             'school_city' => Setting::get('school_city', 'Palu'),
             'school_phone' => Setting::get('school_phone', '-'),
             'school_logo' => Setting::get('letterhead_logo_path') ? asset(Setting::get('letterhead_logo_path')) : Setting::getLogoUrl(),
-            'principal_name' => Setting::get('school_principal_name', 'Kepala Sekolah'),
-            'principal_nip' => Setting::get('school_principal_nip', '-'),
+            'principal_name' => Setting::getPrincipalName('Kepala Sekolah'),
+            'principal_nip' => Setting::getPrincipalNip('-'),
         ];
 
         return view('admin.kajian-pekanan.print', compact('session', 'attendances', 'raportSettings'));

@@ -99,11 +99,11 @@ class QuranRaportController extends Controller
             'custom_logo_path' => Setting::get('quran_raport_custom_logo_path'),
             'city' => Setting::get('quran_raport_city', 'Palu'), // Default Kota Palu
             'date' => Setting::get('quran_raport_date', now()->translatedFormat('d F Y')),
-            'principal_name' => Setting::get('quran_raport_principal_name', Setting::get('principal_name', 'Ustadz Pembina, Lc., M.H.')),
-            'principal_nip' => Setting::get('quran_raport_principal_nip', Setting::get('principal_nip', '-')),
-            'principal_title' => Setting::get('quran_raport_principal_title', 'Kepala Sekolah / Mudir'),
-            'signature_path' => Setting::get('quran_raport_signature_path', Setting::get('raport_signature_path')),
-            'stamp_path' => Setting::get('quran_raport_stamp_path', Setting::get('stamp_image_path')),
+            'principal_name' => Setting::get('quran_raport_principal_name') ?: Setting::getPrincipalName('Kepala Sekolah'),
+            'principal_nip' => Setting::get('quran_raport_principal_nip') ?: Setting::getPrincipalNip('-'),
+            'principal_title' => Setting::get('quran_raport_principal_title') ?: Setting::getPrincipalTitle('Kepala Sekolah / Mudir'),
+            'signature_path' => Setting::get('quran_raport_signature_path') ?: Setting::get('raport_signature_path', Setting::get('student_card_signature_path')),
+            'stamp_path' => Setting::get('quran_raport_stamp_path') ?: Setting::get('raport_stamp_path', Setting::get('student_card_stamp_path', Setting::get('stamp_image_path'))),
         ];
     }
 

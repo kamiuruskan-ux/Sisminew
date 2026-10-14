@@ -157,8 +157,8 @@ class AttendanceController extends Controller
             'letterhead_sub' => Setting::get('letterhead_sub'),
             'city' => Setting::get('school_city', 'Jakarta'),
             'date' => date('d F Y'),
-            'principal_name' => Setting::get('school_principal_name', 'Kepala Sekolah, M.Pd.'),
-            'principal_nip' => Setting::get('school_principal_nip', '-'),
+            'principal_name' => Setting::getPrincipalName('Kepala Sekolah, M.Pd.'),
+            'principal_nip' => Setting::getPrincipalNip('-'),
             'stamp_path' => Setting::get('raport_stamp_path', Setting::get('student_card_stamp_path')) ? asset(Setting::get('raport_stamp_path', Setting::get('student_card_stamp_path'))) : null,
             'signature_path' => Setting::get('raport_signature_path', Setting::get('student_card_signature_path')) ? asset(Setting::get('raport_signature_path', Setting::get('student_card_signature_path'))) : null,
         ];

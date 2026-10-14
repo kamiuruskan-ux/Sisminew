@@ -389,8 +389,15 @@
                 </td>
                 <td>
                     Mengetahui,<br>
-                    Kepala Sekolah,
-                    <div class="sign-space"></div>
+                    {{ $headmasterTitle ?? 'Kepala Sekolah' }},
+                    <div class="sign-space" style="position: relative; height: 60px; display: flex; align-items: center; justify-content: center;">
+                        @if(!empty($stampPath))
+                            <img src="{{ asset($stampPath) }}" style="position: absolute; max-height: 60px; opacity: 0.85; left: 10px; z-index: 1;" alt="Stempel">
+                        @endif
+                        @if(!empty($signaturePath))
+                            <img src="{{ asset($signaturePath) }}" style="position: relative; max-height: 55px; z-index: 2;" alt="TTD">
+                        @endif
+                    </div>
                     <strong><u>{{ $headmasterName }}</u></strong>
                     @if($headmasterNip)
                         <br><span style="font-size: 8.5pt;">NIP: {{ $headmasterNip }}</span>

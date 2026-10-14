@@ -514,9 +514,12 @@ class BpiController extends Controller
         $schoolName = Setting::get('school_name', 'SDIT AL-FAHMI PALU');
         $schoolAddress = Setting::get('school_address', 'Jl. Anoa II No. 12, Kel. Tanamodindi, Kec. Mantikulore, Kota Palu, Sulawesi Tengah');
         $schoolCity = Setting::get('school_city', 'Palu');
-        $schoolLogo = Setting::get('school_logo');
-        $headmasterName = Setting::get('headmaster_name', 'M. Fathan, S.Pd.I');
-        $headmasterNip = Setting::get('headmaster_nip');
+        $schoolLogo = Setting::getLogoUrl();
+        $headmasterName = Setting::getPrincipalName('Kepala Sekolah');
+        $headmasterNip = Setting::getPrincipalNip();
+        $headmasterTitle = Setting::getPrincipalTitle('Kepala Sekolah');
+        $signaturePath = Setting::get('raport_signature_path', Setting::get('student_card_signature_path'));
+        $stampPath = Setting::get('raport_stamp_path', Setting::get('student_card_stamp_path'));
 
         $historicalClass = $student->getClassForYear($activeYear?->id);
         $className = $historicalClass?->name ?? $student->class?->name ?? '-';
@@ -537,7 +540,10 @@ class BpiController extends Controller
             'schoolCity',
             'schoolLogo',
             'headmasterName',
-            'headmasterNip'
+            'headmasterNip',
+            'headmasterTitle',
+            'signaturePath',
+            'stampPath'
         ));
     }
 
