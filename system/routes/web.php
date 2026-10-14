@@ -534,7 +534,6 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::post('extracurriculars/learning/store-agenda', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'storeAgenda'])->name('extracurriculars.learning.store-agenda');
         Route::delete('extracurriculars/learning/agenda/{id}', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'destroyAgenda'])->name('extracurriculars.learning.destroy-agenda');
         Route::post('extracurriculars/learning/save-evaluations', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'saveEvaluations'])->name('extracurriculars.learning.save-evaluations');
-        Route::resource('extracurriculars', \App\Http\Controllers\Admin\ExtracurricularController::class);
 
         // Modul Pembelajaran Bina Pribadi Islam (BPI) & Raport Khusus BPI
         Route::get('bpi', [\App\Http\Controllers\Admin\BpiController::class, 'index'])->name('bpi.index');

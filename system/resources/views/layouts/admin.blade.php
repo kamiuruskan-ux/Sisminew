@@ -1082,8 +1082,8 @@
                         @endif
 
                         <!-- Kalender & Absen Kegiatan Sekolah -->
-                        <a href="{{ route('activity-calendar.index') }}" 
-                           class="nav-link text-xs {{ request()->routeIs('activity-calendar.*') ? 'nav-link-active font-bold text-[#3C50E0]' : '' }}">
+                        <a href="{{ route('admin.activity-calendar.index') }}" 
+                           class="nav-link text-xs {{ request()->routeIs('admin.activity-calendar.*') ? 'nav-link-active font-bold text-[#3C50E0]' : '' }}">
                             <div class="flex items-center justify-between w-full">
                                 <div class="flex items-center">
                                     <svg class="nav-icon text-amber-500 dark:text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
