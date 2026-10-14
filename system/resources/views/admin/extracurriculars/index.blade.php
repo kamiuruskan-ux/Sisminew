@@ -6,6 +6,20 @@
 <div class="space-y-6" x-data="{
     showModal: false,
     showDeleteModal: false,
+    showCategoryModal: false,
+    catForm: { id: null, name: '', description: '', color: 'emerald', order: 0 },
+    catFormAction: '{{ route('admin.extracurriculars.categories.store') }}',
+    catFormMethod: 'POST',
+    openCategoryCreate() {
+        this.catForm = { id: null, name: '', description: '', color: 'emerald', order: 0 };
+        this.catFormAction = '{{ route('admin.extracurriculars.categories.store') }}';
+        this.catFormMethod = 'POST';
+    },
+    openCategoryEdit(cat) {
+        this.catForm = { id: cat.id, name: cat.name, description: cat.description || '', color: cat.color || 'emerald', order: cat.order || 0 };
+        this.catFormAction = '{{ url('admin/extracurriculars/categories') }}/' + cat.id;
+        this.catFormMethod = 'PUT';
+    },
     deleteTarget: null,
     deleteFormAction: '',
     modalTitle: 'Tambah Ekstrakurikuler',
@@ -16,7 +30,7 @@
     formData: {
         id: null,
         name: '',
-        category: 'kepemimpinan',
+        category: '{{ array_key_first($categories) ?? 'kepemimpinan' }}',
         schedule: '',
         description: '',
         order: 0,
@@ -88,7 +102,11 @@
             <h1 class="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Kelola Ekstrakurikuler</h1>
             <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">Kelola daftar kegiatan ekstrakurikuler &amp; pengembangan minat bakat siswa yang tampil di website publik.</p>
         </div>
-        <div>
+        <div class="flex items-center gap-2.5">
+            <button type="button" @click="showCategoryModal = true; openCategoryCreate()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-colors flex items-center gap-2 border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer">
+                <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                <span>Kelola Kategori</span>
+            </button>
             <button type="button" @click="openCreateModal()" class="btn-primary">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                 <span>Tambah Ekstrakurikuler</span>
@@ -318,6 +336,101 @@
                         Hapus
                     </button>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Management Modal -->
+    <div x-show="showCategoryModal" x-cloak class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4" style="display: none;">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[90vh] flex flex-col" @click.away="showCategoryModal = false">
+            <div class="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800">
+                <div class="flex items-center gap-2.5">
+                    <div class="p-2 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-extrabold text-slate-900 dark:text-white">Kelola Kategori Ekstrakurikuler</h3>
+                        <p class="text-xs text-slate-500">Tambah, ubah nama, atau hapus kategori kegiatan</p>
+                    </div>
+                </div>
+                <button type="button" @click="showCategoryModal = false" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl font-bold">&times;</button>
+            </div>
+
+            <div class="p-5 overflow-y-auto space-y-6">
+                <!-- Form Tambah / Edit Kategori -->
+                <form :action="catFormAction" method="POST" class="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
+                    @csrf
+                    <template x-if="catFormMethod === 'PUT'">
+                        <input type="hidden" name="_method" value="PUT">
+                    </template>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-800 dark:text-slate-200" x-text="catForm.id ? 'Edit Kategori: ' + catForm.name : 'Tambah Kategori Baru'"></span>
+                        <template x-if="catForm.id">
+                            <button type="button" @click="openCategoryCreate()" class="text-[11px] text-primary hover:underline font-semibold">Batal Edit</button>
+                        </template>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase mb-1">Nama Kategori</label>
+                            <input type="text" name="name" x-model="catForm.name" required placeholder="Contoh: Bela Diri & Silat" class="w-full text-xs py-2 px-3 rounded-lg border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase mb-1">Keterangan Singkat</label>
+                            <input type="text" name="description" x-model="catForm.description" placeholder="Deskripsi peruntukan..." class="w-full text-xs py-2 px-3 rounded-lg border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-1">
+                        <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <span x-text="catForm.id ? 'Perbarui Kategori' : 'Simpan Kategori'"></span>
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Daftar Kategori yang Ada -->
+                <div>
+                    <h4 class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">Daftar Kategori Saat Ini</h4>
+                    <div class="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-900">
+                        @forelse($categoriesData as $cItem)
+                            @php
+                                $usageCount = \App\Models\Extracurricular::where('category', $cItem->slug)->count();
+                            @endphp
+                            <div class="p-3.5 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition">
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-bold text-xs text-slate-900 dark:text-white">{{ $cItem->name }}</span>
+                                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 font-mono">slug: {{ $cItem->slug }}</span>
+                                    </div>
+                                    <div class="text-[11px] text-slate-400 mt-0.5">
+                                        {{ $cItem->description ?: 'Tanpa keterangan' }} • <span class="text-emerald-600 font-semibold">{{ $usageCount }} kegiatan</span> terhubung
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <button type="button" @click="openCategoryEdit({{ json_encode($cItem) }})" class="p-1.5 text-slate-500 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition" title="Edit Kategori">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                    </button>
+                                    <form action="{{ route('admin.extracurriculars.categories.destroy', $cItem->id) }}" method="POST" onsubmit="return confirm('Hapus kategori ini?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition" title="Hapus Kategori">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="p-4 text-center text-xs text-slate-400">Belum ada kategori.</div>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                <button type="button" @click="showCategoryModal = false" class="btn-secondary">
+                    Tutup
+                </button>
             </div>
         </div>
     </div>

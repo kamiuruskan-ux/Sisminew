@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
 use App\Models\BpiAgenda;
+use App\Models\BpiAtp;
 use App\Models\BpiAttendance;
 use App\Models\BpiGroup;
 use App\Models\BpiGroupMember;
@@ -21,6 +22,7 @@ class BpiController extends Controller
     public function index(Request $request)
     {
         BpiGroup::ensureTableExists();
+        BpiAtp::ensureTableExists();
 
         $user = auth()->user();
         $activeYear = AcademicYear::getActive();
@@ -104,6 +106,7 @@ class BpiController extends Controller
         }
 
         $classes = ClassModel::orderBy('level')->orderBy('name')->get();
+        $atps = BpiAtp::where('is_active', true)->orderBy('order')->orderBy('id')->get();
 
         return view('admin.bpi.index', compact(
             'groups',
@@ -116,7 +119,8 @@ class BpiController extends Controller
             'agendas',
             'reports',
             'activeYear',
-            'classes'
+            'classes',
+            'atps'
         ));
     }
 
@@ -454,5 +458,138 @@ class BpiController extends Controller
             'headmasterName',
             'headmasterNip'
         ));
+    }
+
+    /**
+     * Simpan Modul ATP & Silabus BPI Baru
+     */
+    public function storeAtp(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user->hasRole(['super-admin', 'admin', 'kepala-sekolah'])) {
+            abort(403, 'Hanya Administrator dan Kepala Sekolah yang dapat menyusun ATP BPI.');
+        }
+
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'dimension' => 'nullable|string|max:255',
+            'phase' => 'nullable|string|max:100',
+            'level' => 'nullable|string|max:100',
+            'class_indicator' => 'nullable|string',
+            'learning_outcome' => 'nullable|string',
+            'assessment_indicators' => 'nullable|string',
+            'habits_required' => 'nullable|string',
+            'execution_time' => 'nullable|string|max:150',
+            'activities' => 'nullable|array',
+            'material_content' => 'nullable|string',
+            'order' => 'nullable|integer',
+        ]);
+
+        $activities = [];
+        if (!empty($validated['activities'])) {
+            foreach ($validated['activities'] as $idx => $actText) {
+                if (!empty(trim($actText))) {
+                    $activities[] = [
+                        'meeting' => $idx + 1,
+                        'activity' => trim($actText),
+                    ];
+                }
+            }
+        }
+
+        BpiAtp::create([
+            'title' => $validated['title'],
+            'dimension' => $validated['dimension'] ?? null,
+            'phase' => $validated['phase'] ?? null,
+            'level' => $validated['level'] ?? 'Semua Tingkat',
+            'class_indicator' => $validated['class_indicator'] ?? null,
+            'learning_outcome' => $validated['learning_outcome'] ?? null,
+            'assessment_indicators' => $validated['assessment_indicators'] ?? null,
+            'habits_required' => $validated['habits_required'] ?? null,
+            'execution_time' => $validated['execution_time'] ?? null,
+            'meeting_activities' => $activities,
+            'material_content' => $validated['material_content'] ?? null,
+            'order' => $validated['order'] ?? 0,
+            'is_active' => true,
+            'created_by' => $user->id,
+        ]);
+
+        return redirect()->route('admin.bpi.index', ['tab' => 'atp'])
+            ->with('success', 'Modul ATP & materi pembelajaran BPI berhasil disimpan dan dapat diakses guru.');
+    }
+
+    /**
+     * Perbarui Modul ATP & Silabus BPI
+     */
+    public function updateAtp(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (!$user->hasRole(['super-admin', 'admin', 'kepala-sekolah'])) {
+            abort(403, 'Hanya Administrator dan Kepala Sekolah yang dapat menyusun ATP BPI.');
+        }
+
+        $atp = BpiAtp::findOrFail($id);
+
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'dimension' => 'nullable|string|max:255',
+            'phase' => 'nullable|string|max:100',
+            'level' => 'nullable|string|max:100',
+            'class_indicator' => 'nullable|string',
+            'learning_outcome' => 'nullable|string',
+            'assessment_indicators' => 'nullable|string',
+            'habits_required' => 'nullable|string',
+            'execution_time' => 'nullable|string|max:150',
+            'activities' => 'nullable|array',
+            'material_content' => 'nullable|string',
+            'order' => 'nullable|integer',
+        ]);
+
+        $activities = [];
+        if (!empty($validated['activities'])) {
+            foreach ($validated['activities'] as $idx => $actText) {
+                if (!empty(trim($actText))) {
+                    $activities[] = [
+                        'meeting' => $idx + 1,
+                        'activity' => trim($actText),
+                    ];
+                }
+            }
+        }
+
+        $atp->update([
+            'title' => $validated['title'],
+            'dimension' => $validated['dimension'] ?? $atp->dimension,
+            'phase' => $validated['phase'] ?? $atp->phase,
+            'level' => $validated['level'] ?? $atp->level,
+            'class_indicator' => $validated['class_indicator'] ?? null,
+            'learning_outcome' => $validated['learning_outcome'] ?? null,
+            'assessment_indicators' => $validated['assessment_indicators'] ?? null,
+            'habits_required' => $validated['habits_required'] ?? null,
+            'execution_time' => $validated['execution_time'] ?? null,
+            'meeting_activities' => !empty($activities) ? $activities : $atp->meeting_activities,
+            'material_content' => $validated['material_content'] ?? $atp->material_content,
+            'order' => $validated['order'] ?? $atp->order,
+        ]);
+
+        return redirect()->route('admin.bpi.index', ['tab' => 'atp'])
+            ->with('success', 'Modul ATP & materi pembelajaran BPI berhasil diperbarui.');
+    }
+
+    /**
+     * Hapus Modul ATP BPI
+     */
+    public function destroyAtp($id)
+    {
+        $user = auth()->user();
+        if (!$user->hasRole(['super-admin', 'admin', 'kepala-sekolah'])) {
+            abort(403, 'Hanya Administrator dan Kepala Sekolah yang dapat menghapus ATP BPI.');
+        }
+
+        $atp = BpiAtp::findOrFail($id);
+        $atp->delete();
+
+        return redirect()->route('admin.bpi.index', ['tab' => 'atp'])
+            ->with('success', 'Modul ATP BPI berhasil dihapus.');
     }
 }

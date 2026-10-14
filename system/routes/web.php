@@ -464,6 +464,11 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::post('extracurriculars/learning/agenda/{id}/reject', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'rejectAgenda'])->name('extracurriculars.learning.reject-agenda');
         Route::post('extracurriculars/learning/save-evaluations', [\App\Http\Controllers\Admin\ExtracurricularLearningController::class, 'saveEvaluations'])->name('extracurriculars.learning.save-evaluations');
         
+        // Manajemen Kategori Ekstrakurikuler (Tambah, Ubah, Hapus)
+        Route::post('extracurriculars/categories', [\App\Http\Controllers\Admin\ExtracurricularController::class, 'storeCategory'])->name('extracurriculars.categories.store');
+        Route::put('extracurriculars/categories/{id}', [\App\Http\Controllers\Admin\ExtracurricularController::class, 'updateCategory'])->name('extracurriculars.categories.update');
+        Route::delete('extracurriculars/categories/{id}', [\App\Http\Controllers\Admin\ExtracurricularController::class, 'destroyCategory'])->name('extracurriculars.categories.destroy');
+
         Route::resource('extracurriculars', \App\Http\Controllers\Admin\ExtracurricularController::class)->except(['show']);
         Route::post('extracurriculars/{extracurricular}/toggle', [\App\Http\Controllers\Admin\ExtracurricularController::class, 'toggleStatus'])->name('extracurriculars.toggle');
         
@@ -545,6 +550,9 @@ Route::middleware(['auth', 'role:super-admin|admin|guru|teacher|guru-quran|kepal
         Route::post('bpi/agenda/{id}/approve', [\App\Http\Controllers\Admin\BpiController::class, 'approveAgenda'])->name('bpi.approve-agenda');
         Route::post('bpi/agenda/{id}/reject', [\App\Http\Controllers\Admin\BpiController::class, 'rejectAgenda'])->name('bpi.reject-agenda');
         Route::post('bpi/store-group', [\App\Http\Controllers\Admin\BpiController::class, 'storeGroup'])->name('bpi.store-group');
+        Route::post('bpi/atp', [\App\Http\Controllers\Admin\BpiController::class, 'storeAtp'])->name('bpi.atp.store');
+        Route::put('bpi/atp/{id}', [\App\Http\Controllers\Admin\BpiController::class, 'updateAtp'])->name('bpi.atp.update');
+        Route::delete('bpi/atp/{id}', [\App\Http\Controllers\Admin\BpiController::class, 'destroyAtp'])->name('bpi.atp.destroy');
         Route::post('bpi/save-report', [\App\Http\Controllers\Admin\BpiController::class, 'saveReport'])->name('bpi.save-report');
         Route::get('bpi/raport-list', [\App\Http\Controllers\Admin\BpiController::class, 'raportList'])->name('bpi.raport-list');
         Route::get('bpi/raport-print/{studentId}', [\App\Http\Controllers\Admin\BpiController::class, 'printRaport'])->name('bpi.print-raport');

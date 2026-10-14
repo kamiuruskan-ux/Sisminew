@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Extracurricular;
+use App\Models\ExtracurricularCategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -11,6 +12,8 @@ class ExtracurricularController extends Controller
 {
     public function index(Request $request)
     {
+        ExtracurricularCategory::ensureTableExists();
+
         $query = Extracurricular::query();
 
         if ($request->filled('category')) {
@@ -28,24 +31,15 @@ class ExtracurricularController extends Controller
 
         $extracurriculars = $query->orderBy('order', 'asc')->orderBy('id', 'desc')->paginate(10)->withQueryString();
 
-        $categories = [
-            'kepemimpinan' => 'Kepemimpinan & Organisasi',
-            'sains' => 'Sains & Teknologi',
-            'olahraga' => 'Olahraga & Atletik',
-            'seni' => 'Seni & Budaya',
-        ];
+        $categories = ExtracurricularCategory::getCategoryList();
+        $categoriesData = ExtracurricularCategory::orderBy('order')->orderBy('name')->get();
 
-        return view('admin.extracurriculars.index', compact('extracurriculars', 'categories'));
+        return view('admin.extracurriculars.index', compact('extracurriculars', 'categories', 'categoriesData'));
     }
 
     public function create()
     {
-        $categories = [
-            'kepemimpinan' => 'Kepemimpinan & Organisasi',
-            'sains' => 'Sains & Teknologi',
-            'olahraga' => 'Olahraga & Atletik',
-            'seni' => 'Seni & Budaya',
-        ];
+        $categories = ExtracurricularCategory::getCategoryList();
 
         return view('admin.extracurriculars.create', compact('categories'));
     }
@@ -83,12 +77,7 @@ class ExtracurricularController extends Controller
 
     public function edit(Extracurricular $extracurricular)
     {
-        $categories = [
-            'kepemimpinan' => 'Kepemimpinan & Organisasi',
-            'sains' => 'Sains & Teknologi',
-            'olahraga' => 'Olahraga & Atletik',
-            'seni' => 'Seni & Budaya',
-        ];
+        $categories = ExtracurricularCategory::getCategoryList();
 
         return view('admin.extracurriculars.edit', compact('extracurricular', 'categories'));
     }
@@ -141,5 +130,80 @@ class ExtracurricularController extends Controller
         $extracurricular->update(['is_active' => !$extracurricular->is_active]);
 
         return redirect()->back()->with('success', 'Status ekstrakurikuler berhasil diubah.');
+    }
+
+    /**
+     * Manajemen Kategori Ekstrakurikuler
+     */
+    public function storeCategory(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:100',
+            'slug' => 'nullable|string|max:100|unique:extracurricular_categories,slug',
+            'description' => 'nullable|string',
+            'color' => 'nullable|string|max:30',
+            'order' => 'nullable|integer',
+        ]);
+
+        $slug = !empty($validated['slug']) ? Str::slug($validated['slug']) : Str::slug($validated['name']);
+        
+        // Pastikan slug unik
+        $baseSlug = $slug;
+        $counter = 1;
+        while (ExtracurricularCategory::where('slug', $slug)->exists()) {
+            $slug = "{$baseSlug}-{$counter}";
+            $counter++;
+        }
+
+        ExtracurricularCategory::create([
+            'name' => $validated['name'],
+            'slug' => $slug,
+            'description' => $validated['description'] ?? null,
+            'color' => $validated['color'] ?? 'emerald',
+            'order' => $validated['order'] ?? 0,
+            'is_active' => true,
+        ]);
+
+        return redirect()->route('admin.extracurriculars.index')
+            ->with('success', 'Kategori ekstrakurikuler baru berhasil ditambahkan.');
+    }
+
+    public function updateCategory(Request $request, $id)
+    {
+        $category = ExtracurricularCategory::findOrFail($id);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:100',
+            'description' => 'nullable|string',
+            'color' => 'nullable|string|max:30',
+            'order' => 'nullable|integer',
+        ]);
+
+        $category->update([
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? $category->description,
+            'color' => $validated['color'] ?? $category->color,
+            'order' => $validated['order'] ?? $category->order,
+        ]);
+
+        return redirect()->route('admin.extracurriculars.index')
+            ->with('success', 'Kategori ekstrakurikuler berhasil diperbarui.');
+    }
+
+    public function destroyCategory($id)
+    {
+        $category = ExtracurricularCategory::findOrFail($id);
+        
+        // Cek apakah kategori sedang digunakan
+        $countInUse = Extracurricular::where('category', $category->slug)->count();
+        if ($countInUse > 0) {
+            return redirect()->route('admin.extracurriculars.index')
+                ->with('error', "Kategori '{$category->name}' tidak dapat dihapus karena masih digunakan oleh {$countInUse} ekstrakurikuler.");
+        }
+
+        $category->delete();
+
+        return redirect()->route('admin.extracurriculars.index')
+            ->with('success', 'Kategori ekstrakurikuler berhasil dihapus.');
     }
 }
